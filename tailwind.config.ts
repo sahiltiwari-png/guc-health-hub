@@ -47,6 +47,22 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        hms: {
+          header: "hsl(var(--hms-header))",
+          "header-foreground": "hsl(var(--hms-header-foreground))",
+          "table-header": "hsl(var(--hms-table-header))",
+          "table-header-foreground": "hsl(var(--hms-table-header-foreground))",
+          nav: "hsl(var(--hms-nav))",
+          "nav-foreground": "hsl(var(--hms-nav-foreground))",
+          sidebar: "hsl(var(--hms-sidebar))",
+          "sidebar-foreground": "hsl(var(--hms-sidebar-foreground))",
+          success: "hsl(var(--hms-success))",
+          "success-foreground": "hsl(var(--hms-success-foreground))",
+          warning: "hsl(var(--hms-warning))",
+          info: "hsl(var(--hms-info))",
+          "section-header": "hsl(var(--hms-section-header))",
+          "section-header-foreground": "hsl(var(--hms-section-header-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -62,28 +78,6 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      keyframes: {
-        "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
-        },
-        "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
       },
     },
   },
