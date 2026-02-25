@@ -1,59 +1,83 @@
 import React from 'react';
-import { Megaphone, X, Bell, AlertCircle, Calendar, Info } from 'lucide-react';
+import { X, Bell, Megaphone, AlertCircle, Calendar, Info, ExternalLink } from 'lucide-react';
 
 const announcements = [
   {
     type: 'hiring',
     icon: Megaphone,
     title: '🎉 We Are Hiring!',
-    message: 'GUC Hospital is looking for experienced Cardiologists, Radiologists, and Senior Nurses. Walk-in interviews on 1st & 3rd Saturday of every month. Contact HR: hr@guchospital.com',
-    color: 'bg-blue-50 border-blue-300',
+    message: 'Looking for experienced Cardiologists, Radiologists & Senior Nurses. Walk-in interviews on 1st & 3rd Saturday. Contact: hr@guchospital.com',
+    badge: 'Careers',
+    badgeColor: 'bg-primary text-primary-foreground',
+    borderColor: 'border-l-4 border-l-primary',
+    image: 'https://images.unsplash.com/photo-1551190822-a9ce113ac100?w=400&h=120&fit=crop&q=80',
   },
   {
     type: 'alert',
     icon: AlertCircle,
-    title: '⚠️ System Maintenance Notice',
-    message: 'Scheduled maintenance on 28-Feb-2026 from 11:00 PM to 2:00 AM. Please save your work before the downtime window.',
-    color: 'bg-yellow-50 border-yellow-300',
+    title: '⚠️ System Maintenance',
+    message: 'Scheduled maintenance on 28-Feb-2026 from 11:00 PM to 2:00 AM. Please save your work.',
+    badge: 'IT Notice',
+    badgeColor: 'bg-yellow-500 text-foreground',
+    borderColor: 'border-l-4 border-l-yellow-500',
+    image: null,
   },
   {
     type: 'event',
     icon: Calendar,
-    title: '📅 Upcoming CME Program',
-    message: 'Continuing Medical Education on "Advances in Laparoscopic Surgery" on 5-Mar-2026. All doctors are requested to register at the academic department.',
-    color: 'bg-green-50 border-green-300',
+    title: '📅 CME Program — Laparoscopic Surgery',
+    message: 'Continuing Medical Education on 5-Mar-2026. All doctors are requested to register at the academic department.',
+    badge: 'Event',
+    badgeColor: 'bg-green-600 text-primary-foreground',
+    borderColor: 'border-l-4 border-l-green-600',
+    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&h=120&fit=crop&q=80',
   },
   {
     type: 'info',
     icon: Info,
-    title: '📋 New NABH Guidelines',
-    message: 'Updated NABH documentation templates are now available in the Documents section. All HODs must review and acknowledge by 10-Mar-2026.',
-    color: 'bg-purple-50 border-purple-300',
+    title: '📋 Updated NABH Guidelines',
+    message: 'New documentation templates are available in the Documents section. All HODs must review by 10-Mar-2026.',
+    badge: 'Compliance',
+    badgeColor: 'bg-blue-600 text-primary-foreground',
+    borderColor: 'border-l-4 border-l-blue-600',
+    image: null,
   },
 ];
 
 const HiringBanner = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-[90] bg-black/60 flex items-center justify-center">
-      <div className="bg-card w-[600px] border border-border shadow-2xl">
-        <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-between">
+      <div className="bg-card w-[620px] border border-border shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-primary text-primary-foreground px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell size={14} />
-            <span className="text-sm font-bold">Announcements & Notices</span>
+            <span className="text-sm font-bold">📢 Announcements & Notices</span>
           </div>
           <button onClick={onClose} className="hover:opacity-80"><X size={14} /></button>
         </div>
 
-        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+        {/* Scrollable announcements */}
+        <div className="p-3 space-y-2.5 max-h-[420px] overflow-y-auto">
           {announcements.map((a, i) => {
             const Icon = a.icon;
             return (
-              <div key={i} className={`border p-3 ${a.color}`}>
-                <div className="flex items-start gap-2">
-                  <Icon size={16} className="mt-0.5 shrink-0 text-foreground" />
-                  <div>
-                    <p className="text-xs font-bold text-foreground">{a.title}</p>
-                    <p className="text-[11px] text-foreground/80 mt-1">{a.message}</p>
+              <div key={i} className={`bg-card border border-border ${a.borderColor} overflow-hidden`}>
+                {a.image && (
+                  <div className="w-full h-[100px] overflow-hidden">
+                    <img src={a.image} alt={a.title} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="p-3">
+                  <div className="flex items-start gap-2">
+                    <Icon size={14} className="mt-0.5 shrink-0 text-foreground" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 ${a.badgeColor}`}>{a.badge}</span>
+                        <p className="text-xs font-bold text-foreground">{a.title}</p>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">{a.message}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -61,11 +85,14 @@ const HiringBanner = ({ onClose }: { onClose: () => void }) => {
           })}
         </div>
 
-        <div className="border-t border-border px-4 py-2 flex justify-between items-center bg-muted">
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <input type="checkbox" className="rounded" /> Don't show this again today
+        {/* Footer */}
+        <div className="border-t border-border px-4 py-2.5 flex justify-between items-center bg-muted">
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+            <input type="checkbox" className="rounded" /> Don't show again today
           </label>
-          <button onClick={onClose} className="hms-btn-primary text-[11px]">Acknowledge & Close</button>
+          <button onClick={onClose} className="hms-btn-primary text-[11px] flex items-center gap-1">
+            ✅ Acknowledge & Close
+          </button>
         </div>
       </div>
     </div>
