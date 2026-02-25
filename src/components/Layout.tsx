@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Users, ClipboardList, Stethoscope, FlaskConical, BedDouble, CalendarDays,
   CreditCard, Car, Pill, FileText, BarChart3, Settings, LogOut, Menu,
-  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown
+  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound
 } from 'lucide-react';
 
 const topNavItems = [
@@ -29,6 +29,8 @@ const sidebarItems = [
   { label: 'Reports', path: '/reports', icon: FileText },
   { label: 'Certificates', path: '/certificates', icon: Award },
   { label: 'Revisit', path: '/revisit', icon: RotateCcw },
+  { label: 'Audit Logs', path: '/audit-logs', icon: Shield },
+  { label: '2FA Setup', path: '/2fa-setup', icon: KeyRound },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];
 
