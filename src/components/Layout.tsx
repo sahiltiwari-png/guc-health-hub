@@ -53,6 +53,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
         <div className="flex items-center gap-3">
           <select
+            data-tour="branch-selector"
             className="bg-hms-nav text-hms-nav-foreground text-[10px] border border-muted-foreground/30 px-1 py-0.5 rounded-none"
             value={currentBranch}
             onChange={e => setBranch(e.target.value)}
@@ -78,6 +79,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors
                 ${active
                   ? 'bg-card text-foreground'
@@ -103,6 +105,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   key={item.path}
                   to={item.path}
                   title={item.label}
+                  data-tour={`sidebar-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   className={`flex flex-col items-center justify-center w-11 h-11 rounded text-[9px] leading-tight text-center transition-colors
                     ${active
                       ? 'bg-primary-foreground text-primary'
