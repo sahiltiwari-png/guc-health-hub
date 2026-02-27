@@ -28,6 +28,8 @@ import Revisit from "@/pages/Revisit";
 import Settings from "@/pages/Settings";
 import AuditLogs from "@/pages/AuditLogs";
 import TwoFactorSetup from "@/pages/TwoFactorSetup";
+import Departments from "@/pages/Departments";
+import Ambulance from "@/pages/Ambulance";
 import OnboardingStepper from "@/components/OnboardingStepper";
 import HiringBanner from "@/components/HiringBanner";
 import NotFound from "./pages/NotFound";
@@ -92,6 +94,8 @@ const AppRoutes = () => {
           <Route path="/certificates" element={<Certificates />} />
           <Route path="/revisit" element={<Revisit />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/departments" element={<Departments />} />
+          <Route path="/ambulance" element={<Ambulance />} />
           <Route path="/2fa-setup" element={<TwoFactorSetup />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
