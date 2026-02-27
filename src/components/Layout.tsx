@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Users, ClipboardList, Stethoscope, FlaskConical, BedDouble, CalendarDays,
   CreditCard, Car, Pill, FileText, BarChart3, Settings, LogOut, Menu,
-  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound
+  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound, Truck
 } from 'lucide-react';
 
 const topNavItems = [
@@ -18,6 +18,8 @@ const topNavItems = [
   { label: 'Birth Reg', path: '/birth-reg', icon: Baby },
   { label: 'Billing', path: '/billing', icon: CreditCard },
   { label: 'MIS', path: '/mis', icon: BarChart3 },
+  { label: 'Departments', path: '/departments', icon: Building2 },
+  { label: 'Ambulance', path: '/ambulance', icon: Truck },
 ];
 
 const sidebarItems = [
