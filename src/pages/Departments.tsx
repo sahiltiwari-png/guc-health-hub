@@ -80,9 +80,7 @@ const infrastructureData = {
     { floor: '4th', name: 'Pantry - Floor 4', capacity: '100 meals/day', head: 'Mr. Kishan', status: 'Active', timing: '6AM-9PM' },
   ],
   canteen: [
-    { name: 'Staff Canteen', floor: 'Ground', capacity: 80, timing: '7AM-10PM', head: 'Mr. Harish' },
-    { name: 'Visitor Canteen', floor: 'Ground', capacity: 120, timing: '8AM-9PM', head: 'Mr. Bharat' },
-    { name: 'Doctor\'s Lounge Cafe', floor: '2nd', capacity: 30, timing: '24/7', head: 'Mr. Yash' },
+    { name: 'Main Canteen (Staff & Visitors)', floor: 'Ground', capacity: 200, timing: '7AM-10PM', head: 'Mr. Harish' },
   ],
 };
 
