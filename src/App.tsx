@@ -30,6 +30,11 @@ import AuditLogs from "@/pages/AuditLogs";
 import TwoFactorSetup from "@/pages/TwoFactorSetup";
 import Departments from "@/pages/Departments";
 import Ambulance from "@/pages/Ambulance";
+import BloodBank from "@/pages/BloodBank";
+import DeathPostmortem from "@/pages/DeathPostmortem";
+import CSSD from "@/pages/CSSD";
+import Laboratory from "@/pages/Laboratory";
+import Radiology from "@/pages/Radiology";
 import OnboardingStepper from "@/components/OnboardingStepper";
 import HiringBanner from "@/components/HiringBanner";
 import NotFound from "./pages/NotFound";
@@ -96,6 +101,11 @@ const AppRoutes = () => {
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/departments" element={<Departments />} />
           <Route path="/ambulance" element={<Ambulance />} />
+          <Route path="/blood-bank" element={<BloodBank />} />
+          <Route path="/death-postmortem" element={<DeathPostmortem />} />
+          <Route path="/cssd" element={<CSSD />} />
+          <Route path="/laboratory" element={<Laboratory />} />
+          <Route path="/radiology" element={<Radiology />} />
           <Route path="/2fa-setup" element={<TwoFactorSetup />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />

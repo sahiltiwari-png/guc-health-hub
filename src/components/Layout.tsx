@@ -4,7 +4,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Users, ClipboardList, Stethoscope, FlaskConical, BedDouble, CalendarDays,
   CreditCard, Car, Pill, FileText, BarChart3, Settings, LogOut, Menu,
-  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound, Truck
+  Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound, Truck,
+  Droplets, Skull, ShieldCheck, Microscope, Scan
 } from 'lucide-react';
 
 const topNavItems = [
@@ -20,6 +21,11 @@ const topNavItems = [
   { label: 'MIS', path: '/mis', icon: BarChart3 },
   { label: 'Departments', path: '/departments', icon: Building2 },
   { label: 'Ambulance', path: '/ambulance', icon: Truck },
+  { label: 'Blood Bank', path: '/blood-bank', icon: Droplets },
+  { label: 'Death/PM', path: '/death-postmortem', icon: Skull },
+  { label: 'CSSD', path: '/cssd', icon: ShieldCheck },
+  { label: 'Laboratory', path: '/laboratory', icon: Microscope },
+  { label: 'Radiology', path: '/radiology', icon: Scan },
 ];
 
 const sidebarItems = [
