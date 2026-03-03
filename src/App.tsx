@@ -35,6 +35,14 @@ import DeathPostmortem from "@/pages/DeathPostmortem";
 import CSSD from "@/pages/CSSD";
 import Laboratory from "@/pages/Laboratory";
 import Radiology from "@/pages/Radiology";
+import Assets from "@/pages/Assets";
+import DietKitchen from "@/pages/DietKitchen";
+import HelpDesk from "@/pages/HelpDesk";
+import Discharge from "@/pages/Discharge";
+import OTManagement from "@/pages/OTManagement";
+import ICUWard from "@/pages/ICUWard";
+import Emergency from "@/pages/Emergency";
+import Inventory from "@/pages/Inventory";
 import OnboardingStepper from "@/components/OnboardingStepper";
 import HiringBanner from "@/components/HiringBanner";
 import NotFound from "./pages/NotFound";
@@ -49,7 +57,6 @@ const AppRoutes = () => {
 
   useEffect(() => {
     if (user && wasLoggedOut) {
-      // User just logged in
       const hasOnboarded = localStorage.getItem(`hms_onboarded_${user.username}`);
       if (!hasOnboarded) {
         setShowOnboarding(true);
@@ -106,6 +113,14 @@ const AppRoutes = () => {
           <Route path="/cssd" element={<CSSD />} />
           <Route path="/laboratory" element={<Laboratory />} />
           <Route path="/radiology" element={<Radiology />} />
+          <Route path="/assets" element={<Assets />} />
+          <Route path="/diet-kitchen" element={<DietKitchen />} />
+          <Route path="/helpdesk" element={<HelpDesk />} />
+          <Route path="/discharge" element={<Discharge />} />
+          <Route path="/ot" element={<OTManagement />} />
+          <Route path="/icu-ward" element={<ICUWard />} />
+          <Route path="/emergency" element={<Emergency />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/2fa-setup" element={<TwoFactorSetup />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
