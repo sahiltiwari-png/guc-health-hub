@@ -57,7 +57,7 @@ const AppRoutes = () => {
 
   useEffect(() => {
     if (user && wasLoggedOut) {
-      const hasOnboarded = localStorage.getItem(`hms_onboarded_${user.username}`);
+      const hasOnboarded = localStorage.getItem(`hms_onboarded_${user.email}`);
       if (!hasOnboarded) {
         setShowOnboarding(true);
       } else {
@@ -74,7 +74,7 @@ const AppRoutes = () => {
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     if (user) {
-      localStorage.setItem(`hms_onboarded_${user.username}`, 'true');
+      localStorage.setItem(`hms_onboarded_${user.email}`, 'true');
     }
     setShowBanner(true);
   };

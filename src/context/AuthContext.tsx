@@ -1,47 +1,42 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface User {
-  username: string;
+  _id: string;
+  email: string;
   role: string;
   name: string;
-  branch: string;
+  branch?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
+  login: (userData: User, token: string) => void;
   logout: () => void;
   currentBranch: string;
   setBranch: (branch: string) => void;
 }
 
-const users: Record<string, { password: string; role: string; name: string }> = {
-  admin: { password: 'admin123', role: 'Admin', name: 'Administrator' },
-  doctor: { password: 'doctor123', role: 'Doctor', name: 'Dr. Alok Mehta' },
-  nurse: { password: 'nurse123', role: 'Nurse', name: 'Nurse Priya Sharma' },
-  reception: { password: 'reception123', role: 'Receptionist', name: 'Ravi Kumar' },
-  labtech: { password: 'labtech123', role: 'Lab Technician', name: 'Suresh Verma' },
-  pharma: { password: 'pharma123', role: 'Pharmacist', name: 'Ankit Gupta' },
-  accountant: { password: 'account123', role: 'Accountant', name: 'Meena Devi' },
-};
-
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('hms_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [currentBranch, setCurrentBranch] = useState('Main Branch - Noida');
 
-  const login = (username: string, password: string) => {
-    const u = users[username];
-    if (u) {
-      setUser({ username, role: u.role, name: u.name, branch: currentBranch });
-    } else {
-      setUser({ username, role: 'Admin', name: username || 'Guest User', branch: currentBranch });
-    }
-    return true;
+  const login = (userData: User, token: string) => {
+    const fullUser = { ...userData, branch: currentBranch };
+    setUser(fullUser);
+    localStorage.setItem('hms_token', token);
+    localStorage.setItem('hms_user', JSON.stringify(fullUser));
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('hms_token');
+    localStorage.removeItem('hms_user');
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout, currentBranch, setBranch: setCurrentBranch }}>

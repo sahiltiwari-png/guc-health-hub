@@ -1,18 +1,26 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { login as apiLogin } from '@/api/apiService';
 
 const Login = () => {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [branch, setBranch] = useState('Main Branch - Noida');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!login(username, password)) {
-      setError('Invalid username or password');
+    setIsLoading(true);
+    try {
+      const userData = await apiLogin(email, password);
+      login(userData.user, userData.token); // Assuming useAuth's login handles this
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,6 +40,7 @@ const Login = () => {
               className="hms-select w-full"
               value={branch}
               onChange={e => setBranch(e.target.value)}
+              disabled={isLoading}
             >
               <option>Main Branch - Noida</option>
               <option>Branch 2 - Delhi</option>
@@ -41,12 +50,14 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="hms-form-label block mb-1">Username</label>
+            <label className="hms-form-label block mb-1">Email</label>
             <input
+              type="email"
               className="hms-input w-full"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Enter username"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              disabled={isLoading}
             />
           </div>
 
@@ -58,13 +69,14 @@ const Login = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="Enter password"
+              disabled={isLoading}
             />
           </div>
 
           {error && <p className="text-destructive text-xs font-semibold">{error}</p>}
 
-          <button type="submit" className="hms-btn-primary w-full py-2 text-sm">
-            Login
+          <button type="submit" className="hms-btn-primary w-full py-2 text-sm" disabled={isLoading}>
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
 
           <div className="mt-4 border-t border-border pt-3">

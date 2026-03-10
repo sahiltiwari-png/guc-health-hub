@@ -1,46 +1,82 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Printer, Eye } from 'lucide-react';
+import { getReceipts } from '../api/apiService';
 
-const bills = [
-  { sno: 1, billNo: 'B-1001', uhid: 'U-1001', name: 'Mr. Rajesh Kumar', type: 'OPD', doctor: 'Dr. Alok Mehta', charge: 500, discount: 50, paid: 450, due: 0, mode: 'Cash', date: '15-Feb-2026' },
-  { sno: 2, billNo: 'B-1002', uhid: 'U-1002', name: 'Mrs. Sunita Devi', type: 'Investigation', doctor: 'Dr. Priya Singh', charge: 2600, discount: 0, paid: 2600, due: 0, mode: 'UPI', date: '15-Feb-2026' },
-  { sno: 3, billNo: 'B-1003', uhid: 'U-1003', name: 'Mr. Amit Sharma', type: 'IPD', doctor: 'Dr. Rahul Verma', charge: 15000, discount: 1000, paid: 10000, due: 4000, mode: 'Card', date: '14-Feb-2026' },
-  { sno: 4, billNo: 'B-1004', uhid: 'U-1004', name: 'Baby Riya', type: 'Pharmacy', doctor: 'Dr. Neha Gupta', charge: 450, discount: 0, paid: 450, due: 0, mode: 'Cash', date: '15-Feb-2026' },
-];
+const Billing = () => {
+  const [bills, setBills] = useState([]);
+  const [summary, setSummary] = useState({ totalBilled: 0, collected: 0, discount: 0, dues: 0 });
 
-const Billing = () => (
-  <div>
-    <div className="hms-section-header">Billing & Collections</div>
-    <div className="bg-card border border-border p-2 mb-2 flex items-center gap-3">
-      <label className="hms-form-label">Date From:</label><input type="date" className="hms-input" defaultValue="2026-02-15" />
-      <label className="hms-form-label">Date To:</label><input type="date" className="hms-input" defaultValue="2026-02-15" />
-      <label className="hms-form-label">Type:</label><select className="hms-select"><option>All</option><option>OPD</option><option>IPD</option><option>Investigation</option><option>Pharmacy</option><option>Day Care</option></select>
-      <button className="hms-btn-primary">Search</button>
-    </div>
+  useEffect(() => {
+    const fetchBills = async () => {
+      try {
+        const response = await getReceipts();
+        const data = response.data || [];
+        setBills(data);
 
-    <div className="grid grid-cols-4 gap-2 mb-3">
-      {[
-        { label: 'Total Billed', value: '₹18,550' },
-        { label: 'Collected', value: '₹13,500' },
-        { label: 'Discount', value: '₹1,050' },
-        { label: 'Dues', value: '₹4,000' },
-      ].map((s, i) => (
-        <div key={i} className="bg-card border border-border p-2 text-center">
-          <p className="text-lg font-bold">{s.value}</p>
-          <p className="text-[10px] text-muted-foreground">{s.label}</p>
-        </div>
-      ))}
-    </div>
+        // Calculate summary
+        const totals = data.reduce((acc: any, b: any) => ({
+          totalBilled: acc.totalBilled + (b.fee || 0),
+          collected: acc.collected + (b.status === 'Paid' ? (b.fee || 0) : 0),
+          discount: acc.discount + (b.discountAmount || 0),
+          dues: acc.dues + (b.status === 'Pending' ? (b.fee || 0) : 0),
+        }), { totalBilled: 0, collected: 0, discount: 0, dues: 0 });
+        
+        setSummary(totals);
+      } catch (error) {
+        console.error('Error fetching bills:', error);
+      }
+    };
+    fetchBills();
+  }, []);
 
-    <table className="hms-table">
-      <thead><tr><th>S.No.</th><th>Bill No.</th><th>UHID</th><th>Patient</th><th>Type</th><th>Doctor</th><th>Charge</th><th>Discount</th><th>Paid</th><th>Due</th><th>Mode</th><th>Date</th><th>Actions</th></tr></thead>
-      <tbody>
-        {bills.map(b => (
-          <tr key={b.sno}><td>{b.sno}</td><td>{b.billNo}</td><td>{b.uhid}</td><td>{b.name}</td><td>{b.type}</td><td>{b.doctor}</td><td>₹{b.charge}</td><td>₹{b.discount}</td><td>₹{b.paid}</td><td className={b.due > 0 ? 'text-destructive font-bold' : ''}>₹{b.due}</td><td>{b.mode}</td><td>{b.date}</td><td className="flex gap-1"><Eye size={14} className="text-primary cursor-pointer" /><Printer size={14} className="text-primary cursor-pointer" /></td></tr>
+  return (
+    <div>
+      <div className="hms-section-header">Billing & Collections</div>
+      <div className="bg-card border border-border p-2 mb-2 flex items-center gap-3">
+        <label className="hms-form-label">Date From:</label><input type="date" className="hms-input" defaultValue="2026-02-15" />
+        <label className="hms-form-label">Date To:</label><input type="date" className="hms-input" defaultValue="2026-02-15" />
+        <label className="hms-form-label">Type:</label><select className="hms-select"><option>All</option><option>OPD</option><option>IPD</option><option>Investigation</option><option>Pharmacy</option><option>Day Care</option></select>
+        <button className="hms-btn-primary">Search</button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        {[
+          { label: 'Total Billed', value: `₹${summary.totalBilled.toLocaleString()}` },
+          { label: 'Collected', value: `₹${summary.collected.toLocaleString()}` },
+          { label: 'Discount', value: `₹${summary.discount.toLocaleString()}` },
+          { label: 'Dues', value: `₹${summary.dues.toLocaleString()}` },
+        ].map((s, i) => (
+          <div key={i} className="bg-card border border-border p-2 text-center">
+            <p className="text-lg font-bold">{s.value}</p>
+            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+          </div>
         ))}
-      </tbody>
-    </table>
-  </div>
-);
+      </div>
+
+      <table className="hms-table">
+        <thead><tr><th>S.No.</th><th>Bill No.</th><th>UHID</th><th>Patient</th><th>Dept</th><th>Doctor</th><th>Charge</th><th>Discount</th><th>Paid</th><th>Status</th><th>Mode</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          {bills.map((b: any, i) => (
+            <tr key={b._id}>
+              <td>{i + 1}</td>
+              <td>{b.receiptNumber}</td>
+              <td>{b.patientId?.uhid}</td>
+              <td className="font-semibold">{b.patientId?.patientName}</td>
+              <td>{b.departmentId?.name}</td>
+              <td>{b.doctorId?.name}</td>
+              <td>₹{b.fee?.toLocaleString()}</td>
+              <td>₹{b.discountAmount?.toLocaleString() || 0}</td>
+              <td>₹{b.status === 'Paid' ? b.fee?.toLocaleString() : 0}</td>
+              <td><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${b.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{b.status}</span></td>
+              <td>{b.paymentMode}</td>
+              <td>{new Date(b.createdAt).toLocaleDateString()}</td>
+              <td className="flex gap-1"><Eye size={14} className="text-primary cursor-pointer" /><Printer size={14} className="text-primary cursor-pointer" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 export default Billing;

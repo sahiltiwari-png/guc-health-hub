@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getPharmacyDispenses } from '../api/apiService';
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
@@ -19,15 +20,6 @@ const kpiCards = [
   { label: 'Expiring Soon', value: '23', icon: Clock, change: 'Within 30 days', color: 'bg-destructive' },
   { label: 'Pending Bills', value: '₹45,200', icon: CreditCard, change: '8 patients', color: 'bg-hms-info' },
   { label: 'Revenue Today', value: '₹1,82,500', icon: TrendingUp, change: '+8% vs avg', color: 'bg-primary' },
-];
-
-const prescriptionQueue = [
-  { id: 'RX-2026-001', uhid: 'U-1001', patient: 'Mr. Rajesh Kumar', age: '45Y', doctor: 'Dr. Alok Mehta', dept: 'General Medicine', diagnosis: 'Acute Fever', items: 4, time: '09:15 AM', status: 'Pending' },
-  { id: 'RX-2026-002', uhid: 'U-1002', patient: 'Mrs. Sunita Devi', age: '32Y', doctor: 'Dr. Priya Singh', dept: 'Gynecology', diagnosis: 'PCOD', items: 6, time: '09:30 AM', status: 'In Progress' },
-  { id: 'RX-2026-003', uhid: 'U-1003', patient: 'Mr. Amit Sharma', age: '28Y', doctor: 'Dr. Rahul Verma', dept: 'Orthopedics', diagnosis: 'Knee Pain', items: 3, time: '09:45 AM', status: 'Dispensed' },
-  { id: 'RX-2026-004', uhid: 'U-1004', patient: 'Baby Riya', age: '2Y', doctor: 'Dr. Neha Gupta', dept: 'Pediatrics', diagnosis: 'Cold & Cough', items: 5, time: '10:00 AM', status: 'Pending' },
-  { id: 'RX-2026-005', uhid: 'U-1005', patient: 'Mr. Suresh Yadav', age: '55Y', doctor: 'Dr. Alok Mehta', dept: 'General Medicine', diagnosis: 'Diabetes Type-2', items: 7, time: '10:15 AM', status: 'Pending' },
-  { id: 'RX-2026-006', uhid: 'U-1006', patient: 'Mrs. Kamla Devi', age: '60Y', doctor: 'Dr. Rahul Verma', dept: 'Orthopedics', diagnosis: 'Arthritis', items: 4, time: '10:30 AM', status: 'In Progress' },
 ];
 
 const inventoryData = [
@@ -280,7 +272,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 /* ───────── TAB PANELS ───────── */
 
-const OverviewPanel = () => (
+const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
   <div className="space-y-3">
     <div className="grid grid-cols-3 gap-3">
       <div className="bg-card border border-border p-2">
@@ -324,11 +316,19 @@ const OverviewPanel = () => (
     <div>
       <div className="hms-section-header">Live Prescription Queue</div>
       <table className="hms-table">
-        <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Dept</th><th>Diagnosis</th><th>Items</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
           {prescriptionQueue.map(p => (
-            <tr key={p.id}><td>{p.id}</td><td>{p.uhid}</td><td>{p.patient}</td><td>{p.age}</td><td>{p.doctor}</td><td>{p.dept}</td><td>{p.diagnosis}</td><td>{p.items}</td><td>{p.time}</td>
-              <td><StatusBadge status={p.status} /></td>
+            <tr key={p._id}>
+              <td>{p.prescriptionId?.visitId}</td>
+              <td>{p.prescriptionId?.patientId?.uhid}</td>
+              <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
+              <td>{p.prescriptionId?.patientId?.age}Y</td>
+              <td>{p.prescriptionId?.doctorId?.name}</td>
+              <td>{p.prescriptionItemId?.medicineName}</td>
+              <td>{p.quantityGiven}</td>
+              <td>{new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+              <td><StatusBadge status={p.status || 'Dispensed'} /></td>
               <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
             </tr>
           ))}
@@ -362,7 +362,7 @@ const OverviewPanel = () => (
   </div>
 );
 
-const PrescriptionsPanel = () => (
+const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Rx ID / Patient..." />
@@ -373,11 +373,20 @@ const PrescriptionsPanel = () => (
     </div>
     <div className="hms-section-header">Prescription Management</div>
     <table className="hms-table">
-      <thead><tr><th>S.No</th><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Department</th><th>Diagnosis</th><th>Items</th><th>Date/Time</th><th>Status</th><th>Action</th></tr></thead>
+      <thead><tr><th>S.No</th><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Date/Time</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>
         {prescriptionQueue.map((p, i) => (
-          <tr key={p.id}><td>{i + 1}</td><td>{p.id}</td><td>{p.uhid}</td><td>{p.patient}</td><td>{p.age}</td><td>{p.doctor}</td><td>{p.dept}</td><td>{p.diagnosis}</td><td>{p.items}</td><td>21-Feb-2026 {p.time}</td>
-            <td><StatusBadge status={p.status} /></td>
+          <tr key={p._id}>
+            <td>{i + 1}</td>
+            <td>{p.prescriptionId?.visitId}</td>
+            <td>{p.prescriptionId?.patientId?.uhid}</td>
+            <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
+            <td>{p.prescriptionId?.patientId?.age}Y</td>
+            <td>{p.prescriptionId?.doctorId?.name}</td>
+            <td>{p.prescriptionItemId?.medicineName}</td>
+            <td>{p.quantityGiven}</td>
+            <td>{new Date(p.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+            <td><StatusBadge status={p.status || 'Dispensed'} /></td>
             <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
           </tr>
         ))}
@@ -901,10 +910,24 @@ const AuditPanel = () => (
 
 const Pharmacy = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [prescriptionQueue, setPrescriptionQueue] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPrescriptionQueue = async () => {
+      try {
+        const data = await getPharmacyDispenses();
+        setPrescriptionQueue(data.data || []);
+      } catch (error) {
+        console.error('Error fetching prescription queue:', error);
+      }
+    };
+
+    fetchPrescriptionQueue();
+  }, []);
 
   const panelMap: Record<string, React.ReactNode> = {
-    overview: <OverviewPanel />,
-    prescriptions: <PrescriptionsPanel />,
+    overview: <OverviewPanel prescriptionQueue={prescriptionQueue} />,
+    prescriptions: <PrescriptionsPanel prescriptionQueue={prescriptionQueue} />,
     'rx-header': <RxHeaderPanel />,
     'rx-items': <RxItemsPanel />,
     'medicine-master': <MedicineMasterPanel />,

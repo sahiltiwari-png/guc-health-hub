@@ -1,37 +1,39 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { Users, Stethoscope, BedDouble, DollarSign, Activity, UserPlus, FileText, BarChart2, AlertCircle } from 'lucide-react';
+import { getDashboardStats, listVisits, getIPDAdmissions } from '../api/apiService';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Users, Stethoscope, BedDouble, FlaskConical, CreditCard, ClipboardList,
-  CalendarDays, Pill, TrendingUp, AlertCircle
-} from 'lucide-react';
-
-const stats = [
-  { label: 'Total Patients', value: '12,847', icon: Users, change: '+23 today' },
-  { label: 'OPD Today', value: '156', icon: Stethoscope, change: '42 pending' },
-  { label: 'IPD Admitted', value: '89', icon: BedDouble, change: '12 discharged' },
-  { label: 'Lab Tests', value: '234', icon: FlaskConical, change: '18 pending' },
-  { label: 'Revenue Today', value: '₹4,52,300', icon: CreditCard, change: '+12%' },
-  { label: 'Queue Waiting', value: '34', icon: ClipboardList, change: '5 departments' },
-  { label: 'Day Care', value: '28', icon: CalendarDays, change: '6 completed' },
-  { label: 'Pharmacy Orders', value: '89', icon: Pill, change: '12 pending' },
-];
-
-const recentOPD = [
-  { sno: 1, uhid: 'U-1001', name: 'Mr. Rajesh Kumar', age: '45Y', gender: 'Male', doctor: 'Dr. Alok Mehta', dept: 'General Medicine', time: '09:15 AM' },
-  { sno: 2, uhid: 'U-1002', name: 'Mrs. Sunita Devi', age: '32Y', gender: 'Female', doctor: 'Dr. Priya Singh', dept: 'Gynecology', time: '09:30 AM' },
-  { sno: 3, uhid: 'U-1003', name: 'Mr. Amit Sharma', age: '28Y', gender: 'Male', doctor: 'Dr. Rahul Verma', dept: 'Orthopedics', time: '09:45 AM' },
-  { sno: 4, uhid: 'U-1004', name: 'Baby Riya', age: '2Y', gender: 'Female', doctor: 'Dr. Neha Gupta', dept: 'Pediatrics', time: '10:00 AM' },
-  { sno: 5, uhid: 'U-1005', name: 'Mr. Suresh Yadav', age: '55Y', gender: 'Male', doctor: 'Dr. Alok Mehta', dept: 'General Medicine', time: '10:15 AM' },
-];
-
-const recentIPD = [
-  { sno: 1, ipdId: 'IPD-501', name: 'Mrs. Kamla Devi', age: '60Y', bed: 'Ward-A/B-12', doctor: 'Dr. Rahul Verma', doa: '14-Feb-2026', status: 'Admitted' },
-  { sno: 2, ipdId: 'IPD-502', name: 'Mr. Vikram Singh', age: '42Y', bed: 'ICU-03', doctor: 'Dr. Alok Mehta', doa: '13-Feb-2026', status: 'Critical' },
-  { sno: 3, ipdId: 'IPD-503', name: 'Mrs. Anita Kumari', age: '35Y', bed: 'Ward-B/B-05', doctor: 'Dr. Priya Singh', doa: '15-Feb-2026', status: 'Stable' },
-];
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState([]);
+  const [recentOPD, setRecentOPD] = useState([]);
+  const [recentIPD, setRecentIPD] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const statsData = await getDashboardStats();
+        const formattedStats = [
+          { label: 'Total Patients', value: statsData.totalPatients.toLocaleString(), icon: Users },
+          { label: 'OPD Today', value: statsData.opdToday.toLocaleString(), icon: Stethoscope },
+          { label: 'IPD Admitted', value: statsData.ipdAdmitted.toLocaleString(), icon: BedDouble },
+          { label: 'Total Earnings', value: `₹${statsData.totalEarnings.toLocaleString()}`, icon: DollarSign },
+        ];
+        setStats(formattedStats);
+
+        const opdVisitsResponse = await listVisits({ visitType: 'OPD', limit: 5 });
+        setRecentOPD(opdVisitsResponse.data || []);
+
+        const ipdAdmissions = await getIPDAdmissions();
+        setRecentIPD(ipdAdmissions.slice(0, 5) || []);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   return (
     <div>
@@ -71,16 +73,16 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {recentOPD.map(p => (
-              <tr key={p.sno}>
-                <td>{p.sno}</td>
-                <td>{p.uhid}</td>
-                <td>{p.name}</td>
-                <td>{p.age}</td>
-                <td>{p.gender}</td>
-                <td>{p.doctor}</td>
-                <td>{p.dept}</td>
-                <td>{p.time}</td>
+            {recentOPD.map((p, index) => (
+              <tr key={p._id}>
+                <td>{index + 1}</td>
+                <td>{p.patientId?.uhid}</td>
+                <td className="font-semibold">{p.patientId?.patientName}</td>
+                <td>{p.patientId?.age}</td>
+                <td>{p.patientId?.gender}</td>
+                <td>{p.doctorId?.name}</td>
+                <td>{p.departmentName}</td>
+                <td>{p.visitTime}</td>
               </tr>
             ))}
           </tbody>
@@ -104,15 +106,15 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {recentIPD.map(p => (
-              <tr key={p.sno}>
-                <td>{p.sno}</td>
-                <td>{p.ipdId}</td>
-                <td>{p.name}</td>
-                <td>{p.age}</td>
-                <td>{p.bed}</td>
-                <td>{p.doctor}</td>
-                <td>{p.doa}</td>
+            {recentIPD.map((p, index) => (
+              <tr key={p._id}>
+                <td>{index + 1}</td>
+                <td className="font-medium text-primary">{p.admissionNumber}</td>
+                <td className="font-semibold">{p.patientId?.patientName}</td>
+                <td>{p.patientId?.age}</td>
+                <td>{p.bedId?.ward} / {p.bedId?.bedNumber}</td>
+                <td>{p.treatingDoctors?.map(d => d.name).join(', ')}</td>
+                <td>{new Date(p.admissionDate).toLocaleDateString()}</td>
                 <td className={p.status === 'Critical' ? 'text-destructive font-bold' : ''}>{p.status}</td>
               </tr>
             ))}
