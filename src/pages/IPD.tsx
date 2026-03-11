@@ -1,7 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { Search, Edit, Eye, Printer, Plus, UserSearch, Bed, ClipboardList, LogOut } from 'lucide-react';
-import { findPatientByUhid, createPatientVisit, getIPDAdmissions } from '../api/apiService';
+import { 
+  findPatientByUhid, 
+  createQuickAdmission, 
+  getIPDAdmissions,
+  listDepartments,
+  listUsers,
+  listStates,
+  listCities,
+  listCountries
+} from '../api/apiService';
 
 const IPD = () => {
   const [ipdList, setIpdList] = useState([]);
@@ -9,6 +18,40 @@ const IPD = () => {
   const [searchUhid, setSearchUhid] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  // Dynamic Lists
+  const [departments, setDepartments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [countries, setCountries] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [deptRes, docRes, stateRes, countryRes] = await Promise.all([
+          listDepartments(),
+          listUsers({ role: 'Doctor' }),
+          listStates(),
+          listCountries()
+        ]);
+        setDepartments(deptRes.data || []);
+        setDoctors(docRes.data || []);
+        setStates(stateRes.data || []);
+        const countriesList = countryRes.data || [];
+        setCountries(countriesList);
+        
+        // Find India and set its ID as default
+        const india = countriesList.find((c: any) => c.name === 'India');
+        if (india) {
+          setFormData(prev => ({ ...prev, country: india._id }));
+        }
+      } catch (error) {
+        console.error("Error fetching dynamic data:", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -28,23 +71,89 @@ const IPD = () => {
 
   const [formData, setFormData] = useState({
     uhid: '',
-    patientName: '',
     mobile: '',
-    age: '',
-    gender: '',
-    department: 'GENERAL MEDICINE',
-    doctor: 'Dr. ALOK MEHTA',
-    ward: 'Ward-A',
-    bedNo: 'B-01',
-    tpaPanel: '--NA--',
+    idType: 'NA',
+    idNumber: '',
+    departmentId: '',
+    departmentName: '',
+    doctorId: '',
     referredBy: 'SELF',
-    diagnosis: '',
-    admissionDate: new Date().toISOString().split('T')[0]
+    refMobile: '',
+    patientPrefix: 'Mr.',
+    patientName: '',
+    relativePrefix: 'Mr.',
+    relativeName: '',
+    relativeRelation: 'S/o',
+    dob: '',
+    gender: 'Male',
+    maritalStatus: 'Single',
+    ageY: '',
+    ageM: '',
+    ageD: '',
+    occupation: '',
+    religion: '',
+    address: '',
+    country: '',
+    stateId: '',
+    cityId: '',
+    pinCode: '',
+    bloodGroup: 'NA',
+    guardianPrefix: 'Mr.',
+    guardianName: '',
+    guardianRelation: '',
+    guardianMobile: '',
+    insuranceCo: '',
+    payerName: '--NA--',
+    cardNo: '',
+    policyNo: '',
+    rank: '',
+    rateList: 'COMMON',
+    billingType: 'Cash',
+    paymentMode: 'Cash',
+    provisionalDiagnosis: '',
+    procedureTreatment: '',
+    commentRemark: '',
+    arrivalDate: new Date().toISOString().split('T')[0],
+    arrivalTime: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    allocationCategory: '',
+    unitNo: '',
+    fileCharge: '0',
+    isAdmission: true,
+    isDaycare: false,
+    source: 'ADV HOARDINGS',
+    photo: null as File | null,
+    isMlc: false,
+    isRegisteredByUhid: false
   });
 
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formData.stateId) {
+      listCities(formData.stateId).then(res => setCities(res.data || []));
+    } else {
+      setCities([]);
+    }
+  }, [formData.stateId]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target as HTMLInputElement;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    if (name === 'departmentId') {
+      const dept = departments.find((d: any) => d._id === value);
+      setFormData(prev => ({ ...prev, departmentId: value, departmentName: dept?.name || '' }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: type === 'checkbox' ? checked : value 
+      }));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData(prev => ({ ...prev, photo: e.target.files![0] }));
+    }
   };
 
   const handleSearch = async () => {
@@ -74,31 +183,65 @@ const IPD = () => {
   };
 
   const handleAdmit = async () => {
-    if (!formData.uhid) {
-      setMessage({ type: 'error', text: 'Please select a patient first.' });
+    if (!formData.patientName) {
+      setMessage({ type: 'error', text: 'Patient Name is required.' });
       return;
     }
     setLoading(true);
     try {
-      const visitData = {
-        uhid: formData.uhid,
+      // Prepare the payload for the quick IPD admission (Register + Visit + Admission)
+      const admissionData = {
+        // Patient Info
+        uhid: formData.uhid || undefined,
+        patientName: formData.patientName,
+        mobile: formData.mobile,
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
+        dob: formData.dob || new Date().toISOString().split('T')[0],
+        age: parseInt(formData.ageY) || 0,
+        address: formData.address,
+        country: formData.country || undefined,
+        stateId: formData.stateId || undefined,
+        cityId: formData.cityId || undefined,
+        bloodGroup: formData.bloodGroup,
+        
+        // Visit Info
         visitType: 'IPD',
-        department: formData.department,
-        doctor: formData.doctor,
-        details: {
-          ward: formData.ward,
-          bedNo: formData.bedNo,
-          tpaPanel: formData.tpaPanel,
-          referredBy: formData.referredBy,
-          diagnosis: formData.diagnosis,
-          admissionDate: formData.admissionDate
-        }
+        visitDate: formData.arrivalDate,
+        visitTime: formData.arrivalTime,
+        departmentId: formData.departmentId || undefined,
+        departmentName: formData.departmentName,
+        doctorId: formData.doctorId || undefined,
+        fee: parseFloat(formData.fileCharge) || 0,
+        paymentMode: formData.paymentMode,
+        remark: formData.commentRemark,
+        
+        // IPD Specific Details (Top-level as expected by quick admission controller)
+        idType: formData.idType,
+        idNumber: formData.idNumber,
+        referredBy: formData.referredBy,
+        referralMobile: formData.refMobile,
+        guardianName: formData.guardianName,
+        guardianRelation: formData.guardianRelation,
+        guardianMobile: formData.guardianMobile,
+        insuranceCo: formData.insuranceCo,
+        payerName: formData.payerName,
+        cardNo: formData.cardNo,
+        policyNo: formData.policyNo,
+        diagnosis: formData.provisionalDiagnosis,
+        procedureTreatment: formData.procedureTreatment,
+        isMlc: formData.isMlc,
+        
+        // Admission Details
+        bedId: undefined, // Add bed selection to UI later if needed
+        treatingDoctors: formData.doctorId ? [formData.doctorId] : []
       };
-      await createPatientVisit(visitData);
+
+      await createQuickAdmission(admissionData);
       setMessage({ type: 'success', text: 'IPD Admission successful!' });
-      // Reset form or redirect
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to create IPD admission.' });
+      setActiveTab('list');
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to create IPD admission.' });
     } finally {
       setLoading(false);
     }
@@ -176,31 +319,39 @@ const IPD = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {ipdList.map((p, index) => (
-                    <tr key={p._id}>
-                      <td>{index + 1}</td>
-                      <td className="font-medium text-primary">{p.admissionNumber}</td>
-                      <td>{p.patientId.uhid}</td>
-                      <td className="font-semibold">{p.patientId.patientName}</td>
-                      <td>{p.patientId.age}/{p.patientId.gender[0]}</td>
-                      <td>{p.bedId?.ward}/ <span className="font-medium">{p.bedId?.bedNumber}</span></td>
-                      <td>{p.treatingDoctors.map(d => d.name).join(', ')}</td>
-                      <td>{p.visitId.departmentName}</td>
-                      <td>{new Date(p.admissionDate).toLocaleDateString()}</td>
-                      <td>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          p.status === 'Discharged' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="flex gap-2">
-                        <button title="View Profile" className="p-1 hover:bg-secondary rounded text-primary"><Eye size={14} /></button>
-                        <button title="Edit Details" className="p-1 hover:bg-secondary rounded text-primary"><Edit size={14} /></button>
-                        <button title="Print Admission Form" className="p-1 hover:bg-secondary rounded text-primary"><Printer size={14} /></button>
+                  {Array.isArray(ipdList) && ipdList.length > 0 ? (
+                    ipdList.map((p: any, index) => (
+                      <tr key={p._id}>
+                        <td>{index + 1}</td>
+                        <td className="font-medium text-primary">{p.admissionNumber}</td>
+                        <td>{p.patientId?.uhid || 'N/A'}</td>
+                        <td className="font-semibold">{p.patientId?.patientName || 'N/A'}</td>
+                        <td>{p.patientId?.age || 'N/A'}/{p.patientId?.gender ? p.patientId.gender[0] : 'N/A'}</td>
+                        <td>{p.bedId?.ward ? `${p.bedId.ward}/ ` : ''}<span className="font-medium">{p.bedId?.bedNumber || 'N/A'}</span></td>
+                        <td>{p.treatingDoctors?.map((d: any) => d?.name || 'N/A').join(', ') || 'N/A'}</td>
+                        <td>{p.visitId?.departmentName || 'N/A'}</td>
+                        <td>{p.admissionDate ? new Date(p.admissionDate).toLocaleDateString() : 'N/A'}</td>
+                        <td>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            p.status === 'Discharged' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="flex gap-2">
+                          <button title="View Profile" className="p-1 hover:bg-secondary rounded text-primary"><Eye size={14} /></button>
+                          <button title="Edit Details" className="p-1 hover:bg-secondary rounded text-primary"><Edit size={14} /></button>
+                          <button title="Print Admission Form" className="p-1 hover:bg-secondary rounded text-primary"><Printer size={14} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={11} className="text-center py-8 text-muted-foreground">
+                        {loading ? 'Loading...' : 'No IPD admissions found.'}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -208,136 +359,449 @@ const IPD = () => {
         )}
 
         {activeTab === 'admit' && (
-          <div className="max-w-6xl mx-auto space-y-4">
-            {/* Search Section */}
-            <div className="bg-card border border-border rounded-md shadow-sm overflow-hidden">
-              <div className="hms-section-header flex items-center gap-2">
-                <UserSearch size={16} /> Patient Identification
+          <div className="max-w-[1400px] mx-auto bg-gray-100 p-2 rounded shadow-sm text-[11px]">
+            {/* Header section with MLC and UHID Checkbox */}
+            <div className="flex items-center justify-between bg-white p-1 mb-2 border border-gray-300">
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-gray-700">Patient Registration in IPD</span>
+                <div className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" name="isMlc" id="isMlc" checked={formData.isMlc} onChange={handleInputChange} className="w-3 h-3" />
+                  <label htmlFor="isMlc" className="font-bold flex items-center gap-1 text-gray-700">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3252/3252112.png" alt="Scale" className="w-4 h-4" /> MLC
+                  </label>
+                </div>
               </div>
-              <div className="p-4 flex items-center gap-4 bg-muted/30">
-                <div className="flex-1 max-w-md flex items-center gap-2">
-                  <label className="hms-form-label w-24">Enter UHID:</label>
-                  <div className="flex-1 flex">
-                    <input 
-                      className="hms-input flex-1 border-r-0" 
-                      placeholder="e.g. UHID-12345" 
-                      value={searchUhid}
-                      onChange={(e) => setSearchUhid(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    />
-                    <button 
-                      className="hms-btn-primary px-3 flex items-center gap-1"
-                      onClick={handleSearch}
-                      disabled={loading}
-                    >
-                      {loading ? '...' : <Search size={14} />} Search
-                    </button>
-                  </div>
+              <div className="flex-1 bg-primary h-6 flex items-center justify-center mx-10 rounded">
+                <div className="flex items-center gap-2 text-white">
+                  <input type="checkbox" name="isRegisteredByUhid" id="isRegisteredByUhid" checked={formData.isRegisteredByUhid} onChange={handleInputChange} className="w-3 h-3" />
+                  <label htmlFor="isRegisteredByUhid" className="font-bold">Registered by UHID</label>
                 </div>
-                <div className="text-muted-foreground text-[11px] italic">
-                  Search by UHID to pre-fill patient details for IPD admission.
-                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User" className="w-6 h-6 rounded-full border border-gray-300 shadow-sm" />
               </div>
             </div>
 
-            {/* Admission Form */}
-            <div className="bg-card border border-border rounded-md shadow-sm overflow-hidden">
-              <div className="hms-section-header flex items-center gap-2">
-                <Bed size={16} /> Admission Details
+            <div className="grid grid-cols-12 gap-6">
+              {/* Left Column - Patient Details */}
+              <div className="col-span-4 space-y-2 border-r border-gray-300 pr-4">
+                <div className="bg-primary text-white px-2 py-0.5 font-bold flex justify-between items-center">
+                  Patient Details
+                  <div className="flex items-center gap-1 bg-[#f0ad4e] px-1 text-[10px] rounded cursor-pointer">
+                    Advance Booking <span className="text-white">📅</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Mobile</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="mobile" value={formData.mobile} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Mobile Number" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <select name="idType" value={formData.idType} onChange={handleInputChange} className="col-span-5 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                      <option value="NA">NA</option>
+                      <option value="Aadhar">Aadhar</option>
+                      <option value="PAN">PAN</option>
+                    </select>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="idNumber" value={formData.idNumber} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="ID Number" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Department</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="departmentId" value={formData.departmentId} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none">
+                      <option value="">-- Select Department --</option>
+                      {departments.map((d: any) => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Consulting Doctor</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="doctorId" value={formData.doctorId} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none">
+                      <option value="">-- Select Doctor --</option>
+                      {doctors.map((d: any) => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Referred By</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="referredBy" value={formData.referredBy} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap pl-4 text-[9px]">Ref Mobile</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="refMobile" value={formData.refMobile} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Mobile Number" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Patient's Name</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <select name="patientPrefix" value={formData.patientPrefix} onChange={handleInputChange} className="w-12 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                        <option value="Mr.">Mr.</option>
+                        <option value="Mrs.">Mrs.</option>
+                        <option value="Ms.">Ms.</option>
+                      </select>
+                      <input type="text" name="patientName" value={formData.patientName} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" placeholder="Patient's Name" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">S/D/W/o Name</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <select name="relativePrefix" value={formData.relativePrefix} onChange={handleInputChange} className="w-12 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                        <option value="Mr.">Mr.</option>
+                        <option value="Mrs.">Mrs.</option>
+                      </select>
+                      <input type="text" name="relativeName" value={formData.relativeName} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" placeholder="Relative Name" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap pl-4 text-[9px]">Relation</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="relativeRelation" value={formData.relativeRelation} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="S/o">S/o</option>
+                      <option value="D/o">D/o</option>
+                      <option value="W/o">W/o</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">DOB/Gender/Marital</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap pl-4 text-[9px]">Gender / Marital</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <select name="gender" value={formData.gender} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-0.5 outline-none bg-gray-50 text-[10px]">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                      <select name="maritalStatus" value={formData.maritalStatus} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-0.5 outline-none bg-gray-50 text-[10px]">
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Age (Year)</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="ageY" value={formData.ageY} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Years" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap pl-4 text-[9px]">Age (Month / Day)</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <input type="text" name="ageM" value={formData.ageM} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" placeholder="Months" />
+                      <input type="text" name="ageD" value={formData.ageD} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" placeholder="Days" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Occupation</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="occupation" value={formData.occupation} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                      <option value="">--Occupation--</option>
+                      <option value="Service">Service</option>
+                      <option value="Business">Business</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Religion</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="religion" value={formData.religion} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                      <option value="">--Religion--</option>
+                      <option value="Hindu">Hindu</option>
+                      <option value="Muslim">Muslim</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-start gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold mt-1 whitespace-nowrap">Address</label>
+                    <span className="col-span-1 text-center mt-1">:</span>
+                    <textarea name="address" value={formData.address} onChange={handleInputChange} className="col-span-6 h-12 border border-gray-300 px-1 outline-none resize-none" placeholder="Patient Address" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Country</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="country" value={formData.country} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                      <option value="">-- Country --</option>
+                      {countries.map((c: any) => (
+                        <option key={c._id} value={c._id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">State / City</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                        <option value="">-- State --</option>
+                        {states.map((s: any) => (
+                          <option key={s._id} value={s._id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <select name="cityId" value={formData.cityId} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                        <option value="">-- City --</option>
+                        {cities.map((c: any) => (
+                          <option key={c._id} value={c._id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Pin Code</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="pinCode" value={formData.pinCode} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Pin Code" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap pl-4 text-[9px]">Blood Group</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="NA">NA</option>
+                      <option value="A+">A+</option>
+                      <option value="O+">O+</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="p-4 space-y-6">
-                {/* Patient Info Row (Read Only mostly) */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-4 border-b border-dashed border-border">
-                  <div className="space-y-1">
-                    <label className="hms-form-label">Patient Name</label>
-                    <input className="hms-input w-full bg-muted/50" readOnly value={formData.patientName} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="hms-form-label">Mobile Number</label>
-                    <input className="hms-input w-full bg-muted/50" readOnly value={formData.mobile} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="hms-form-label">Age / Gender</label>
-                    <div className="flex gap-2">
-                      <input className="hms-input w-1/2 bg-muted/50" readOnly value={formData.age} />
-                      <input className="hms-input w-1/2 bg-muted/50" readOnly value={formData.gender} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="hms-form-label">Admission Date</label>
-                    <input type="date" name="admissionDate" className="hms-input w-full" value={formData.admissionDate} onChange={handleInputChange} />
+
+              {/* Middle Column - Guardian and Payer Details */}
+              <div className="col-span-4 space-y-2 border-r border-gray-300 pr-4">
+                <div className="bg-primary text-white px-2 py-0.5 font-bold flex justify-between items-center">
+                  Guardian Details
+                  <div className="flex items-center gap-1">
+                    <input type="checkbox" id="sameAsReg" className="w-3 h-3" />
+                    <label htmlFor="sameAsReg" className="text-[10px] text-white">Same as Reg.</label>
                   </div>
                 </div>
 
-                {/* Clinical Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="hms-form-label">Department</label>
-                      <select name="department" className="hms-select w-full" value={formData.department} onChange={handleInputChange}>
-                        <option>GENERAL MEDICINE</option>
-                        <option>ORTHOPEDICS</option>
-                        <option>GYNECOLOGY</option>
-                        <option>CARDIOLOGY</option>
-                        <option>PEDIATRICS</option>
+                <div className="space-y-1">
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Guardian's Name</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex gap-1">
+                      <select name="guardianPrefix" value={formData.guardianPrefix} onChange={handleInputChange} className="w-12 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
+                        <option value="Mr.">Mr.</option>
+                        <option value="Mrs.">Mrs.</option>
                       </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="hms-form-label">Consultant Doctor</label>
-                      <select name="doctor" className="hms-select w-full" value={formData.doctor} onChange={handleInputChange}>
-                        <option>Dr. ALOK MEHTA</option>
-                        <option>Dr. RAHUL VERMA</option>
-                        <option>Dr. PRIYA SINGH</option>
-                        <option>Dr. NEHA GUPTA</option>
-                      </select>
+                      <input type="text" name="guardianName" value={formData.guardianName} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" placeholder="Guardian's Name" />
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="hms-form-label">Ward / Floor</label>
-                        <select name="ward" className="hms-select w-full" value={formData.ward} onChange={handleInputChange}>
-                          <option>Ward-A</option><option>Ward-B</option><option>Ward-C</option>
-                          <option>ICU</option><option>NICU</option><option>Deluxe</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="hms-form-label">Bed Number</label>
-                        <select name="bedNo" className="hms-select w-full" value={formData.bedNo} onChange={handleInputChange}>
-                          <option>B-01</option><option>B-02</option><option>B-03</option><option>B-04</option>
-                          <option>ICU-01</option><option>ICU-02</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="hms-form-label">TPA / Panel Name</label>
-                      <select name="tpaPanel" className="hms-select w-full" value={formData.tpaPanel} onChange={handleInputChange}>
-                        <option>--NA--</option>
-                        <option>CGHS (Central Govt)</option>
-                        <option>ECHS (Ex-Servicemen)</option>
-                        <option>STAR HEALTH INSURANCE</option>
-                        <option>HDFC ERGO</option>
-                      </select>
-                    </div>
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Relation with Patient</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="guardianRelation" value={formData.guardianRelation} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="">-- Relation --</option>
+                      <option value="Father">Father</option>
+                      <option value="Mother">Mother</option>
+                    </select>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="hms-form-label">Referred By</label>
-                      <input name="referredBy" className="hms-input w-full" placeholder="Doctor or Hospital Name" value={formData.referredBy} onChange={handleInputChange} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="hms-form-label">Provisional Diagnosis</label>
-                      <textarea name="diagnosis" className="hms-input w-full h-20 resize-none" placeholder="Enter clinical findings..." value={formData.diagnosis} onChange={handleInputChange} />
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Mobile</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="guardianMobile" value={formData.guardianMobile} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Mobile Number" />
+                  </div>
+                </div>
+
+                <div className="bg-primary text-white px-2 py-0.5 font-bold mt-4">
+                  Payer Details
+                </div>
+
+                <div className="space-y-1">
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Insurance Co.</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="insuranceCo" value={formData.insuranceCo} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="">Select Insurance Co.</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Payer Name</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="payerName" value={formData.payerName} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="--NA--">--NA--</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Card No.</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="cardNo" value={formData.cardNo} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Card No." />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Policy/Service No.</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="policyNo" value={formData.policyNo} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Service No." />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Rank</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="text" name="rank" value={formData.rank} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" placeholder="Rank" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Rate List</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="rateList" value={formData.rateList} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="COMMON">COMMON</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Billing</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex items-center gap-4">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="billingType" value="Cash" checked={formData.billingType === 'Cash'} onChange={handleInputChange} className="w-3 h-3" /> Cash
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="billingType" value="Credit" checked={formData.billingType === 'Credit'} onChange={handleInputChange} className="w-3 h-3" /> Credit
+                      </label>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                  <button className="hms-btn-secondary px-8" onClick={() => setFormData({ ...formData, diagnosis: '', uhid: '', patientName: '', mobile: '' })}>Reset</button>
-                  <button className="hms-btn-primary px-10 flex items-center gap-2" onClick={handleAdmit} disabled={loading || !formData.uhid}>
-                    {loading ? 'Processing...' : <><Plus size={16} /> Confirm Admission</>}
+                <div className="space-y-1 mt-4">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-gray-700 font-semibold text-[10px]">Provisional Diagnosis</label>
+                    <textarea name="provisionalDiagnosis" value={formData.provisionalDiagnosis} onChange={handleInputChange} className="w-full h-10 border border-gray-300 px-1 outline-none resize-none" placeholder="Enter Diagnosis" />
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <label className="text-gray-700 font-semibold text-[10px]">Procedure / Treatment</label>
+                    <textarea name="procedureTreatment" value={formData.procedureTreatment} onChange={handleInputChange} className="w-full h-10 border border-gray-300 px-1 outline-none resize-none" placeholder="Enter Treatment" />
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <label className="text-gray-700 font-semibold text-[10px]">Comment / Remark</label>
+                    <textarea name="commentRemark" value={formData.commentRemark} onChange={handleInputChange} className="w-full h-10 border border-gray-300 px-1 outline-none resize-none" placeholder="Enter Remark" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Arrival and Allocation */}
+              <div className="col-span-4 space-y-2 pl-4">
+                <div className="bg-primary text-white px-2 py-0.5 font-bold">
+                  Arrival Details
+                </div>
+
+                <div className="space-y-1">
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Arrival Date</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <input type="date" name="arrivalDate" value={formData.arrivalDate} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none" />
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Arrival Time</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <div className="col-span-6 flex">
+                      <input type="text" name="arrivalTime" value={formData.arrivalTime} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none" />
+                      <span className="px-1 border border-l-0 border-gray-300 bg-gray-50 flex items-center">🕒</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-primary text-white px-2 py-0.5 font-bold mt-4 flex justify-between items-center cursor-pointer">
+                  Allocation (Click here)
+                  <Bed size={14} />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Allocation</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="allocationCategory" value={formData.allocationCategory} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="">-- Select Category --</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-12 items-center gap-1">
+                    <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Unit No.</label>
+                    <span className="col-span-1 text-center">:</span>
+                    <select name="unitNo" value={formData.unitNo} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                      <option value="">-- Select --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center mt-4 h-6">
+                  <div className="w-1/2 bg-primary text-white px-2 py-0.5 font-bold h-full whitespace-nowrap">File Charge (Rs)</div>
+                  <input type="text" name="fileCharge" value={formData.fileCharge} onChange={handleInputChange} className="w-1/2 h-full border border-gray-300 px-1 outline-none" placeholder="" />
+                </div>
+
+                <div className="flex items-center gap-1 mt-4 bg-primary text-white px-2 py-0.5 font-bold h-6">
+                  <span className="text-[10px] whitespace-nowrap">Admission</span>
+                  <input type="checkbox" name="isAdmission" checked={formData.isAdmission} onChange={handleInputChange} className="w-3 h-3" />
+                  <span className="text-[10px] ml-4 whitespace-nowrap">Daycare</span>
+                  <input type="checkbox" name="isDaycare" checked={formData.isDaycare} onChange={handleInputChange} className="w-3 h-3" />
+                </div>
+
+                <div className="grid grid-cols-12 items-center gap-1 mt-2">
+                  <label className="col-span-5 text-gray-700 font-semibold whitespace-nowrap">Source</label>
+                  <span className="col-span-1 text-center">:</span>
+                  <select name="source" value={formData.source} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
+                    <option value="ADV HOARDINGS">ADV HOARDINGS</option>
+                  </select>
+                </div>
+
+                <div className="mt-4 flex flex-col items-center">
+                  <div className="relative w-24 h-24 mb-2">
+                    <div className="w-full h-full bg-gray-200 border border-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                      {formData.photo ? (
+                        <img src={URL.createObjectURL(formData.photo)} alt="Patient" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-gray-400 flex flex-col items-center">
+                          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="User" className="w-16 h-16 opacity-50" />
+                        </div>
+                      )}
+                    </div>
+                    {!formData.photo && (
+                       <div className="absolute bottom-0 right-0 w-8 h-8 bg-orange-400 rounded-full border-2 border-white"></div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 w-full overflow-hidden text-[10px]">
+                    <label className="text-gray-700 font-bold whitespace-nowrap">Photo</label>
+                    <span className="text-gray-700">:</span>
+                    <input type="file" onChange={handleFileChange} className="w-full" />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-center">
+                  <button 
+                    onClick={handleAdmit}
+                    className="bg-primary text-white px-12 py-1.5 rounded font-bold hover:opacity-90 transition-colors shadow-sm flex items-center gap-2"
+                    disabled={loading}
+                  >
+                    Register
                   </button>
                 </div>
               </div>
@@ -348,7 +812,7 @@ const IPD = () => {
         {activeTab === 'discharge' && (
           <div className="max-w-4xl mx-auto space-y-4">
             <div className="bg-card border border-border rounded-md shadow-sm overflow-hidden">
-              <div className="hms-section-header flex items-center gap-2 bg-slate-700">
+              <div className="hms-section-header flex items-center gap-2 bg-primary">
                 <LogOut size={16} /> Discharge Process
               </div>
               <div className="p-6 space-y-6">

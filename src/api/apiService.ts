@@ -92,6 +92,30 @@ export const registerPatient = async (patientData) => {
         throw error.response?.data || error;
     }
 };
+
+export const registerUser = async (userData) => {
+    try {
+        const response = await api.post('/register', userData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+/**
+ * Lists all patients with optional filtering.
+ * @param {object} params - The filtering parameters (search, limit, page, etc.).
+ * @returns {Promise<object>} The list of patients.
+ */
+export const listPatients = async (params) => {
+    try {
+        const response = await api.get('/patients', { params });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
 /**
  * Lists patient visits with optional filtering.
  * @param {object} params - The filtering parameters (visitType, date, etc.).
@@ -121,6 +145,20 @@ export const createPatientVisit = async (visitData) => {
 };
 
 /**
+ * Creates a quick IPD admission (Register + Visit + Admission).
+ * @param {object} admissionData - The data for the quick admission.
+ * @returns {Promise<object>} The newly created admission record.
+ */
+export const createQuickAdmission = async (admissionData) => {
+    try {
+        const response = await api.post('/ipd/quick-admission', admissionData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+/**
  * Lists users (doctors, nurses, etc.) with optional filtering.
  * @param {object} params - The filtering parameters (role, search, etc.).
  * @returns {Promise<object>} The list of users.
@@ -128,6 +166,42 @@ export const createPatientVisit = async (visitData) => {
 export const listUsers = async (params) => {
     try {
         const response = await api.get('/users', { params });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+export const getUserById = async (id) => {
+    try {
+        const response = await api.get(`/users/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+export const updateUser = async (id, userData) => {
+    try {
+        const response = await api.put(`/users/${id}`, userData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+export const deleteUser = async (id) => {
+    try {
+        const response = await api.delete(`/users/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+export const listRoles = async () => {
+    try {
+        const response = await api.get('/roles');
         return response.data;
     } catch (error) {
         throw error.response?.data || error;
@@ -155,6 +229,19 @@ export const listRooms = async (params) => {
 export const listDepartments = async () => {
     try {
         const response = await api.get('/core/departments');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+/**
+ * Lists countries.
+ * @returns {Promise<object>} The list of countries.
+ */
+export const listCountries = async () => {
+    try {
+        const response = await api.get('/geo/countries');
         return response.data;
     } catch (error) {
         throw error.response?.data || error;
@@ -238,6 +325,19 @@ export const getPharmacyDispenses = async () => {
 export const getReceipts = async () => {
     try {
         const response = await api.get('/core/receipts');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+/**
+ * Lists medicines from the master.
+ * @returns {Promise<object>} The list of medicines.
+ */
+export const listMedicines = async () => {
+    try {
+        const response = await api.get('/pharmacy/medicines');
         return response.data;
     } catch (error) {
         throw error.response?.data || error;

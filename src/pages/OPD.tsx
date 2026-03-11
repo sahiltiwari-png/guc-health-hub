@@ -9,7 +9,8 @@ import {
   listDepartments,
   listStates,
   listCities,
-  listVisits
+  listVisits,
+  listCountries
 } from '@/api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -27,6 +28,7 @@ const OPD = () => {
   const [rooms, setRooms] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Form state
@@ -53,7 +55,7 @@ const OPD = () => {
     dob: '',
     age: 0,
     currentAge: '',
-    country: 'India',
+    country: '',
     stateId: '',
     cityId: '',
     email: '',
@@ -66,16 +68,26 @@ const OPD = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [docsRes, deptsRes, statesRes, visitsRes] = await Promise.all([
+        const [docsRes, deptsRes, statesRes, countriesRes, visitsRes] = await Promise.all([
           listUsers({ role: 'doctor' }),
           listDepartments(),
           listStates(),
+          listCountries(),
           listVisits({ visitType: 'OPD', date: new Date().toISOString().split('T')[0] })
         ]);
         setDoctors(docsRes.data || []);
         setDepartments(deptsRes.data || []);
         setStates(statesRes.data || []);
+        const countriesList = countriesRes.data || [];
+        setCountries(countriesList);
         setVisits(visitsRes.data || []);
+        
+        // Find India and set its ID as default
+        const india = countriesList.find((c: any) => c.name === 'India');
+        if (india) {
+          setFormData(prev => ({ ...prev, country: india._id }));
+        }
+        
         setDataLoaded(true);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -245,7 +257,19 @@ const OPD = () => {
   const handleCreateOpd = async () => {
     setIsLoading(true);
     try {
-      const payload = patient ? { ...formData, uhid: patient.uhid } : formData;
+      // Sanitize ObjectIds to handle empty strings
+      const sanitizedData = {
+        ...formData,
+        doctorId: formData.doctorId || undefined,
+        departmentId: formData.departmentId || undefined,
+        roomId: formData.roomId || undefined,
+        stateId: formData.stateId || undefined,
+        cityId: formData.cityId || undefined,
+        country: formData.country || undefined,
+        referredDoctorId: formData.referredDoctorId || undefined
+      };
+      
+      const payload = patient ? { ...sanitizedData, uhid: patient.uhid } : sanitizedData;
       await createPatientVisit(payload);
       toast({ title: "Success", description: "OPD visit registered successfully." });
       
@@ -406,7 +430,10 @@ const OPD = () => {
             </div>
             <div className="flex items-center gap-3">
               <label className="hms-form-label w-24 text-right">Resident :</label>
-              <select name="country" value={formData.country} onChange={handleInputChange} className="hms-select w-28"><option>India</option><option>NRI</option></select>
+              <select name="country" value={formData.country} onChange={handleInputChange} className="hms-select w-28">
+                <option value="">-- Country --</option>
+                {countries.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </select>
               <label className="hms-form-label ml-2">State :</label>
               <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select State --</option>

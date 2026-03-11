@@ -1,21 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Edit, Eye, Printer, Plus, ArrowRight } from 'lucide-react';
-import { findPatientByMobile, registerPatient, createPatientVisit } from '@/api/apiService';
+import { findPatientByMobile, registerPatient, createPatientVisit, listPatients, listCountries, listStates, listCities } from '@/api/apiService';
 import { useToast } from '@/components/ui/use-toast';
-
-// Mock data for patient list display
-const mockPatients = [
-  { sno: 1, uhid: 'U-1001', name: 'Mr. Rajesh Kumar', age: '45Y', gender: 'Male', mobile: '9876543210', address: 'Sector 12, Noida', guardian: 'Suresh Kumar', regDate: '10-Jan-2023' },
-  { sno: 2, uhid: 'U-1002', name: 'Mrs. Sunita Devi', age: '32Y', gender: 'Female', mobile: '8765432109', address: 'Lajpat Nagar, Delhi', guardian: 'Ramesh Kumar', regDate: '12-Jan-2023' },
-];
 
 const PatientRegistration = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('new');
   const [mobile, setMobile] = useState('');
-  const [patient, setPatient] = useState(null);
+  const [patient, setPatient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [states, setStates] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [countryRes, stateRes] = await Promise.all([
+          listCountries(),
+          listStates()
+        ]);
+        const countriesList = countryRes.data || [];
+        setCountries(countriesList);
+        setStates(stateRes.data || []);
+        
+        // Find India and set its ID as default
+        const india = countriesList.find((c: any) => c.name === 'India');
+        if (india) {
+          setFormData(prev => ({ ...prev, country: india._id }));
+        }
+      } catch (error: any) {
+        console.error("Error fetching initial data:", error);
+      }
+    };
+    fetchInitialData();
+  }, []);
+
+  // Fetch cities when state changes
+   useEffect(() => {
+     if (formData.stateId) {
+       listCities(formData.stateId).then(res => setCities(res.data || []));
+     } else {
+       setCities([]);
+     }
+   }, [formData.stateId]);
+
+  useEffect(() => {
+    if (activeTab === 'list') {
+      const fetchPatients = async () => {
+        setIsLoading(true);
+        try {
+          const res = await listPatients({});
+          setPatients(res.data || []);
+        } catch (error: any) {
+          toast({ title: "Error", description: error.message || "Failed to fetch patients.", variant: "destructive" });
+        }
+        setIsLoading(false);
+      };
+      fetchPatients();
+    }
+  }, [activeTab]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -29,7 +75,7 @@ const PatientRegistration = () => {
     relationType: 'Father',
     guardianName: '',
     address: '',
-    country: 'India',
+    country: '',
     stateId: '',
     cityId: '',
     bloodGroup: '',
@@ -71,7 +117,15 @@ const PatientRegistration = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const newPatient = await registerPatient({ ...formData, mobile });
+      // Sanitize ObjectIds to handle empty strings
+      const sanitizedData = {
+        ...formData,
+        country: formData.country || undefined,
+        stateId: formData.stateId || undefined,
+        cityId: formData.cityId || undefined,
+        referredDoctorId: formData.referredDoctorId || undefined
+      };
+      const newPatient = await registerPatient({ ...sanitizedData, mobile });
       setPatient(newPatient.patient);
       setIsRegistered(true);
       toast({ title: "Success", description: "Patient registered successfully." });
@@ -105,8 +159,50 @@ const PatientRegistration = () => {
       </div>
 
       {activeTab === 'list' && (
-        <div>
-          {/* ... Patient List View ... */}
+        <div className="space-y-2">
+          <div className="flex gap-2 mb-2">
+            <input className="hms-input w-64" placeholder="Search by UHID, Name, Mobile..." />
+            <button className="hms-btn-primary"><Search size={12} /> Search</button>
+          </div>
+          <table className="hms-table">
+            <thead>
+              <tr>
+                <th>S.No.</th>
+                <th>UHID</th>
+                <th>Patient Name</th>
+                <th>Age/Gender</th>
+                <th>Mobile</th>
+                <th>Address</th>
+                <th>Guardian</th>
+                <th>Reg. Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map((p, index) => (
+                <tr key={p._id}>
+                  <td>{index + 1}</td>
+                  <td className="font-bold text-primary">{p.uhid}</td>
+                  <td className="font-semibold">{p.patientName}</td>
+                  <td>{p.age}Y / {p.gender}</td>
+                  <td>{p.mobile}</td>
+                  <td className="max-w-[150px] truncate">{p.address}</td>
+                  <td>{p.guardianName}</td>
+                  <td>{new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td className="flex gap-1">
+                    <button className="p-1 hover:bg-secondary rounded text-primary" title="View"><Eye size={14} /></button>
+                    <button className="p-1 hover:bg-secondary rounded text-primary" title="Edit"><Edit size={14} /></button>
+                    <button className="p-1 hover:bg-secondary rounded text-primary" title="Print"><Printer size={14} /></button>
+                  </td>
+                </tr>
+              ))}
+              {patients.length === 0 && !isLoading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-4 text-muted-foreground">No patients found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -212,6 +308,29 @@ const PatientRegistration = () => {
                   <div className="flex items-center gap-2">
                     <label className="hms-form-label w-28">Remarks:</label>
                     <textarea name="remark" value={formData.remark} onChange={handleInputChange} className="hms-input flex-1 h-12" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="hms-form-label w-28">Country:</label>
+                    <select name="country" value={formData.country} onChange={handleInputChange} className="hms-select flex-1">
+                      <option value="">--Select--</option>
+                      {countries.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="hms-form-label w-28">State:</label>
+                    <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="hms-select flex-1">
+                      <option value="">--Select--</option>
+                      {states.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="hms-form-label w-28">City:</label>
+                    <select name="cityId" value={formData.cityId} onChange={handleInputChange} className="hms-select flex-1">
+                      <option value="">--Select--</option>
+                      {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
