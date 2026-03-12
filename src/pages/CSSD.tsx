@@ -1,182 +1,502 @@
-import React, { useState } from 'react';
-import { ShieldCheck, ThermometerSun, Clock, CheckCircle2, AlertTriangle, Eye, Printer, Plus, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw } from 'lucide-react';
+import { 
+  getInstruments, createInstrument,
+  getInstrumentBatches, createInstrumentBatch,
+  getSterilizationCycles, createSterilizationCycle, updateSterilizationCycle,
+  getIssuedInstruments, issueInstrument, returnInstrument,
+  listUsers, listDepartments, getEquipments
+} from '../api/apiService';
+import { useToast } from '@/components/ui/use-toast';
 
-const instrumentSets = [
-  { id: 'SET-001', name: 'General Surgery Set', items: 45, department: 'General Surgery', lastSterilized: '15-Feb-2026 06:00', nextDue: '15-Feb-2026 18:00', sterilizeCount: 342, status: 'Sterile' },
-  { id: 'SET-002', name: 'Ortho Implant Set', items: 32, department: 'Orthopedics', lastSterilized: '15-Feb-2026 07:00', nextDue: '15-Feb-2026 19:00', sterilizeCount: 289, status: 'Sterile' },
-  { id: 'SET-003', name: 'OBG Delivery Set', items: 28, department: 'Gynecology', lastSterilized: '14-Feb-2026 18:00', nextDue: '15-Feb-2026 06:00', sterilizeCount: 456, status: 'In Use' },
-  { id: 'SET-004', name: 'Eye Surgery Micro Set', items: 22, department: 'Ophthalmology', lastSterilized: '15-Feb-2026 08:00', nextDue: '15-Feb-2026 20:00', sterilizeCount: 178, status: 'Sterile' },
-  { id: 'SET-005', name: 'Cardiac Catheterization Set', items: 18, department: 'Cardiology', lastSterilized: '15-Feb-2026 05:00', nextDue: '15-Feb-2026 17:00', sterilizeCount: 134, status: 'Processing' },
-  { id: 'SET-006', name: 'Laparoscopy Set', items: 35, department: 'General Surgery', lastSterilized: '14-Feb-2026 20:00', nextDue: '15-Feb-2026 08:00', sterilizeCount: 267, status: 'Overdue' },
-  { id: 'SET-007', name: 'ENT Microscopy Set', items: 15, department: 'ENT', lastSterilized: '15-Feb-2026 09:00', nextDue: '15-Feb-2026 21:00', sterilizeCount: 198, status: 'Sterile' },
-  { id: 'SET-008', name: 'Neuro Surgery Set', items: 40, department: 'Neurosurgery', lastSterilized: '15-Feb-2026 04:00', nextDue: '15-Feb-2026 16:00', sterilizeCount: 95, status: 'Sterile' },
-  { id: 'SET-009', name: 'Dressing Tray (x20)', items: 8, department: 'All Wards', lastSterilized: '15-Feb-2026 06:00', nextDue: '15-Feb-2026 12:00', sterilizeCount: 1245, status: 'In Use' },
-];
-
-const sterilizationCycles = [
-  { id: 'CYC-5001', machine: 'Autoclave-1 (Steam)', load: 'SET-001, SET-008', startTime: '05:30 AM', endTime: '06:15 AM', temp: '134°C', pressure: '2.1 bar', duration: '45 min', biIndicator: 'Pass', chemIndicator: 'Pass', operator: 'Ramesh', status: 'Completed' },
-  { id: 'CYC-5002', machine: 'Autoclave-2 (Steam)', load: 'SET-002, SET-007', startTime: '06:30 AM', endTime: '07:15 AM', temp: '134°C', pressure: '2.1 bar', duration: '45 min', biIndicator: 'Pass', chemIndicator: 'Pass', operator: 'Sunil', status: 'Completed' },
-  { id: 'CYC-5003', machine: 'ETO Sterilizer', load: 'SET-004', startTime: '07:00 AM', endTime: '11:00 AM', temp: '55°C', pressure: '-', duration: '4 hrs', biIndicator: 'Pending', chemIndicator: 'Pass', operator: 'Ramesh', status: 'Completed' },
-  { id: 'CYC-5004', machine: 'Autoclave-1 (Steam)', load: 'SET-005', startTime: '10:00 AM', endTime: '-', temp: '134°C', pressure: '2.0 bar', duration: '-', biIndicator: '-', chemIndicator: '-', operator: 'Sunil', status: 'In Progress' },
-  { id: 'CYC-5005', machine: 'Plasma Sterilizer', load: 'Endoscopes', startTime: '08:00 AM', endTime: '09:00 AM', temp: '50°C', pressure: '-', duration: '60 min', biIndicator: 'Pass', chemIndicator: 'Pass', operator: 'Meena', status: 'Completed' },
-];
-
-const departmentRequests = [
-  { id: 'REQ-801', department: 'OT-1', set: 'General Surgery Set', urgency: 'Urgent', requestedBy: 'Sr. Nurse Kavita', requestTime: '07:00 AM', requiredBy: '08:30 AM', status: 'Dispatched' },
-  { id: 'REQ-802', department: 'OT-2', set: 'Ortho Implant Set', urgency: 'Routine', requestedBy: 'Sr. Nurse Priya', requestTime: '07:30 AM', requiredBy: '10:00 AM', status: 'Ready' },
-  { id: 'REQ-803', department: 'Labour Room', set: 'OBG Delivery Set', urgency: 'Emergency', requestedBy: 'Sr. Nurse Sunita', requestTime: '09:45 AM', requiredBy: '10:00 AM', status: 'Dispatched' },
-  { id: 'REQ-804', department: 'Ward-A', set: 'Dressing Tray (x10)', urgency: 'Routine', requestedBy: 'Staff Nurse Meera', requestTime: '06:00 AM', requiredBy: '07:00 AM', status: 'Dispatched' },
-  { id: 'REQ-805', department: 'OT-3', set: 'Laparoscopy Set', urgency: 'Urgent', requestedBy: 'Sr. Nurse Kavita', requestTime: '10:00 AM', requiredBy: '11:00 AM', status: 'Processing' },
-];
-
-const machineStatus = [
-  { machine: 'Autoclave-1 (Steam)', type: 'High Pressure Steam', capacity: '300L', lastCalibration: '01-Feb-2026', nextCalibration: '01-Mar-2026', cyclestoday: 3, totalCycles: 4520, status: 'Running' },
-  { machine: 'Autoclave-2 (Steam)', type: 'High Pressure Steam', capacity: '300L', lastCalibration: '01-Feb-2026', nextCalibration: '01-Mar-2026', cyclestoday: 2, totalCycles: 3890, status: 'Idle' },
-  { machine: 'ETO Sterilizer', type: 'Ethylene Oxide', capacity: '150L', lastCalibration: '15-Jan-2026', nextCalibration: '15-Feb-2026', cyclestoday: 1, totalCycles: 1245, status: 'Calibration Due' },
-  { machine: 'Plasma Sterilizer', type: 'H2O2 Plasma', capacity: '50L', lastCalibration: '20-Jan-2026', nextCalibration: '20-Feb-2026', cyclestoday: 1, totalCycles: 678, status: 'Idle' },
-  { machine: 'Washer Disinfector', type: 'Thermal Wash', capacity: '200L', lastCalibration: '05-Feb-2026', nextCalibration: '05-Mar-2026', cyclestoday: 5, totalCycles: 5670, status: 'Running' },
-];
-
-type Tab = 'sets' | 'cycles' | 'requests' | 'machines' | 'quality';
+type Tab = 'sets' | 'batches' | 'cycles' | 'requests' | 'machines' | 'quality';
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'sets', label: 'Instrument Sets' },
+  { key: 'sets', label: 'Instruments' },
+  { key: 'batches', label: 'Batches' },
   { key: 'cycles', label: 'Sterilization Cycles' },
-  { key: 'requests', label: 'Dept Requests' },
+  { key: 'requests', label: 'Issuance/Returns' },
   { key: 'machines', label: 'Equipment Status' },
-  { key: 'quality', label: 'Quality Control' },
 ];
 
 const CSSD = () => {
+  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('sets');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Data States
+  const [data, setData] = useState({
+    instruments: [],
+    batches: [],
+    cycles: [],
+    issues: [],
+    users: [],
+    departments: []
+  });
+
+  // UI States
+  const [showModal, setShowModal] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [insRes, batRes, cycRes, issRes, userRes, depRes, eqRes] = await Promise.all([
+        getInstruments(),
+        getInstrumentBatches(),
+        getSterilizationCycles(),
+        getIssuedInstruments(),
+        listUsers({ role: 'Doctor' }),
+        listDepartments(),
+        getEquipments({ categoryName: 'Sterilization' })
+      ]);
+
+      setData({
+        instruments: insRes || [],
+        batches: batRes || [],
+        cycles: cycRes || [],
+        issues: issRes || [],
+        users: userRes.data || [],
+        departments: depRes.data || [],
+        equipments: eqRes.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching CSSD data:', error);
+      toast({ title: 'Error', description: 'Failed to sync CSSD data', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateInstrument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createInstrument(selectedItem);
+      toast({ title: 'Success', description: 'Instrument added' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createInstrumentBatch(selectedItem);
+      toast({ title: 'Success', description: 'Batch created' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateCycle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createSterilizationCycle(selectedItem);
+      toast({ title: 'Success', description: 'Cycle started' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  const handleCompleteCycle = async (id: string) => {
+    try {
+      await updateSterilizationCycle(id, { status: 'Completed', endTime: new Date() });
+      toast({ title: 'Success', description: 'Cycle completed' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Update failed', variant: 'destructive' });
+    }
+  };
+
+  const handleIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await issueInstrument(selectedItem);
+      toast({ title: 'Success', description: 'Instrument issued' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  const handleReturn = async (id: string) => {
+    try {
+      await returnInstrument(id);
+      toast({ title: 'Success', description: 'Instrument returned' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Return failed', variant: 'destructive' });
+    }
+  };
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case 'Ready':
+      case 'Sterile':
+      case 'Completed':
+      case 'Active':
+      case 'Returned': return 'bg-hms-success text-hms-success-foreground';
+      case 'Pending':
+      case 'Processing':
+      case 'Issued':
+      case 'In Use': return 'bg-hms-warning text-foreground';
+      case 'Failed':
+      case 'Expired':
+      case 'Overdue': return 'bg-destructive text-destructive-foreground';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
 
   return (
-    <div>
+    <div className="flex flex-col h-full space-y-3">
       <div className="hms-section-header flex items-center justify-between">
-        <div className="flex items-center gap-2"><ShieldCheck size={16} /> CSSD Management (Central Sterile Supply Department)</div>
+        <div className="flex items-center gap-2"><ShieldCheck size={16} /> CSSD & Core Management</div>
         <div className="flex items-center gap-2">
-          <input className="hms-input w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
-          <button className="hms-btn-primary"><Plus size={12} /> New Cycle</button>
-          <button className="hms-btn-secondary"><RotateCcw size={12} /> Re-process</button>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+            <input className="hms-input pl-7 w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="hms-btn-primary flex items-center gap-1" onClick={() => {
+            setSelectedItem({ name: '', category: '', code: '' });
+            setShowModal('instrument');
+          }}><Plus size={14} /> New Instrument</button>
+          <button className="hms-btn-secondary flex items-center gap-1" onClick={() => {
+            setSelectedItem({ batchNumber: `BAT-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`, instruments: [], sterilizationDate: new Date().toISOString().split('T')[0], expiryDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0] });
+            setShowModal('batch');
+          }}><Plus size={14} /> New Batch</button>
+          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
-      <div className="grid grid-cols-6 gap-1 my-1">
+      <div className="grid grid-cols-6 gap-2 my-1">
         {[
-          { label: 'Total Sets', value: instrumentSets.length },
-          { label: 'Sterile Ready', value: instrumentSets.filter(s => s.status === 'Sterile').length, color: '' },
-          { label: 'In Use', value: instrumentSets.filter(s => s.status === 'In Use').length, color: 'text-primary' },
-          { label: 'Processing', value: instrumentSets.filter(s => s.status === 'Processing').length },
-          { label: 'Overdue', value: instrumentSets.filter(s => s.status === 'Overdue').length, color: 'text-destructive' },
-          { label: 'Cycles Today', value: sterilizationCycles.length },
+          { label: 'Total Instruments', value: data.instruments.length, color: 'text-primary' },
+          { label: 'Ready Batches', value: data.batches.filter((b: any) => b.status === 'Ready').length, color: 'text-hms-success' },
+          { label: 'Active Cycles', value: data.cycles.filter((c: any) => c.status === 'Pending').length, color: 'text-hms-warning' },
+          { label: 'Issued Units', value: data.issues.filter((i: any) => i.status === 'Issued').length, color: 'text-hms-info' },
+          { label: 'Expired Batches', value: data.batches.filter((b: any) => new Date(b.expiryDate) < new Date()).length, color: 'text-destructive' },
+          { label: 'Total Cycles', value: data.cycles.length, color: 'text-primary' },
         ].map((k, i) => (
-          <div key={i} className="bg-card border border-border p-1.5 text-center">
-            <div className={`text-lg font-bold ${k.color || ''}`}>{k.value}</div>
-            <div className="text-[9px] text-muted-foreground">{k.label}</div>
+          <div key={i} className="bg-card border border-border p-3 shadow-sm text-center">
+            <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+            <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">{k.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-0 bg-primary overflow-x-auto">
+      <div className="flex border-b border-border bg-card">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${tab === t.key ? 'bg-card text-foreground' : 'text-primary-foreground hover:bg-primary-foreground/10'}`}>
+            className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-card border border-border">
-        {tab === 'sets' && (
-          <table className="hms-table">
-            <thead><tr><th>Set ID</th><th>Name</th><th>Items</th><th>Department</th><th>Last Sterilized</th><th>Next Due</th><th>Total Cycles</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              {instrumentSets.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                <tr key={s.id}>
-                  <td className="font-semibold">{s.id}</td><td>{s.name}</td><td>{s.items}</td><td>{s.department}</td><td className="text-[10px]">{s.lastSterilized}</td><td className="text-[10px]">{s.nextDue}</td><td>{s.sterilizeCount}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${s.status === 'Sterile' ? 'bg-hms-success text-hms-success-foreground' : s.status === 'Overdue' ? 'bg-destructive text-destructive-foreground' : s.status === 'In Use' ? 'bg-hms-info text-primary-foreground' : 'bg-hms-warning'}`}>{s.status}</span></td>
-                  <td><button className="hms-btn-primary text-[10px] mr-1">Process</button><button className="hms-btn-secondary text-[10px]">History</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'cycles' && (
-          <table className="hms-table">
-            <thead><tr><th>Cycle ID</th><th>Machine</th><th>Load</th><th>Start</th><th>End</th><th>Temp</th><th>Pressure</th><th>Duration</th><th>BI</th><th>CI</th><th>Operator</th><th>Status</th></tr></thead>
-            <tbody>
-              {sterilizationCycles.map(c => (
-                <tr key={c.id}>
-                  <td className="font-semibold">{c.id}</td><td className="text-[10px]">{c.machine}</td><td className="text-[10px]">{c.load}</td><td>{c.startTime}</td><td>{c.endTime}</td>
-                  <td>{c.temp}</td><td>{c.pressure}</td><td>{c.duration}</td>
-                  <td><span className={`text-[10px] px-1 py-0.5 ${c.biIndicator === 'Pass' ? 'bg-hms-success text-hms-success-foreground' : c.biIndicator === 'Pending' ? 'bg-hms-warning' : ''}`}>{c.biIndicator}</span></td>
-                  <td><span className={`text-[10px] px-1 py-0.5 ${c.chemIndicator === 'Pass' ? 'bg-hms-success text-hms-success-foreground' : ''}`}>{c.chemIndicator}</span></td>
-                  <td>{c.operator}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${c.status === 'Completed' ? 'bg-hms-success text-hms-success-foreground' : 'bg-hms-info text-primary-foreground'}`}>{c.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'requests' && (
-          <table className="hms-table">
-            <thead><tr><th>Req ID</th><th>Department</th><th>Set Required</th><th>Urgency</th><th>Requested By</th><th>Request Time</th><th>Required By</th><th>Status</th></tr></thead>
-            <tbody>
-              {departmentRequests.map(r => (
-                <tr key={r.id}>
-                  <td className="font-semibold">{r.id}</td><td>{r.department}</td><td>{r.set}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${r.urgency === 'Emergency' ? 'bg-destructive text-destructive-foreground' : r.urgency === 'Urgent' ? 'bg-hms-warning' : 'bg-muted text-foreground'}`}>{r.urgency}</span></td>
-                  <td>{r.requestedBy}</td><td>{r.requestTime}</td><td>{r.requiredBy}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${r.status === 'Dispatched' ? 'bg-hms-success text-hms-success-foreground' : r.status === 'Ready' ? 'bg-hms-info text-primary-foreground' : 'bg-hms-warning'}`}>{r.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'machines' && (
-          <table className="hms-table">
-            <thead><tr><th>Machine</th><th>Type</th><th>Capacity</th><th>Last Calibration</th><th>Next Calibration</th><th>Cycles Today</th><th>Total Cycles</th><th>Status</th></tr></thead>
-            <tbody>
-              {machineStatus.map(m => (
-                <tr key={m.machine}>
-                  <td className="font-semibold">{m.machine}</td><td className="text-[10px]">{m.type}</td><td>{m.capacity}</td><td>{m.lastCalibration}</td><td>{m.nextCalibration}</td><td>{m.cyclestoday}</td><td>{m.totalCycles}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${m.status === 'Running' ? 'bg-hms-success text-hms-success-foreground' : m.status === 'Idle' ? 'bg-muted text-foreground' : 'bg-destructive text-destructive-foreground'}`}>{m.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'quality' && (
-          <div className="p-2 space-y-2">
-            <div className="text-xs font-bold">Quality Assurance Checklist — 15-Feb-2026</div>
-            <table className="hms-table">
-              <thead><tr><th>S.No</th><th>Parameter</th><th>Standard</th><th>Observed</th><th>Result</th><th>Checked By</th></tr></thead>
-              <tbody>
-                {[
-                  { p: 'Autoclave BI Test (Geobacillus)', std: 'No Growth in 24h', obs: 'No Growth', res: 'Pass' },
-                  { p: 'Chemical Indicator Strip', std: 'Color Change to Dark', obs: 'Dark Brown', res: 'Pass' },
-                  { p: 'Bowie-Dick Test', std: 'Uniform Color Change', obs: 'Uniform', res: 'Pass' },
-                  { p: 'ETO Residue Test', std: '< 25 ppm', obs: '18 ppm', res: 'Pass' },
-                  { p: 'Water Quality (Autoclave)', std: 'Conductivity < 15 µS', obs: '12 µS', res: 'Pass' },
-                  { p: 'Packaging Integrity', std: 'No tears/moisture', obs: 'Intact', res: 'Pass' },
-                  { p: 'Storage Area Temp/Humidity', std: '18-22°C / 35-70% RH', obs: '20°C / 45% RH', res: 'Pass' },
-                ].map((q, i) => (
-                  <tr key={i}>
-                    <td>{i + 1}</td><td>{q.p}</td><td className="text-[10px]">{q.std}</td><td className="text-[10px]">{q.obs}</td>
-                    <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{q.res}</span></td>
-                    <td>Ramesh Kumar</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bg-card border border-border flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-2 opacity-50">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Syncing CSSD Data...</span>
           </div>
+        ) : (
+          <>
+            {tab === 'sets' && (
+              <table className="hms-table">
+                <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Created At</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.instruments.filter((i: any) => i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())).map((i: any) => (
+                    <tr key={i._id}>
+                      <td className="font-mono text-xs font-bold">{i.code}</td>
+                      <td className="font-semibold">{i.name}</td>
+                      <td>{i.category}</td>
+                      <td>{new Date(i.createdAt).toLocaleDateString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${i.isActive ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted'}`}>{i.isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td>
+                        <button className="text-primary hover:bg-primary/10 p-1 rounded"><Eye size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'batches' && (
+              <table className="hms-table">
+                <thead><tr><th>Batch #</th><th>Instruments</th><th>Sterilized Date</th><th>Expiry Date</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.batches.filter((b: any) => b.batchNumber.toLowerCase().includes(search.toLowerCase())).map((b: any) => (
+                    <tr key={b._id}>
+                      <td className="font-mono text-xs font-bold">{b.batchNumber}</td>
+                      <td>
+                        <div className="text-[10px]">
+                          {b.instruments?.map((inst: any, idx: number) => (
+                            <div key={idx}>{inst.instrumentId?.name} (x{inst.quantity})</div>
+                          ))}
+                        </div>
+                      </td>
+                      <td>{new Date(b.sterilizationDate).toLocaleDateString()}</td>
+                      <td className={new Date(b.expiryDate) < new Date() ? 'text-destructive font-bold' : ''}>{new Date(b.expiryDate).toLocaleDateString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(b.status)}`}>{b.status}</span></td>
+                      <td>
+                        <div className="flex gap-2">
+                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
+                            setSelectedItem({ batchId: b._id, cycleNumber: Math.floor(Math.random()*10000), machineUsed: '', startTime: new Date().toISOString().slice(0, 16) });
+                            setShowModal('cycle');
+                          }}>Start Cycle</button>
+                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => {
+                            setSelectedItem({ batchId: b._id, issuedTo: '', issuedFor: 'Surgery', issuedQuantity: 1 });
+                            setShowModal('issue');
+                          }}>Issue</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'cycles' && (
+              <table className="hms-table">
+                <thead><tr><th>Cycle #</th><th>Batch #</th><th>Machine</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.cycles.map((c: any) => (
+                    <tr key={c._id}>
+                      <td className="font-bold">{c.cycleNumber}</td>
+                      <td className="font-mono text-xs">{c.batchId?.batchNumber}</td>
+                      <td>{c.machineUsed}</td>
+                      <td>{new Date(c.startTime).toLocaleString()}</td>
+                      <td>{c.endTime ? new Date(c.endTime).toLocaleString() : '-'}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(c.status)}`}>{c.status}</span></td>
+                      <td>
+                        {c.status === 'Pending' && (
+                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleCompleteCycle(c._id)}>Complete</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'requests' && (
+              <table className="hms-table">
+                <thead><tr><th>Issued To</th><th>Batch #</th><th>For</th><th>Qty</th><th>Issued At</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.issues.map((i: any) => (
+                    <tr key={i._id}>
+                      <td className="font-semibold">{i.issuedTo?.name || 'Staff'}</td>
+                      <td className="font-mono text-xs">{i.batchId?.batchNumber}</td>
+                      <td>{i.issuedFor}</td>
+                      <td>{i.issuedQuantity}</td>
+                      <td>{new Date(i.issuedAt).toLocaleString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
+                      <td>
+                        {i.status === 'Issued' && (
+                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => handleReturn(i._id)}>Return</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'machines' && (
+              <table className="hms-table">
+                <thead><tr><th>Machine</th><th>Brand/Model</th><th>Uptime</th><th>Today Exams</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {(data as any).equipments?.map((e: any) => (
+                    <tr key={e._id}>
+                      <td className="font-bold">{e.name}</td>
+                      <td>{e.brand} {e.model}</td>
+                      <td>99.5%</td>
+                      <td>5</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${e.status === 'active' ? 'bg-hms-success text-hms-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>{e.status}</span></td>
+                      <td>
+                        <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Maintenance"><Eye size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {(data as any).equipments?.length === 0 && <tr><td colSpan={6} className="text-center py-4 text-muted-foreground italic">No machines found</td></tr>}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </div>
+
+      {/* Modals */}
+      {showModal === 'instrument' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Add New Instrument</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateInstrument} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Name</label>
+                <input className="hms-input w-full" required value={selectedItem?.name} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Category</label>
+                  <input className="hms-input w-full" required value={selectedItem?.category} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Code</label>
+                  <input className="hms-input w-full" required value={selectedItem?.code} onChange={e => setSelectedItem({...selectedItem, code: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Save Instrument</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'batch' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Create Instrument Batch</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateBatch} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Batch Number</label>
+                <input className="hms-input w-full" required value={selectedItem?.batchNumber} onChange={e => setSelectedItem({...selectedItem, batchNumber: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Add Instrument</label>
+                <div className="flex gap-2">
+                  <select className="hms-select flex-1" id="inst-select">
+                    <option value="">-- Choose Instrument --</option>
+                    {data.instruments.map((i: any) => <option key={i._id} value={i._id}>{i.name} ({i.code})</option>)}
+                  </select>
+                  <input type="number" className="hms-input w-16" defaultValue="1" id="inst-qty" />
+                  <button type="button" className="hms-btn-secondary p-2" onClick={() => {
+                    const id = (document.getElementById('inst-select') as HTMLSelectElement).value;
+                    const qty = parseInt((document.getElementById('inst-qty') as HTMLInputElement).value);
+                    if (!id) return;
+                    const inst = data.instruments.find((i: any) => i._id === id);
+                    setSelectedItem({
+                      ...selectedItem,
+                      instruments: [...(selectedItem.instruments || []), { instrumentId: id, quantity: qty, name: (inst as any).name }]
+                    });
+                  }}><Plus size={14} /></button>
+                </div>
+              </div>
+              <div className="max-h-32 overflow-auto border border-border p-2 bg-muted/10">
+                {selectedItem?.instruments?.map((i: any, idx: number) => (
+                  <div key={idx} className="text-[10px] flex justify-between py-1 border-b border-border last:border-0">
+                    <span>{i.name}</span>
+                    <span className="font-bold">x{i.quantity}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Sterilization Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.sterilizationDate} onChange={e => setSelectedItem({...selectedItem, sterilizationDate: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Expiry Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.expiryDate} onChange={e => setSelectedItem({...selectedItem, expiryDate: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Create Batch</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'cycle' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Clock size={16} className="text-primary" /> Start Sterilization Cycle</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateCycle} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Cycle Number</label>
+                  <input type="number" className="hms-input w-full" required value={selectedItem?.cycleNumber} onChange={e => setSelectedItem({...selectedItem, cycleNumber: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Machine Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.machineUsed} onChange={e => setSelectedItem({...selectedItem, machineUsed: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Start Time</label>
+                <input type="datetime-local" className="hms-input w-full" required value={selectedItem?.startTime} onChange={e => setSelectedItem({...selectedItem, startTime: e.target.value})} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Start Cycle</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'issue' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Issue Instrument Batch</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleIssue} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Issue To (Doctor/Staff)</label>
+                <select className="hms-select w-full" required value={selectedItem?.issuedTo} onChange={e => setSelectedItem({...selectedItem, issuedTo: e.target.value})}>
+                  <option value="">-- Select Person --</option>
+                  {data.users.map((u: any) => <option key={u._id} value={u._id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Issued For</label>
+                  <select className="hms-select w-full" required value={selectedItem?.issuedFor} onChange={e => setSelectedItem({...selectedItem, issuedFor: e.target.value})}>
+                    <option value="Surgery">Surgery</option>
+                    <option value="IPD">IPD</option>
+                    <option value="OPD">OPD</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity</label>
+                  <input type="number" className="hms-input w-full" required min="1" value={selectedItem?.issuedQuantity} onChange={e => setSelectedItem({...selectedItem, issuedQuantity: Number(e.target.value)})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Issue Units</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

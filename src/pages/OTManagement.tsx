@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar } from 'lucide-react';
+import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 
-const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
+const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
 
 const StatusBadge = ({ status }: { status: string }) => {
   const c: Record<string, string> = { 'Running': 'bg-green-700 text-white', 'Scheduled': 'bg-blue-700 text-white', 'Completed': 'bg-green-800 text-white', 'Preparing': 'bg-yellow-600 text-white', 'Cancelled': 'bg-red-700 text-white', 'Available': 'bg-green-700 text-white', 'Occupied': 'bg-red-700 text-white', 'Cleaning': 'bg-yellow-600 text-white', 'Emergency': 'bg-red-700 text-white', 'Elective': 'bg-blue-700 text-white', 'Done': 'bg-green-700 text-white', 'Pending': 'bg-yellow-600 text-white', 'GA': 'bg-purple-700 text-white', 'SA': 'bg-blue-700 text-white', 'LA': 'bg-green-700 text-white' };
@@ -42,6 +44,53 @@ const preOpChecklist = [
 
 const OTManagement = () => {
   const [tab, setTab] = useState('Dashboard');
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [surgeryMedia, setSurgeryMedia] = useState([
+    { id: 1, patient: 'Rajesh Kumar', surgery: 'CABG', type: 'Video', name: 'cabg_procedure_start.mp4', url: '#', date: '2024-03-15' },
+    { id: 2, patient: 'Mohan Lal', surgery: 'Lap Chole', type: 'Image', name: 'gallbladder_view.jpg', url: '#', date: '2024-03-15' },
+  ]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+    try {
+      // Use the newly integrated S3 upload endpoint
+      const response = await axios.post('/api/v1/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const newMedia = {
+        id: Date.now(),
+        patient: 'Active Surgery',
+        surgery: 'Ongoing',
+        type: file.type.startsWith('video/') ? 'Video' : 'Image',
+        name: file.name,
+        url: response.data.fileUrl,
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      setSurgeryMedia([newMedia, ...surgeryMedia]);
+      toast({
+        title: "Upload Successful",
+        description: "Media uploaded to S3 for government verification.",
+      });
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Could not upload media to S3.",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><Scissors size={14} /> Operation Theatre Management</div>
@@ -123,6 +172,61 @@ const OTManagement = () => {
           <table className="hms-table"><thead><tr><th>S.No</th><th>Checklist Item</th><th>Responsible</th><th>Status</th><th>Time</th><th>Verified By</th></tr></thead>
             <tbody>{preOpChecklist.map((c, i) => <tr key={i}><td>{i + 1}</td><td>{c.item}</td><td>{c.responsible}</td><td><StatusBadge status={c.status} /></td><td>{c.status === 'Done' ? '08:30' : '-'}</td><td>{c.status === 'Done' ? 'Staff Nurse' : '-'}</td></tr>)}</tbody>
           </table>
+        </div>
+      )}
+
+      {tab === 'Surgery Media' && (
+        <div className="space-y-4">
+          <div className="bg-card border border-border p-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold">Upload Surgery Media</h3>
+              <p className="text-[10px] text-muted-foreground">Upload images or videos for government verification (S3 Storage)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className={`hms-btn-primary cursor-pointer flex items-center gap-2 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Upload size={14} />
+                {uploading ? 'Uploading...' : 'Upload Media'}
+                <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*,video/*" />
+              </label>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border overflow-hidden">
+            <div className="hms-section-header text-xs">Media Archive</div>
+            <table className="hms-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Surgery</th>
+                  <th>Type</th>
+                  <th>Filename</th>
+                  <th>Upload Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surgeryMedia.map((m) => (
+                  <tr key={m.id}>
+                    <td>{m.patient}</td>
+                    <td>{m.surgery}</td>
+                    <td>
+                      <span className="flex items-center gap-1 text-[10px]">
+                        {m.type === 'Video' ? <FileVideo size={12} className="text-blue-500" /> : <FileImage size={12} className="text-green-500" />}
+                        {m.type}
+                      </span>
+                    </td>
+                    <td className="font-mono text-[10px]">{m.name}</td>
+                    <td>{m.date}</td>
+                    <td>
+                      <a href={m.url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-[10px] font-bold">
+                        View S3
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

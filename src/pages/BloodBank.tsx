@@ -1,244 +1,692 @@
-import React, { useState } from 'react';
-import { Droplets, Users, Clock, CheckCircle2, AlertTriangle, ThermometerSun, Search, Printer, Eye, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Droplets, Users, Clock, CheckCircle2, AlertTriangle, ThermometerSun, Search, Printer, Eye, Plus, Edit, Trash2, RefreshCw, X } from 'lucide-react';
+import { 
+  listBloodInventory, listBloodRequests, listBloodDonors, 
+  listBloodDonations, listBloodGroups, listBloodComponents,
+  createBloodRequest, updateBloodRequestStatus, createBloodDonor,
+  createBloodDonation, issueBlood, listPatients, listUsers,
+  updateBloodDonor, deleteBloodDonor, updateBloodRequest, deleteBloodRequest,
+  updateBloodInventoryStatus, deleteBloodInventory, createBloodComponent,
+  createBloodInventory
+} from '../api/apiService';
+import { useToast } from '@/components/ui/use-toast';
 
-const bloodStock = [
-  { group: 'A+', wholeBlood: 45, packedRBC: 32, platelets: 18, ffp: 25, cryo: 12 },
-  { group: 'A-', wholeBlood: 8, packedRBC: 5, platelets: 3, ffp: 6, cryo: 2 },
-  { group: 'B+', wholeBlood: 52, packedRBC: 38, platelets: 22, ffp: 30, cryo: 15 },
-  { group: 'B-', wholeBlood: 6, packedRBC: 4, platelets: 2, ffp: 5, cryo: 1 },
-  { group: 'O+', wholeBlood: 68, packedRBC: 45, platelets: 28, ffp: 35, cryo: 20 },
-  { group: 'O-', wholeBlood: 12, packedRBC: 8, platelets: 5, ffp: 8, cryo: 3 },
-  { group: 'AB+', wholeBlood: 15, packedRBC: 10, platelets: 8, ffp: 12, cryo: 5 },
-  { group: 'AB-', wholeBlood: 3, packedRBC: 2, platelets: 1, ffp: 3, cryo: 1 },
-];
+const statusColor = (s: string) => {
+  switch (s) {
+    case 'Available':
+    case 'Compatible':
+    case 'Safe':
+    case 'Approved':
+    case 'Issued':
+    case 'Eligible':
+    case 'Completed': return 'bg-hms-success text-hms-success-foreground';
+    case 'Pending':
+    case 'Processing':
+    case 'Recently Donated': return 'bg-hms-warning text-foreground';
+    case 'Rejected':
+    case 'Incompatible':
+    case 'Unsafe':
+    case 'Expired':
+    case 'Discarded':
+    case 'Deferred': return 'bg-destructive text-destructive-foreground';
+    default: return 'bg-muted text-muted-foreground';
+  }
+};
 
-const donors = [
-  { id: 'D-1001', name: 'Ramesh Yadav', age: 32, gender: 'M', group: 'O+', phone: '9876543220', lastDonation: '12-Nov-2025', totalDonations: 8, status: 'Eligible' },
-  { id: 'D-1002', name: 'Sunil Sharma', age: 28, gender: 'M', group: 'A+', phone: '9876543221', lastDonation: '05-Jan-2026', totalDonations: 4, status: 'Deferred' },
-  { id: 'D-1003', name: 'Geeta Kumari', age: 35, gender: 'F', group: 'B+', phone: '9876543222', lastDonation: '20-Dec-2025', totalDonations: 6, status: 'Eligible' },
-  { id: 'D-1004', name: 'Manoj Tiwari', age: 40, gender: 'M', group: 'AB+', phone: '9876543223', lastDonation: '15-Feb-2026', totalDonations: 12, status: 'Recently Donated' },
-  { id: 'D-1005', name: 'Priya Gupta', age: 25, gender: 'F', group: 'O-', phone: '9876543224', lastDonation: '01-Sep-2025', totalDonations: 3, status: 'Eligible' },
-  { id: 'D-1006', name: 'Ashok Kumar', age: 45, gender: 'M', group: 'B-', phone: '9876543225', lastDonation: '10-Oct-2025', totalDonations: 15, status: 'Eligible' },
-];
-
-const bloodRequests = [
-  { id: 'BR-2001', patient: 'Mr. Vikram Singh', uhid: 'U-1002', ward: 'ICU-03', group: 'A+', component: 'Packed RBC', units: 2, doctor: 'Dr. Alok Mehta', date: '15-Feb-2026', priority: 'Urgent', crossMatch: 'Compatible', status: 'Issued' },
-  { id: 'BR-2002', patient: 'Mrs. Kamla Devi', uhid: 'U-1008', ward: 'Ward-A/B-12', group: 'O+', component: 'Whole Blood', units: 1, doctor: 'Dr. Rahul Verma', date: '15-Feb-2026', priority: 'Routine', crossMatch: 'Pending', status: 'Processing' },
-  { id: 'BR-2003', patient: 'Baby Riya', uhid: 'U-1004', ward: 'NICU-01', group: 'B+', component: 'Platelets', units: 1, doctor: 'Dr. Neha Gupta', date: '15-Feb-2026', priority: 'Emergency', crossMatch: 'Compatible', status: 'Issued' },
-  { id: 'BR-2004', patient: 'Mr. Suresh Pal', uhid: 'U-1012', ward: 'OT-2', group: 'AB-', component: 'FFP', units: 3, doctor: 'Dr. Priya Singh', date: '15-Feb-2026', priority: 'Urgent', crossMatch: 'Incompatible', status: 'Rejected' },
-  { id: 'BR-2005', patient: 'Mrs. Anita Devi', uhid: 'U-1015', ward: 'Ward-B/B-05', group: 'A-', component: 'Packed RBC', units: 1, doctor: 'Dr. Alok Mehta', date: '15-Feb-2026', priority: 'Routine', crossMatch: 'Pending', status: 'Pending' },
-];
-
-const crossMatchLog = [
-  { id: 'CM-301', patient: 'Mr. Vikram Singh', group: 'A+', donorBag: 'BAG-A1-045', component: 'Packed RBC', method: 'Gel Card', result: 'Compatible', techBy: 'Ravi Kumar', date: '15-Feb-2026 08:30' },
-  { id: 'CM-302', patient: 'Baby Riya', group: 'B+', donorBag: 'BAG-B1-022', component: 'Platelets', method: 'Tube Method', result: 'Compatible', techBy: 'Sunita Devi', date: '15-Feb-2026 09:15' },
-  { id: 'CM-303', patient: 'Mr. Suresh Pal', group: 'AB-', donorBag: 'BAG-AB2-003', component: 'FFP', method: 'Gel Card', result: 'Incompatible', techBy: 'Ravi Kumar', date: '15-Feb-2026 10:00' },
-  { id: 'CM-304', patient: 'Mrs. Kamla Devi', group: 'O+', donorBag: 'BAG-O1-068', component: 'Whole Blood', method: 'Tube Method', result: 'Pending', techBy: 'Amit Chauhan', date: '15-Feb-2026 11:45' },
-];
-
-const expiryAlerts = [
-  { bagId: 'BAG-A1-012', group: 'A+', component: 'Whole Blood', collected: '10-Jan-2026', expiry: '16-Feb-2026', daysLeft: 1, storage: 'Refrigerator-1' },
-  { bagId: 'BAG-O1-034', group: 'O+', component: 'Platelets', collected: '13-Feb-2026', expiry: '18-Feb-2026', daysLeft: 3, storage: 'Agitator-2' },
-  { bagId: 'BAG-B2-008', group: 'B-', component: 'FFP', collected: '20-Nov-2025', expiry: '20-Feb-2026', daysLeft: 5, storage: 'Freezer-1' },
-  { bagId: 'BAG-AB1-005', group: 'AB+', component: 'Packed RBC', collected: '28-Jan-2026', expiry: '21-Feb-2026', daysLeft: 6, storage: 'Refrigerator-2' },
-];
-
-type Tab = 'stock' | 'donors' | 'requests' | 'crossmatch' | 'expiry' | 'transfusion' | 'camps';
+type Tab = 'stock' | 'donors' | 'requests' | 'crossmatch' | 'expiry' | 'transfusion' | 'camps' | 'inventory' | 'donations';
 
 const tabs: { key: Tab; label: string }[] = [
   { key: 'stock', label: 'Blood Stock' },
+  { key: 'inventory', label: 'Inventory Items' },
+  { key: 'donations', label: 'Donations' },
   { key: 'donors', label: 'Donor Registry' },
   { key: 'requests', label: 'Blood Requests' },
-  { key: 'crossmatch', label: 'Cross Match' },
   { key: 'expiry', label: 'Expiry Alerts' },
-  { key: 'transfusion', label: 'Transfusion Log' },
   { key: 'camps', label: 'Donation Camps' },
 ];
 
-const transfusionLog = [
-  { id: 'TRF-401', patient: 'Mr. Vikram Singh', uhid: 'U-1002', bag: 'BAG-A1-045', component: 'Packed RBC', units: 1, startTime: '09:00', endTime: '12:30', reaction: 'None', nurse: 'Sr. Meena', doctor: 'Dr. Alok Mehta', status: 'Completed' },
-  { id: 'TRF-402', patient: 'Baby Riya', uhid: 'U-1004', bag: 'BAG-B1-022', component: 'Platelets', units: 1, startTime: '10:00', endTime: '11:30', reaction: 'None', nurse: 'Sr. Kavita', doctor: 'Dr. Neha Gupta', status: 'Completed' },
-  { id: 'TRF-403', patient: 'Mrs. Kamla Devi', uhid: 'U-1008', bag: 'BAG-O1-068', component: 'Whole Blood', units: 1, startTime: '14:00', endTime: '-', reaction: '-', nurse: 'Sr. Meena', doctor: 'Dr. Rahul Verma', status: 'In Progress' },
-];
-
-const donationCamps = [
-  { id: 'CAMP-01', name: 'Noida Blood Drive', location: 'Sector 62 Community Center', date: '20-Feb-2026', organizer: 'Rotary Club', target: 100, collected: 0, status: 'Upcoming' },
-  { id: 'CAMP-02', name: 'GUC Annual Camp', location: 'Hospital Auditorium', date: '10-Feb-2026', organizer: 'GUC Hospital', target: 50, collected: 48, status: 'Completed' },
-  { id: 'CAMP-03', name: 'Corporate Drive - TCS', location: 'TCS Noida Office', date: '25-Feb-2026', organizer: 'TCS CSR', target: 75, collected: 0, status: 'Upcoming' },
-];
-
 const BloodBank = () => {
+  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('stock');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const totalUnits = bloodStock.reduce((s, b) => s + b.wholeBlood + b.packedRBC + b.platelets + b.ffp + b.cryo, 0);
-  const criticalGroups = bloodStock.filter(b => b.wholeBlood < 10).length;
+  // Data States
+  const [data, setData] = useState({
+    inventory: [],
+    requests: [],
+    donors: [],
+    donations: [],
+    groups: [],
+    components: [],
+    patients: [],
+    doctors: []
+  });
+
+  // UI States
+  const [showModal, setShowModal] = useState<string | null>(null); // 'request' | 'donor' | 'donation'
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes] = await Promise.all([
+        listBloodInventory(),
+        listBloodRequests(),
+        listBloodDonors(),
+        listBloodDonations(),
+        listBloodGroups(),
+        listBloodComponents(),
+        listPatients({ limit: 100 }),
+        listUsers({ role: 'Doctor' })
+      ]);
+
+      setData({
+        inventory: invRes.data || [],
+        requests: reqRes.data || [],
+        donors: donorRes.data || [],
+        donations: donRes.data || [],
+        groups: grpRes.data || [],
+        components: compRes.data || [],
+        patients: patRes.data || [],
+        doctors: docRes.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching blood bank data:', error);
+      toast({ title: 'Error', description: 'Failed to sync blood bank data', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createBloodRequest(selectedItem);
+      toast({ title: 'Success', description: 'Blood request submitted' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Request failed', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      await updateBloodRequestStatus(id, status);
+      toast({ title: 'Success', description: `Request ${status}` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Update failed', variant: 'destructive' });
+    }
+  };
+
+  const handleRegisterDonor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (selectedItem._id) {
+        await updateBloodDonor(selectedItem._id, selectedItem);
+        toast({ title: 'Success', description: 'Donor updated successfully' });
+      } else {
+        await createBloodDonor(selectedItem);
+        toast({ title: 'Success', description: 'Donor registered successfully' });
+      }
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteDonor = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this donor?')) return;
+    try {
+      await deleteBloodDonor(id);
+      toast({ title: 'Success', description: 'Donor deleted successfully' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Delete failed', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteRequest = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this request?')) return;
+    try {
+      await deleteBloodRequest(id);
+      toast({ title: 'Success', description: 'Request deleted successfully' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Delete failed', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateInventoryStatus = async (id: string, status: string) => {
+    try {
+      await updateBloodInventoryStatus(id, status);
+      toast({ title: 'Success', description: `Inventory status updated to ${status}` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Update failed', variant: 'destructive' });
+    }
+  };
+
+  const handleRecordDonation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createBloodDonation(selectedItem);
+      toast({ title: 'Success', description: 'Donation recorded and component created' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to record donation', variant: 'destructive' });
+    }
+  };
+
+  const handleIssueBlood = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await issueBlood(selectedItem);
+      toast({ title: 'Success', description: 'Blood issued successfully' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to issue blood', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateComponent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await createBloodComponent(selectedItem);
+      // After component is created, add it to inventory
+      await createBloodInventory({
+        componentId: res.data._id,
+        bloodGroup: selectedItem.bloodGroup
+      });
+      toast({ title: 'Success', description: 'Component created and added to inventory' });
+      setShowModal(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+    }
+  };
+
+  // KPI Calculations
+  const totalUnits = data.inventory.filter((i: any) => i.currentStatus === 'Available').length;
+  const pendingRequests = data.requests.filter((r: any) => r.status === 'Pending').length;
+  const criticalThreshold = 5;
+  
+  // Aggregate stock by group
+  const stockByGroup = data.groups.map((g: any) => {
+    const items = data.inventory.filter((i: any) => i.bloodGroup?._id === g._id && i.currentStatus === 'Available');
+    return {
+      name: g.name,
+      total: items.length,
+      components: {
+        'Whole Blood': items.filter((i: any) => i.componentId?.componentType === 'Whole Blood').length,
+        'PRBC': items.filter((i: any) => i.componentId?.componentType === 'PRBC').length,
+        'Platelets': items.filter((i: any) => i.componentId?.componentType === 'Platelets').length,
+        'FFP': items.filter((i: any) => i.componentId?.componentType === 'FFP').length,
+        'Cryoprecipitate': items.filter((i: any) => i.componentId?.componentType === 'Cryoprecipitate').length,
+      }
+    };
+  });
 
   return (
-    <div>
+    <div className="flex flex-col h-full space-y-3">
       <div className="hms-section-header flex items-center justify-between">
         <div className="flex items-center gap-2"><Droplets size={16} /> Blood Bank Management</div>
         <div className="flex items-center gap-2">
-          <input className="hms-input w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
-          <button className="hms-btn-primary"><Plus size={12} /> New Request</button>
-          <button className="hms-btn-secondary"><Plus size={12} /> Register Donor</button>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+            <input className="hms-input pl-7 w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="hms-btn-primary flex items-center gap-1" onClick={() => {
+            setSelectedItem({ patientId: '', bloodGroup: '', componentType: 'Whole Blood', quantityUnits: 1 });
+            setShowModal('request');
+          }}><Plus size={14} /> New Request</button>
+          <button className="hms-btn-secondary flex items-center gap-1" onClick={() => {
+            setSelectedItem({ donorId: `D-${Date.now().toString().slice(-4)}`, firstName: '', lastName: '', gender: 'Male', bloodGroup: '' });
+            setShowModal('donor');
+          }}><Plus size={14} /> Register Donor</button>
+          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-6 gap-1 my-1">
+      <div className="grid grid-cols-6 gap-2 my-1">
         {[
-          { label: 'Total Units', value: totalUnits, color: '' },
-          { label: 'Critical Groups', value: criticalGroups, color: 'text-destructive' },
-          { label: 'Pending Requests', value: 2, color: 'text-primary' },
-          { label: 'Today Issued', value: 3, color: '' },
-          { label: 'Expiring (7d)', value: expiryAlerts.length, color: 'text-destructive' },
-          { label: 'Registered Donors', value: donors.length, color: '' },
+          { label: 'Total Units', value: totalUnits, color: 'text-primary' },
+          { label: 'Pending Requests', value: pendingRequests, color: 'text-amber-500' },
+          { label: 'Safe Screenings', value: data.donations.filter((d: any) => d.status === 'Tested').length, color: 'text-hms-success' },
+          { label: 'Total Donors', value: data.donors.length, color: 'text-primary' },
+          { label: 'Critical Groups', value: stockByGroup.filter(s => s.total < criticalThreshold).length, color: 'text-destructive' },
+          { label: 'Today Issued', value: data.requests.filter((r: any) => r.status === 'Issued' && new Date(r.updatedAt).toDateString() === new Date().toDateString()).length, color: 'text-hms-info' },
         ].map((k, i) => (
-          <div key={i} className="bg-card border border-border p-1.5 text-center">
-            <div className={`text-lg font-bold ${k.color}`}>{k.value}</div>
-            <div className="text-[9px] text-muted-foreground">{k.label}</div>
+          <div key={i} className="bg-card border border-border p-3 shadow-sm text-center">
+            <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+            <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 bg-primary overflow-x-auto">
+      <div className="flex border-b border-border bg-card">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${tab === t.key ? 'bg-card text-foreground' : 'text-primary-foreground hover:bg-primary-foreground/10'}`}>
+            className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-card border border-border">
-        {tab === 'stock' && (
+      <div className="bg-card border border-border flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-2 opacity-50">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Syncing Blood Data...</span>
+          </div>
+        ) : (
           <>
-            <div className="p-1 text-[10px] text-muted-foreground bg-muted border-b border-border px-2">Component-wise stock by blood group (units available)</div>
-            <table className="hms-table">
-              <thead><tr><th>Blood Group</th><th>Whole Blood</th><th>Packed RBC</th><th>Platelets</th><th>FFP</th><th>Cryoprecipitate</th><th>Total</th><th>Status</th></tr></thead>
-              <tbody>
-                {bloodStock.map(b => {
-                  const total = b.wholeBlood + b.packedRBC + b.platelets + b.ffp + b.cryo;
-                  const critical = b.wholeBlood < 10;
-                  return (
-                    <tr key={b.group}>
-                      <td className="font-bold text-sm">{b.group}</td>
-                      <td>{b.wholeBlood}</td><td>{b.packedRBC}</td><td>{b.platelets}</td><td>{b.ffp}</td><td>{b.cryo}</td>
-                      <td className="font-bold">{total}</td>
-                      <td><span className={`text-[10px] px-1.5 py-0.5 ${critical ? 'bg-destructive text-destructive-foreground' : 'bg-hms-success text-hms-success-foreground'}`}>{critical ? 'CRITICAL' : 'Adequate'}</span></td>
+            {tab === 'stock' && (
+              <table className="hms-table">
+                <thead><tr><th>Blood Group</th><th>Whole Blood</th><th>PRBC</th><th>Platelets</th><th>FFP</th><th>Cryo</th><th>Total Units</th><th>Status</th></tr></thead>
+                <tbody>
+                  {stockByGroup.map(s => (
+                    <tr key={s.name}>
+                      <td className="font-bold text-lg text-primary">{s.name}</td>
+                      <td>{s.components['Whole Blood']}</td>
+                      <td>{s.components['PRBC']}</td>
+                      <td>{s.components['Platelets']}</td>
+                      <td>{s.components['FFP']}</td>
+                      <td>{s.components['Cryoprecipitate']}</td>
+                      <td className="font-bold text-sm">{s.total}</td>
+                      <td>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${s.total < criticalThreshold ? 'bg-destructive text-destructive-foreground' : 'bg-hms-success text-hms-success-foreground'}`}>
+                          {s.total < criticalThreshold ? 'Critical' : 'Adequate'}
+                        </span>
+                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="p-1 text-[10px] text-muted-foreground px-2 border-t border-border">Storage Temp: Refrigerators 2-6°C ✓ | Freezers -30°C ✓ | Platelet Agitators 20-24°C ✓</div>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'inventory' && (
+              <table className="hms-table">
+                <thead><tr><th>Bag Number</th><th>Group</th><th>Component</th><th>Expiry Date</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.inventory.filter((i: any) => 
+                    i.bloodGroup?.name.toLowerCase().includes(search.toLowerCase()) || 
+                    i.componentId?.componentType.toLowerCase().includes(search.toLowerCase()) ||
+                    i.currentStatus.toLowerCase().includes(search.toLowerCase())
+                  ).map((i: any) => (
+                    <tr key={i._id}>
+                      <td className="font-mono text-xs font-bold">{i.componentId?.donationId?.bagNumber || 'N/A'}</td>
+                      <td className="font-bold text-primary">{i.bloodGroup?.name}</td>
+                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{i.componentId?.componentType}</span></td>
+                      <td>{new Date(i.componentId?.expiryDate).toLocaleDateString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.currentStatus)}`}>{i.currentStatus}</span></td>
+                      <td>
+                        <div className="flex gap-2">
+                          <select className="hms-select text-[10px] py-0.5" value={i.currentStatus} onChange={(e) => handleUpdateInventoryStatus(i._id, e.target.value)}>
+                            <option value="Available">Available</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Issued">Issued</option>
+                            <option value="Expired">Expired</option>
+                            <option value="Discarded">Discarded</option>
+                          </select>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => {
+                            if (confirm('Delete this inventory record?')) {
+                              deleteBloodInventory(i._id).then(() => fetchData());
+                            }
+                          }}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'donations' && (
+              <table className="hms-table">
+                <thead><tr><th>Donation #</th><th>Donor</th><th>Bag #</th><th>Group</th><th>Date</th><th>Quantity</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.donations.filter((d: any) => 
+                    d.donationNumber.toLowerCase().includes(search.toLowerCase()) ||
+                    d.bagNumber.toLowerCase().includes(search.toLowerCase()) ||
+                    `${d.donorId?.firstName} ${d.donorId?.lastName}`.toLowerCase().includes(search.toLowerCase())
+                  ).map((d: any) => (
+                    <tr key={d._id}>
+                      <td className="font-mono text-xs font-bold">{d.donationNumber}</td>
+                      <td>{d.donorId?.firstName} {d.donorId?.lastName}</td>
+                      <td className="font-mono text-xs font-bold">{d.bagNumber}</td>
+                      <td className="font-bold text-primary">{d.bloodGroup?.name}</td>
+                      <td>{new Date(d.donationDate).toLocaleDateString()}</td>
+                      <td>{d.quantityML} ML</td>
+                      <td>
+                        <button className="hms-btn-primary text-[10px] px-2 py-0.5 flex items-center gap-1" onClick={() => {
+                          setSelectedItem({ donationId: d._id, bloodGroup: d.bloodGroup?._id, componentType: 'Whole Blood', quantityML: d.quantityML, expiryDate: new Date(Date.now() + 35*24*60*60*1000).toISOString().split('T')[0] });
+                          setShowModal('component');
+                        }}><Plus size={10} /> Add Component</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'donors' && (
+              <table className="hms-table">
+                <thead><tr><th>Donor ID</th><th>Name</th><th>Sex</th><th>Group</th><th>Phone</th><th>Last Donation</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.donors.filter((d: any) => `${d.firstName} ${d.lastName}`.toLowerCase().includes(search.toLowerCase()) || d.donorId.toLowerCase().includes(search.toLowerCase())).map((d: any) => (
+                    <tr key={d._id}>
+                      <td className="font-mono text-xs font-bold">{d.donorId}</td>
+                      <td className="font-semibold">{d.firstName} {d.lastName}</td>
+                      <td>{d.gender}</td>
+                      <td className="font-bold text-primary">{d.bloodGroup?.name}</td>
+                      <td>{d.phone}</td>
+                      <td>{d.lastDonationDate ? new Date(d.lastDonationDate).toLocaleDateString() : 'Never'}</td>
+                      <td className="font-bold">{d.totalDonations}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(d.status)}`}>{d.status}</span></td>
+                      <td>
+                        <div className="flex gap-2">
+                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Edit" onClick={() => {
+                            setSelectedItem(d);
+                            setShowModal('donor');
+                          }}><Edit size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteDonor(d._id)}><Trash2 size={14} /></button>
+                          <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Record Donation" onClick={() => {
+                            setSelectedItem({ donorId: d._id, donationNumber: `DN-${Date.now().toString().slice(-4)}`, donationDate: new Date().toISOString().split('T')[0], bagNumber: '', bloodGroup: d.bloodGroup?._id });
+                            setShowModal('donation');
+                          }}><Plus size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'requests' && (
+              <table className="hms-table">
+                <thead><tr><th>Req ID</th><th>Patient</th><th>Group</th><th>Component</th><th>Units</th><th>Requested By</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {data.requests.filter((r: any) => 
+                    r.patientId?.patientName?.toLowerCase().includes(search.toLowerCase()) ||
+                    r.bloodGroup?.name.toLowerCase().includes(search.toLowerCase()) ||
+                    r.status.toLowerCase().includes(search.toLowerCase())
+                  ).map((r: any) => (
+                    <tr key={r._id}>
+                      <td className="font-mono text-[10px] font-bold">{r._id.slice(-6).toUpperCase()}</td>
+                      <td>
+                        <div className="font-bold text-sm">{r.patientId?.patientName || r.patientId?.name || 'Unknown'}</div>
+                        <div className="text-[10px] text-muted-foreground uppercase font-bold">UHID: {r.patientId?.uhid || r.patientId?.patientID || 'N/A'}</div>
+                      </td>
+                      <td className="font-bold text-primary">{r.bloodGroup?.name}</td>
+                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{r.componentType}</span></td>
+                      <td className="font-bold">{r.quantityUnits}</td>
+                      <td>{r.requestedBy?.name || 'Doctor'}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${r.quantityUnits > 2 ? 'bg-destructive text-destructive-foreground' : 'bg-muted'}`}>{r.quantityUnits > 2 ? 'Urgent' : 'Routine'}</span></td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(r.status)}`}>{r.status}</span></td>
+                      <td>
+                        <div className="flex gap-2">
+                          {r.status === 'Pending' && (
+                            <>
+                              <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Approve" onClick={() => handleUpdateStatus(r._id, 'Approved')}><CheckCircle2 size={14} /></button>
+                              <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Reject" onClick={() => handleUpdateStatus(r._id, 'Rejected')}><X size={14} /></button>
+                            </>
+                          )}
+                          {r.status === 'Approved' && (
+                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
+                              const availableBags = data.inventory.filter((i: any) => i.bloodGroup?._id === r.bloodGroup?._id && i.componentId?.componentType === r.componentType && i.currentStatus === 'Available');
+                              if (availableBags.length === 0) {
+                                toast({ title: 'Stock Error', description: 'No available units matching this request', variant: 'destructive' });
+                                return;
+                              }
+                              setSelectedItem({ requestId: r._id, inventoryId: availableBags[0]._id, componentId: availableBags[0].componentId?._id, units: r.quantityUnits, bloodGroup: r.bloodGroup?._id, componentType: r.componentType });
+                              setShowModal('issue');
+                            }}>Issue Blood</button>
+                          )}
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteRequest(r._id)}><Trash2 size={14} /></button>
+                          <Printer size={14} className="text-muted-foreground cursor-pointer hover:text-primary transition-colors" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === 'expiry' && (
+              <table className="hms-table">
+                <thead><tr><th>Bag Number</th><th>Group</th><th>Component</th><th>Quantity</th><th>Expiry Date</th><th>Status</th></tr></thead>
+                <tbody>
+                  {data.components.filter((c: any) => new Date(c.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).map((c: any) => (
+                    <tr key={c._id}>
+                      <td className="font-mono text-xs font-bold">{c.donationId?.bagNumber || 'N/A'}</td>
+                      <td className="font-bold text-primary">{c.donationId?.bloodGroup?.name || 'N/A'}</td>
+                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{c.componentType}</span></td>
+                      <td>{c.quantityML} ML</td>
+                      <td className="text-destructive font-bold">{new Date(c.expiryDate).toLocaleDateString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(c.status)}`}>{c.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </>
-        )}
-
-        {tab === 'donors' && (
-          <table className="hms-table">
-            <thead><tr><th>Donor ID</th><th>Name</th><th>Age</th><th>Sex</th><th>Group</th><th>Phone</th><th>Last Donation</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              {donors.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => (
-                <tr key={d.id}>
-                  <td className="font-semibold">{d.id}</td><td>{d.name}</td><td>{d.age}</td><td>{d.gender}</td>
-                  <td className="font-bold">{d.group}</td><td>{d.phone}</td><td>{d.lastDonation}</td><td>{d.totalDonations}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${d.status === 'Eligible' ? 'bg-hms-success text-hms-success-foreground' : d.status === 'Deferred' ? 'bg-destructive text-destructive-foreground' : 'bg-hms-warning'}`}>{d.status}</span></td>
-                  <td><button className="hms-btn-secondary text-[10px] mr-1">View</button><button className="hms-btn-primary text-[10px]">Collect</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'requests' && (
-          <table className="hms-table">
-            <thead><tr><th>Req ID</th><th>Patient</th><th>UHID</th><th>Ward</th><th>Group</th><th>Component</th><th>Units</th><th>Doctor</th><th>Priority</th><th>Cross Match</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              {bloodRequests.map(r => (
-                <tr key={r.id}>
-                  <td className="font-semibold">{r.id}</td><td>{r.patient}</td><td>{r.uhid}</td><td>{r.ward}</td>
-                  <td className="font-bold">{r.group}</td><td>{r.component}</td><td>{r.units}</td><td>{r.doctor}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${r.priority === 'Emergency' ? 'bg-destructive text-destructive-foreground' : r.priority === 'Urgent' ? 'bg-hms-warning' : 'bg-muted text-foreground'}`}>{r.priority}</span></td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${r.crossMatch === 'Compatible' ? 'bg-hms-success text-hms-success-foreground' : r.crossMatch === 'Incompatible' ? 'bg-destructive text-destructive-foreground' : 'bg-hms-warning'}`}>{r.crossMatch}</span></td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${r.status === 'Issued' ? 'bg-hms-success text-hms-success-foreground' : r.status === 'Rejected' ? 'bg-destructive text-destructive-foreground' : r.status === 'Processing' ? 'bg-hms-info text-primary-foreground' : 'bg-hms-warning'}`}>{r.status}</span></td>
-                  <td><Eye size={12} className="text-primary cursor-pointer inline" /> <Printer size={12} className="text-primary cursor-pointer inline" /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'crossmatch' && (
-          <table className="hms-table">
-            <thead><tr><th>CM ID</th><th>Patient</th><th>Group</th><th>Donor Bag</th><th>Component</th><th>Method</th><th>Result</th><th>Technician</th><th>Date/Time</th></tr></thead>
-            <tbody>
-              {crossMatchLog.map(c => (
-                <tr key={c.id}>
-                  <td className="font-semibold">{c.id}</td><td>{c.patient}</td><td className="font-bold">{c.group}</td><td>{c.donorBag}</td><td>{c.component}</td><td>{c.method}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${c.result === 'Compatible' ? 'bg-hms-success text-hms-success-foreground' : c.result === 'Incompatible' ? 'bg-destructive text-destructive-foreground' : 'bg-hms-warning'}`}>{c.result}</span></td>
-                  <td>{c.techBy}</td><td>{c.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'expiry' && (
-          <>
-            <div className="p-1 text-[10px] bg-destructive/10 text-destructive border-b border-border px-2 font-semibold">⚠ Blood bags expiring within 7 days — take immediate action</div>
-            <table className="hms-table">
-              <thead><tr><th>Bag ID</th><th>Group</th><th>Component</th><th>Collected</th><th>Expiry</th><th>Days Left</th><th>Storage</th><th>Action</th></tr></thead>
-              <tbody>
-                {expiryAlerts.map(e => (
-                  <tr key={e.bagId}>
-                    <td className="font-semibold">{e.bagId}</td><td className="font-bold">{e.group}</td><td>{e.component}</td><td>{e.collected}</td><td className="text-destructive font-semibold">{e.expiry}</td>
-                    <td><span className={`text-[10px] px-1.5 py-0.5 font-bold ${e.daysLeft <= 2 ? 'bg-destructive text-destructive-foreground' : 'bg-hms-warning'}`}>{e.daysLeft}d</span></td>
-                    <td>{e.storage}</td>
-                    <td><button className="hms-btn-primary text-[10px] mr-1">Issue</button><button className="hms-btn-secondary text-[10px]">Discard</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {tab === 'transfusion' && (
-          <table className="hms-table">
-            <thead><tr><th>TRF ID</th><th>Patient</th><th>UHID</th><th>Bag</th><th>Component</th><th>Units</th><th>Start</th><th>End</th><th>Reaction</th><th>Nurse</th><th>Doctor</th><th>Status</th></tr></thead>
-            <tbody>
-              {transfusionLog.map(t => (
-                <tr key={t.id}>
-                  <td className="font-semibold">{t.id}</td><td>{t.patient}</td><td>{t.uhid}</td><td>{t.bag}</td><td>{t.component}</td><td>{t.units}</td>
-                  <td>{t.startTime}</td><td>{t.endTime}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${t.reaction === 'None' ? 'bg-hms-success text-hms-success-foreground' : 'bg-hms-warning'}`}>{t.reaction}</span></td>
-                  <td>{t.nurse}</td><td>{t.doctor}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${t.status === 'Completed' ? 'bg-hms-success text-hms-success-foreground' : 'bg-hms-info text-primary-foreground'}`}>{t.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'camps' && (
-          <table className="hms-table">
-            <thead><tr><th>Camp ID</th><th>Name</th><th>Location</th><th>Date</th><th>Organizer</th><th>Target</th><th>Collected</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              {donationCamps.map(c => (
-                <tr key={c.id}>
-                  <td className="font-semibold">{c.id}</td><td>{c.name}</td><td>{c.location}</td><td>{c.date}</td><td>{c.organizer}</td><td>{c.target}</td><td>{c.collected}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${c.status === 'Completed' ? 'bg-hms-success text-hms-success-foreground' : 'bg-hms-info text-primary-foreground'}`}>{c.status}</span></td>
-                  <td><button className="hms-btn-secondary text-[10px]">Details</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         )}
       </div>
+
+      {/* Modals */}
+      {showModal === 'request' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Droplets size={16} className="text-primary" /> New Blood Request</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateRequest} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Patient</label>
+                <select className="hms-select w-full" required value={selectedItem?.patientId} onChange={e => setSelectedItem({...selectedItem, patientId: e.target.value})}>
+                  <option value="">-- Choose Patient --</option>
+                  {data.patients.map((p: any) => <option key={p._id} value={p._id}>{p.patientName} ({p.uhid || p.patientID})</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Blood Group</label>
+                  <select className="hms-select w-full" required value={selectedItem?.bloodGroup} onChange={e => setSelectedItem({...selectedItem, bloodGroup: e.target.value})}>
+                    <option value="">-- Select --</option>
+                    {data.groups.map((g: any) => <option key={g._id} value={g._id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Component Type</label>
+                  <select className="hms-select w-full" required value={selectedItem?.componentType} onChange={e => setSelectedItem({...selectedItem, componentType: e.target.value})}>
+                    <option value="Whole Blood">Whole Blood</option>
+                    <option value="PRBC">PRBC</option>
+                    <option value="Platelets">Platelets</option>
+                    <option value="FFP">FFP</option>
+                    <option value="Cryoprecipitate">Cryoprecipitate</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity (Units)</label>
+                <input type="number" className="hms-input w-full" required min="1" value={selectedItem?.quantityUnits} onChange={e => setSelectedItem({...selectedItem, quantityUnits: Number(e.target.value)})} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">Submit Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'donor' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Users size={16} className="text-primary" /> Register New Donor</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleRegisterDonor} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">First Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.firstName} onChange={e => setSelectedItem({...selectedItem, firstName: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Last Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.lastName} onChange={e => setSelectedItem({...selectedItem, lastName: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Gender</label>
+                  <select className="hms-select w-full" required value={selectedItem?.gender} onChange={e => setSelectedItem({...selectedItem, gender: e.target.value})}>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Blood Group</label>
+                  <select className="hms-select w-full" required value={selectedItem?.bloodGroup} onChange={e => setSelectedItem({...selectedItem, bloodGroup: e.target.value})}>
+                    <option value="">-- Select --</option>
+                    {data.groups.map((g: any) => <option key={g._id} value={g._id}>{g.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Phone Number</label>
+                <input className="hms-input w-full" required value={selectedItem?.phone} onChange={e => setSelectedItem({...selectedItem, phone: e.target.value})} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">{selectedItem?._id ? 'Update' : 'Register'} Donor</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'donation' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Droplets size={16} className="text-hms-success" /> Record Blood Donation</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleRecordDonation} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Donation Number</label>
+                  <input className="hms-input w-full" required value={selectedItem?.donationNumber} onChange={e => setSelectedItem({...selectedItem, donationNumber: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Bag Number</label>
+                  <input className="hms-input w-full" required value={selectedItem?.bagNumber} onChange={e => setSelectedItem({...selectedItem, bagNumber: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Donation Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.donationDate} onChange={e => setSelectedItem({...selectedItem, donationDate: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity (ML)</label>
+                  <input type="number" className="hms-input w-full" required value={selectedItem?.quantityML || 450} onChange={e => setSelectedItem({...selectedItem, quantityML: Number(e.target.value)})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">Record Donation</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'issue' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Issue Blood Unit</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleIssueBlood} className="p-4 space-y-4">
+              <p className="text-xs text-muted-foreground">Confirm issuing of blood component to the patient. This will update inventory status to 'Issued'.</p>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Inventory Bag</label>
+                <select className="hms-select w-full" required value={selectedItem?.inventoryId} onChange={e => {
+                  const inv = data.inventory.find((i: any) => i._id === e.target.value);
+                  setSelectedItem({...selectedItem, inventoryId: e.target.value, componentId: inv?.componentId?._id});
+                }}>
+                  <option value="">-- Select Available Bag --</option>
+                  {data.inventory.filter((i: any) => i.bloodGroup?._id === selectedItem?.bloodGroup && i.componentId?.componentType === selectedItem?.componentType && i.currentStatus === 'Available').map((i: any) => (
+                    <option key={i._id} value={i._id}>{i.componentId?.donationId?.bagNumber} - {i.bloodGroup?.name} ({i.componentId?.componentType})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">Confirm Issue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'component' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Create Blood Component</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateComponent} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Component Type</label>
+                <select className="hms-select w-full" required value={selectedItem?.componentType} onChange={e => setSelectedItem({...selectedItem, componentType: e.target.value})}>
+                  <option value="Whole Blood">Whole Blood</option>
+                  <option value="PRBC">PRBC</option>
+                  <option value="Platelets">Platelets</option>
+                  <option value="FFP">FFP</option>
+                  <option value="Cryoprecipitate">Cryoprecipitate</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity (ML)</label>
+                  <input type="number" className="hms-input w-full" required value={selectedItem?.quantityML} onChange={e => setSelectedItem({...selectedItem, quantityML: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Expiry Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.expiryDate} onChange={e => setSelectedItem({...selectedItem, expiryDate: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">Create Component</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default BloodBank;
+

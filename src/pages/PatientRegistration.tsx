@@ -15,6 +15,30 @@ const PatientRegistration = () => {
   const [states, setStates] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
 
+  // Form state
+  const [formData, setFormData] = useState({
+    patientName: '',
+    email: '',
+    gender: 'Male',
+    maritalStatus: 'Single',
+    dob: '',
+    age: '',
+    currentAge: '',
+    relationType: 'Father',
+    guardianName: '',
+    address: '',
+    country: '',
+    stateId: '',
+    cityId: '',
+    bloodGroup: '',
+    source: 'Walk-in',
+    referredDoctorId: '',
+    referralMobile: '',
+    discountPercent: 0,
+    remark: '',
+    patientImage: ''
+  });
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -62,30 +86,6 @@ const PatientRegistration = () => {
       fetchPatients();
     }
   }, [activeTab]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    patientName: '',
-    email: '',
-    gender: 'Male',
-    maritalStatus: 'Single',
-    dob: '',
-    age: '',
-    currentAge: '',
-    relationType: 'Father',
-    guardianName: '',
-    address: '',
-    country: '',
-    stateId: '',
-    cityId: '',
-    bloodGroup: '',
-    source: 'Walk-in',
-    referredDoctorId: '',
-    referralMobile: '',
-    discountPercent: 0,
-    remark: '',
-    patientImage: ''
-  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

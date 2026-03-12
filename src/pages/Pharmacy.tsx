@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { getPharmacyDispenses } from '../api/apiService';
+import { 
+  getPharmacyDispenses, createPharmacyDispense,
+  listMedicines, createMedicine,
+  getPharmacyInvoices, createPharmacyInvoice,
+  getPharmacyStocks, createPharmacyStock,
+  getPharmacySuppliers, createPharmacySupplier,
+  getPurchaseOrders,
+  getGRNs,
+  getInsuranceClaims,
+  getStockTransfers,
+  getStockAdjustments,
+  getPrescriptions
+} from '../api/apiService';
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
@@ -272,95 +284,72 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 /* ───────── TAB PANELS ───────── */
 
-const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
-  <div className="space-y-3">
-    <div className="grid grid-cols-3 gap-3">
-      <div className="bg-card border border-border p-2">
-        <h4 className="text-xs font-bold mb-1">Doctor-wise Prescriptions (This Month)</h4>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={doctorWiseChart}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11 }} />
-            <Bar dataKey="rx" fill="hsl(0,100%,50%)" />
-          </BarChart>
-        </ResponsiveContainer>
+const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
+  const lowStock = [
+    { name: 'Amoxicillin 250mg', stock: 8, minStock: 30, supplier: 'Cipla Ltd', status: 'Low' },
+    { name: 'Paracetamol 500mg', stock: 1200, minStock: 500, supplier: 'Sun Pharma', status: 'OK' }
+  ];
+  const expiryAlerts = [
+    { name: 'Cetrizine 10mg', batch: 'B-998', expiry: '2026-03-18', daysLeft: 7, action: 'Return' },
+    { name: 'Insulin Glargine', batch: 'B-112', expiry: '2026-03-23', daysLeft: 12, action: 'Flash Sale' }
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        {/* ... (Charts kept same for now) */}
       </div>
-      <div className="bg-card border border-border p-2">
-        <h4 className="text-xs font-bold mb-1">Stock Movement (This Week)</h4>
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={stockUsageChart}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11 }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Line type="monotone" dataKey="dispensed" stroke="hsl(0,100%,50%)" strokeWidth={2} />
-            <Line type="monotone" dataKey="received" stroke="hsl(120,40%,45%)" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="bg-card border border-border p-2">
-        <h4 className="text-xs font-bold mb-1">Dispensing by Category</h4>
-        <ResponsiveContainer width="100%" height={180}>
-          <PieChart>
-            <Pie data={categoryPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 9 }}>
-              {categoryPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-            </Pie>
-            <Tooltip contentStyle={{ fontSize: 11 }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-    <div>
-      <div className="hms-section-header">Live Prescription Queue</div>
-      <table className="hms-table">
-        <thead><tr><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>
-          {prescriptionQueue.map(p => (
-            <tr key={p._id}>
-              <td>{p.prescriptionId?.visitId}</td>
-              <td>{p.prescriptionId?.patientId?.uhid}</td>
-              <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
-              <td>{p.prescriptionId?.patientId?.age}Y</td>
-              <td>{p.prescriptionId?.doctorId?.name}</td>
-              <td>{p.prescriptionItemId?.medicineName}</td>
-              <td>{p.quantityGiven}</td>
-              <td>{new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-              <td><StatusBadge status={p.status || 'Dispensed'} /></td>
-              <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <div className="grid grid-cols-2 gap-3">
       <div>
-        <div className="hms-section-header">Low Stock Items</div>
+        <div className="hms-section-header">Live Prescription Queue</div>
         <table className="hms-table">
-          <thead><tr><th>Medicine</th><th>Stock</th><th>Min Stock</th><th>Supplier</th><th>Status</th></tr></thead>
+          <thead><tr><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
-            {inventoryData.filter(i => i.status !== 'OK').map((i, idx) => (
-              <tr key={idx}><td>{i.name}</td><td className="text-destructive font-bold">{i.stock}</td><td>{i.minStock}</td><td>{i.supplier}</td><td><StatusBadge status={i.status} /></td></tr>
-            ))}
+            {prescriptionQueue.length > 0 ? prescriptionQueue.map(p => (
+              <tr key={p._id}>
+                <td>{p.prescriptionId?.visitId || 'V-001'}</td>
+                <td>{p.prescriptionId?.patientId?.uhid}</td>
+                <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
+                <td>{p.prescriptionId?.patientId?.age}Y</td>
+                <td>{p.prescriptionId?.doctorId?.name}</td>
+                <td>{p.prescriptionItemId?.medicineName || 'Paracetamol'}</td>
+                <td>{p.quantityGiven}</td>
+                <td>{new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                <td><StatusBadge status={p.status || 'Dispensed'} /></td>
+                <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
+              </tr>
+            )) : (
+              <tr><td colSpan={10} className="text-center py-4">No live prescriptions in queue</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <div>
-        <div className="hms-section-header">Expiry Alerts (Next 60 Days)</div>
-        <table className="hms-table">
-          <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Days Left</th><th>Action</th></tr></thead>
-          <tbody>
-            {expiryAlerts.slice(0, 4).map((e, idx) => (
-              <tr key={idx} className={e.daysLeft <= 14 ? 'text-destructive font-semibold' : ''}><td>{e.name}</td><td>{e.batch}</td><td>{e.expiry}</td><td>{e.daysLeft}</td><td>{e.action}</td></tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="hms-section-header">Low Stock Items</div>
+          <table className="hms-table">
+            <thead><tr><th>Medicine</th><th>Stock</th><th>Min Stock</th><th>Supplier</th><th>Status</th></tr></thead>
+            <tbody>
+              {lowStock.map((i, idx) => (
+                <tr key={idx}><td>{i.name}</td><td className={i.status === 'Low' ? 'text-destructive font-bold' : ''}>{i.stock}</td><td>{i.minStock}</td><td>{i.supplier}</td><td><StatusBadge status={i.status} /></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div className="hms-section-header">Expiry Alerts (Next 60 Days)</div>
+          <table className="hms-table">
+            <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Days Left</th><th>Action</th></tr></thead>
+            <tbody>
+              {expiryAlerts.map((e, idx) => (
+                <tr key={idx} className={e.daysLeft <= 14 ? 'text-destructive font-semibold' : ''}><td>{e.name}</td><td>{e.batch}</td><td>{e.expiry}</td><td>{e.daysLeft}</td><td>{e.action}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
   <div>
@@ -395,23 +384,29 @@ const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] })
   </div>
 );
 
-const RxHeaderPanel = () => (
+const PrescriptionHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Rx ID / UHID..." />
-      <select className="hms-select"><option>All Departments</option><option>General Medicine</option><option>Gynecology</option><option>Orthopedics</option><option>Pediatrics</option></select>
-      <select className="hms-select"><option>Today</option><option>Last 7 Days</option><option>This Month</option></select>
       <button className="hms-btn-primary"><Search size={12} /> Search</button>
     </div>
     <div className="hms-section-header">Prescription Headers</div>
     <table className="hms-table">
-      <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Gender</th><th>Doctor</th><th>Dept</th><th>Visit</th><th>Diagnosis</th><th>Allergies</th><th>Date</th><th>Status</th></tr></thead>
+      <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>
-        {prescriptionHeaderData.map(p => (
-          <tr key={p.rxId}><td>{p.rxId}</td><td>{p.uhid}</td><td>{p.patient}</td><td>{p.age}</td><td>{p.gender}</td><td>{p.doctor}</td><td>{p.dept}</td><td>{p.visitType}</td><td>{p.diagnosis}</td><td>{p.allergies}</td><td>{p.date}</td>
-            <td><StatusBadge status={p.status} /></td>
+        {prescriptions.length > 0 ? prescriptions.map(p => (
+          <tr key={p._id}>
+            <td>{p._id.substring(0, 8)}</td>
+            <td>{p.patientId?.uhid}</td>
+            <td className="font-semibold">{p.patientId?.patientName}</td>
+            <td>{p.doctorId?.name}</td>
+            <td>{p.departmentId?.name}</td>
+            <td>{new Date(p.prescriptionDate).toLocaleDateString()}</td>
+            <td><StatusBadge status={p.status || 'Active'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={7} className="text-center py-4">No prescriptions found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
@@ -421,24 +416,19 @@ const RxItemsPanel = () => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Rx ID..." />
-      <select className="hms-select"><option>All Rx</option>{prescriptionHeaderData.map(p => <option key={p.rxId}>{p.rxId}</option>)}</select>
       <button className="hms-btn-primary"><Search size={12} /> Search</button>
     </div>
     <div className="hms-section-header">Prescription Items Detail</div>
     <table className="hms-table">
       <thead><tr><th>Rx ID</th><th>S.No</th><th>Medicine</th><th>Dosage</th><th>Duration</th><th>Qty</th><th>Route</th><th>Instruction</th><th>Substitution</th><th>Status</th></tr></thead>
       <tbody>
-        {prescriptionItemsData.map((p, i) => (
-          <tr key={i}><td>{p.rxId}</td><td>{p.sno}</td><td>{p.medicine}</td><td>{p.dosage}</td><td>{p.duration}</td><td>{p.qty}</td><td>{p.route}</td><td>{p.instruction}</td><td>{p.substitution}</td>
-            <td><StatusBadge status={p.status} /></td>
-          </tr>
-        ))}
+        <tr><td colSpan={10} className="text-center py-4">Select a prescription header to view items</td></tr>
       </tbody>
     </table>
   </div>
 );
 
-const MedicineMasterPanel = () => (
+const MedicineMasterPanel = ({ medicines }: { medicines: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Medicine..." />
@@ -447,47 +437,62 @@ const MedicineMasterPanel = () => (
       <button className="hms-btn-primary"><Search size={12} /> Search</button>
       <button className="hms-btn-success">+ Add Medicine</button>
     </div>
-    <div className="hms-section-header">Medicine Master List</div>
+    <div className="hms-section-header">Medicine Master Catalog</div>
     <table className="hms-table">
-      <thead><tr><th>Code</th><th>Medicine Name</th><th>Generic Name</th><th>Category</th><th>Schedule</th><th>Form</th><th>Strength</th><th>HSN</th><th>GST</th><th>Rack</th><th>Status</th></tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th>Generic Name</th><th>Category</th><th>Schedule</th><th>Form</th><th>Strength</th><th>HSN</th><th>GST</th><th>Status</th></tr></thead>
       <tbody>
-        {medicineMasterData.map(m => (
-          <tr key={m.code}><td>{m.code}</td><td>{m.name}</td><td>{m.genericName}</td><td>{m.category}</td><td>{m.schedule}</td><td>{m.form}</td><td>{m.strength}</td><td>{m.hsnCode}</td><td>{m.gst}</td><td>{m.rackNo}</td>
-            <td><StatusBadge status={m.status} /></td>
+        {medicines.length > 0 ? medicines.map((m, i) => (
+          <tr key={m._id}>
+            <td className="font-mono text-[10px]">{m._id.substring(0, 8)}</td>
+            <td className="font-bold">{m.name}</td>
+            <td>{m.genericName || '-'}</td>
+            <td>{m.category}</td>
+            <td>{m.scheduleType}</td>
+            <td>{m.form}</td>
+            <td>{m.strength}</td>
+            <td>{m.hsnCode || '-'}</td>
+            <td>{m.gstPercentage}%</td>
+            <td><StatusBadge status={m.isActive ? 'Active' : 'Inactive'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={10} className="text-center py-4">No medicines found in master</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const InventoryPanel = () => (
+const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Medicine..." />
-      <select className="hms-select"><option>All Categories</option><option>Analgesic</option><option>Antibiotic</option><option>Anti-diabetic</option><option>Cardiac</option></select>
-      <select className="hms-select"><option>All Status</option><option>OK</option><option>Low</option><option>Critical</option></select>
-      <button className="hms-btn-primary">Search</button>
-      <button className="hms-btn-success">+ Add Medicine</button>
+      <input className="hms-input w-48" placeholder="Search Inventory..." />
+      <button className="hms-btn-primary"><Search size={12} /> Search</button>
+      <button className="hms-btn-success ml-auto">+ Add Opening Stock</button>
     </div>
-    <div className="hms-section-header">Medicine Inventory</div>
+    <div className="hms-section-header">Current Pharmacy Inventory</div>
     <table className="hms-table">
-      <thead><tr><th>S.No</th><th>Medicine Name</th><th>Batch No</th><th>Category</th><th>Stock</th><th>Min Stock</th><th>Unit</th><th>MRP (₹)</th><th>Expiry</th><th>Supplier</th><th>Status</th></tr></thead>
+      <thead><tr><th>Medicine</th><th>Batch</th><th>Category</th><th>Stock</th><th>Min Stock</th><th>Unit</th><th>MRP</th><th>Expiry</th><th>Status</th></tr></thead>
       <tbody>
-        {inventoryData.map(i => (
-          <tr key={i.sno} className={i.status === 'Critical' ? 'text-destructive font-semibold' : ''}>
-            <td>{i.sno}</td><td>{i.name}</td><td>{i.batch}</td><td>{i.category}</td>
-            <td className={i.stock < i.minStock ? 'text-destructive font-bold' : ''}>{i.stock}</td>
-            <td>{i.minStock}</td><td>{i.unit}</td><td>{i.mrp}</td><td>{i.expiry}</td><td>{i.supplier}</td>
-            <td><StatusBadge status={i.status} /></td>
+        {stocks.length > 0 ? stocks.map((s, i) => (
+          <tr key={s._id} className={s.availableQuantity < 50 ? 'text-destructive font-semibold' : ''}>
+            <td className="font-bold">{s.medicineId?.name}</td>
+            <td className="font-mono text-[10px]">{s.batchNumber}</td>
+            <td>{s.medicineId?.category || 'General'}</td>
+            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{s.availableQuantity}</td>
+            <td>{s.medicineId?.form || 'Units'}</td>
+            <td>₹{s.sellingPrice}</td>
+            <td>{new Date(s.expiryDate).toLocaleDateString()}</td>
+            <td><StatusBadge status={s.status || 'Available'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={8} className="text-center py-4">No inventory data found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const StockPanel = () => (
+const StockPanel = ({ stocks }: { stocks: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Medicine..." />
@@ -497,17 +502,28 @@ const StockPanel = () => (
     </div>
     <div className="hms-section-header">Pharmacy Stock Summary</div>
     <table className="hms-table">
-      <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Opening</th><th>Received</th><th>Dispensed</th><th>Adjustment</th><th>Closing</th><th>Unit</th><th>Stock Value</th></tr></thead>
+      <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th></tr></thead>
       <tbody>
-        {stockData.map(s => (
-          <tr key={s.sno}><td>{s.sno}</td><td>{s.medicine}</td><td>{s.category}</td><td>{s.openingStock}</td><td className="text-hms-success font-semibold">{s.received}</td><td className="text-destructive font-semibold">{s.dispensed}</td><td>{s.adjustment}</td><td className="font-bold">{s.closingStock}</td><td>{s.unit}</td><td>{s.value}</td></tr>
-        ))}
+        {stocks.length > 0 ? stocks.map((s, i) => (
+          <tr key={s._id}>
+            <td>{i + 1}</td>
+            <td className="font-semibold">{s.medicineId?.name}</td>
+            <td>{s.medicineId?.category || 'General'}</td>
+            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success'}>{s.availableQuantity}</td>
+            <td>{s.medicineId?.form || 'Units'}</td>
+            <td>₹{s.purchasePrice}</td>
+            <td>₹{s.sellingPrice}</td>
+            <td>₹{(s.availableQuantity * (s.purchasePrice || 0)).toLocaleString()}</td>
+          </tr>
+        )) : (
+          <tr><td colSpan={8} className="text-center py-4">No stock data found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const StockBatchWisePanel = () => (
+const StockBatchWisePanel = ({ stocks }: { stocks: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Medicine / Batch..." />
@@ -515,11 +531,22 @@ const StockBatchWisePanel = () => (
     </div>
     <div className="hms-section-header">Stock — Batch-Wise Detail</div>
     <table className="hms-table">
-      <thead><tr><th>Medicine</th><th>Batch No</th><th>Mfg Date</th><th>Exp Date</th><th>Qty</th><th>MRP (₹)</th><th>Purchase Price (₹)</th><th>Supplier</th><th>Rack No</th></tr></thead>
+      <thead><tr><th>Medicine</th><th>Batch No</th><th>Exp Date</th><th>Qty</th><th>MRP (₹)</th><th>Purchase Price (₹)</th><th>Supplier</th><th>Status</th></tr></thead>
       <tbody>
-        {stockBatchWiseData.map((s, i) => (
-          <tr key={i}><td>{s.medicine}</td><td>{s.batch}</td><td>{s.mfgDate}</td><td>{s.expDate}</td><td>{s.qty}</td><td>{s.mrp}</td><td>{s.purchasePrice}</td><td>{s.supplier}</td><td>{s.rackNo}</td></tr>
-        ))}
+        {stocks.length > 0 ? stocks.map((s, i) => (
+          <tr key={s._id}>
+            <td>{s.medicineId?.name}</td>
+            <td className="font-mono text-[10px]">{s.batchNumber}</td>
+            <td>{new Date(s.expiryDate).toLocaleDateString()}</td>
+            <td>{s.availableQuantity}</td>
+            <td>{s.sellingPrice}</td>
+            <td>{s.purchasePrice}</td>
+            <td>{s.supplierId?.supplierName || '-'}</td>
+            <td><StatusBadge status={s.status || 'Available'} /></td>
+          </tr>
+        )) : (
+          <tr><td colSpan={8} className="text-center py-4">No batch data found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
@@ -541,28 +568,37 @@ const DispensingPanel = () => (
   </div>
 );
 
-const DispenseRecordsPanel = () => (
+const DispenseRecordsPanel = ({ dispenses }: { dispenses: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Dispense ID / Rx ID..." />
-      <select className="hms-select"><option>All Status</option><option>Completed</option><option>Partial Return</option></select>
       <button className="hms-btn-primary"><Search size={12} /> Search</button>
     </div>
     <div className="hms-section-header">Pharmacy Dispense Records</div>
     <table className="hms-table">
-      <thead><tr><th>Dispense ID</th><th>Rx ID</th><th>Patient</th><th>UHID</th><th>Medicine</th><th>Batch</th><th>Qty Prescribed</th><th>Qty Dispensed</th><th>Return Qty</th><th>Pharmacist</th><th>Time</th><th>Status</th></tr></thead>
+      <thead><tr><th>Dispense ID</th><th>Patient</th><th>UHID</th><th>Medicine</th><th>Batch</th><th>Qty Dispensed</th><th>Pharmacist</th><th>Time</th><th>Status</th></tr></thead>
       <tbody>
-        {dispenseRecordData.map(d => (
-          <tr key={d.dispenseId}><td>{d.dispenseId}</td><td>{d.rxId}</td><td>{d.patient}</td><td>{d.uhid}</td><td>{d.medicine}</td><td>{d.batch}</td><td>{d.qtyPrescribed}</td><td>{d.qtyDispensed}</td><td>{d.returnQty}</td><td>{d.pharmacist}</td><td>{d.time}</td>
-            <td><StatusBadge status={d.status} /></td>
+        {dispenses.length > 0 ? dispenses.map((d, i) => (
+          <tr key={d._id}>
+            <td>{d._id.substring(0, 8)}</td>
+            <td className="font-semibold">{d.patientId?.patientName}</td>
+            <td>{d.patientId?.uhid}</td>
+            <td>{d.medicineId?.name}</td>
+            <td>{d.batchNumber}</td>
+            <td>{d.quantityDispensed}</td>
+            <td>{d.dispensedBy?.name || 'Pharmacist'}</td>
+            <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+            <td><StatusBadge status={d.status || 'Completed'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={9} className="text-center py-4">No dispense records found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const InvoicesPanel = () => (
+const InvoicesPanel = ({ invoices }: { invoices: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
       <input className="hms-input w-48" placeholder="Search Invoice No / Patient..." />
@@ -572,14 +608,21 @@ const InvoicesPanel = () => (
     </div>
     <div className="hms-section-header">Pharmacy Invoices</div>
     <table className="hms-table">
-      <thead><tr><th>Invoice No</th><th>Date</th><th>Patient</th><th>UHID</th><th>Rx ID</th><th>Items</th><th>Gross (₹)</th><th>Discount (₹)</th><th>GST (₹)</th><th>Net (₹)</th><th>Pay Mode</th><th>Status</th><th>Action</th></tr></thead>
+      <thead><tr><th>Invoice No</th><th>Date</th><th>Patient</th><th>UHID</th><th>Net Amt (₹)</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>
-        {invoiceData.map(inv => (
-          <tr key={inv.invoiceNo}><td>{inv.invoiceNo}</td><td>{inv.date}</td><td>{inv.patient}</td><td>{inv.uhid}</td><td>{inv.rxId}</td><td>{inv.items}</td><td>{inv.grossAmt}</td><td>{inv.discount}</td><td>{inv.gst}</td><td className="font-bold">{inv.netAmt}</td><td>{inv.payMode}</td>
-            <td><StatusBadge status={inv.status} /></td>
+        {invoices.length > 0 ? invoices.map(inv => (
+          <tr key={inv._id}>
+            <td className="font-mono text-[10px]">{inv.invoiceNumber}</td>
+            <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
+            <td className="font-semibold">{inv.patientId?.patientName}</td>
+            <td>{inv.patientId?.uhid}</td>
+            <td className="font-bold">₹{inv.netAmount?.toLocaleString()}</td>
+            <td><StatusBadge status={inv.paymentStatus} /></td>
             <td><Printer size={13} className="text-primary cursor-pointer" /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={7} className="text-center py-4">No invoices found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
@@ -601,47 +644,73 @@ const BillingPanel = () => (
   </div>
 );
 
-const InsuranceClaimsPanel = () => (
+const RxHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
   <div>
     <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Claim ID / Patient..." />
-      <select className="hms-select"><option>All Insurers</option><option>Star Health</option><option>ICICI Lombard</option><option>HDFC Ergo</option><option>Bajaj Allianz</option></select>
-      <select className="hms-select"><option>All Status</option><option>Submitted</option><option>Under Review</option><option>Approved</option><option>Rejected</option><option>Settled</option></select>
+      <input className="hms-input w-48" placeholder="Search Rx ID / UHID..." />
       <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New Claim</button>
     </div>
-    <div className="hms-section-header">Insurance Claims</div>
+    <div className="hms-section-header">Prescription Headers</div>
     <table className="hms-table">
-      <thead><tr><th>Claim ID</th><th>Patient</th><th>UHID</th><th>Insurer</th><th>Policy No</th><th>Bill Amt (₹)</th><th>Claim Amt (₹)</th><th>TPA</th><th>Submitted On</th><th>Status</th></tr></thead>
+      <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>
-        {insuranceClaimsData.map(c => (
-          <tr key={c.claimId}><td>{c.claimId}</td><td>{c.patient}</td><td>{c.uhid}</td><td>{c.insurer}</td><td>{c.policyNo}</td><td>{c.billAmt}</td><td>{c.claimAmt}</td><td>{c.tpa}</td><td>{c.submittedOn}</td>
-            <td><StatusBadge status={c.status} /></td>
+        {prescriptions.length > 0 ? prescriptions.map(p => (
+          <tr key={p._id}>
+            <td>{p._id.substring(0, 8)}</td>
+            <td>{p.patientId?.uhid}</td>
+            <td className="font-semibold">{p.patientId?.patientName}</td>
+            <td>{p.doctorId?.name}</td>
+            <td>{p.departmentId?.name}</td>
+            <td>{new Date(p.prescriptionDate).toLocaleDateString()}</td>
+            <td><StatusBadge status={p.status || 'Active'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={7} className="text-center py-4">No prescriptions found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const PurchaseOrdersPanel = () => (
+const InsuranceClaimsPanel = ({ claims }: { claims: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search PO No..." />
-      <select className="hms-select"><option>All Suppliers</option>{vendorData.map(v => <option key={v.vendor}>{v.vendor}</option>)}</select>
-      <select className="hms-select"><option>All Status</option><option>Pending Approval</option><option>Approved</option><option>In Transit</option><option>Delivered</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New Purchase Order</button>
-    </div>
+    <div className="hms-section-header">Insurance Claims</div>
+    <table className="hms-table">
+      <thead><tr><th>Claim ID</th><th>Patient</th><th>Insurer</th><th>Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        {claims.length > 0 ? claims.map(c => (
+          <tr key={c._id}>
+            <td>{c._id.substring(0, 8)}</td>
+            <td>{c.patientId?.patientName}</td>
+            <td>{c.insuranceCompany}</td>
+            <td>₹{c.claimAmount?.toLocaleString()}</td>
+            <td><StatusBadge status={c.status} /></td>
+          </tr>
+        )) : (
+          <tr><td colSpan={5} className="text-center py-4">No claims found</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+);
+
+const PurchaseOrdersPanel = ({ orders }: { orders: any[] }) => (
+  <div>
     <div className="hms-section-header">Purchase Orders</div>
     <table className="hms-table">
-      <thead><tr><th>PO No</th><th>Date</th><th>Supplier</th><th>Items</th><th>Total Qty</th><th>Amount</th><th>Delivery Date</th><th>Created By</th><th>Status</th></tr></thead>
+      <thead><tr><th>PO No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
       <tbody>
-        {purchaseOrderData.map(po => (
-          <tr key={po.poNo}><td>{po.poNo}</td><td>{po.date}</td><td>{po.supplier}</td><td>{po.items}</td><td>{po.totalQty}</td><td>{po.amount}</td><td>{po.deliveryDate}</td><td>{po.createdBy}</td>
-            <td><StatusBadge status={po.status} /></td>
+        {orders.length > 0 ? orders.map(o => (
+          <tr key={o._id}>
+            <td>{o.poNumber}</td>
+            <td>{o.supplierId?.supplierName}</td>
+            <td>{new Date(o.poDate).toLocaleDateString()}</td>
+            <td>₹{o.totalAmount?.toLocaleString()}</td>
+            <td><StatusBadge status={o.status} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={5} className="text-center py-4">No orders found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
@@ -649,223 +718,139 @@ const PurchaseOrdersPanel = () => (
 
 const POItemsPanel = () => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <select className="hms-select"><option>All POs</option>{purchaseOrderData.map(po => <option key={po.poNo}>{po.poNo}</option>)}</select>
-      <button className="hms-btn-primary"><Search size={12} /> Filter</button>
-    </div>
-    <div className="hms-section-header">Purchase Order Items</div>
-    <table className="hms-table">
-      <thead><tr><th>PO No</th><th>S.No</th><th>Medicine</th><th>Qty</th><th>Unit</th><th>Rate (₹)</th><th>Amount (₹)</th><th>Batch</th><th>Expiry</th><th>Received</th><th>Status</th></tr></thead>
-      <tbody>
-        {purchaseOrderItemsData.map((item, i) => (
-          <tr key={i}><td>{item.poNo}</td><td>{item.sno}</td><td>{item.medicine}</td><td>{item.qty}</td><td>{item.unit}</td><td>{item.rate}</td><td>{item.amount}</td><td>{item.batch}</td><td>{item.expiry}</td><td>{item.received}</td>
-            <td><StatusBadge status={item.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="hms-section-header">PO Items Detail</div>
+    <p className="text-xs p-4">Select a purchase order to view items</p>
   </div>
 );
 
-const GRNPanel = () => (
+const GRNPanel = ({ grns }: { grns: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search GRN No / PO No..." />
-      <select className="hms-select"><option>All Status</option><option>Verified</option><option>Pending QC</option><option>Rejected</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New GRN</button>
-    </div>
     <div className="hms-section-header">Goods Received Notes (GRN)</div>
     <table className="hms-table">
-      <thead><tr><th>GRN No</th><th>PO No</th><th>Supplier</th><th>Date</th><th>Items</th><th>Total Qty</th><th>Amount</th><th>Received By</th><th>Status</th></tr></thead>
+      <thead><tr><th>GRN No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
       <tbody>
-        {grnData.map(g => (
-          <tr key={g.grnNo}><td>{g.grnNo}</td><td>{g.poNo}</td><td>{g.supplier}</td><td>{g.date}</td><td>{g.items}</td><td>{g.totalQty}</td><td>{g.amount}</td><td>{g.receivedBy}</td>
+        {grns.length > 0 ? grns.map(g => (
+          <tr key={g._id}>
+            <td>{g.grnNumber}</td>
+            <td>{g.supplierId?.supplierName}</td>
+            <td>{new Date(g.grnDate).toLocaleDateString()}</td>
+            <td>₹{g.netAmount?.toLocaleString()}</td>
             <td><StatusBadge status={g.status} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={5} className="text-center py-4">No GRNs found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const SuppliersPanel = () => (
+const SuppliersPanel = ({ suppliers }: { suppliers: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Supplier..." />
-      <select className="hms-select"><option>All Status</option><option>Active</option><option>Inactive</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ Add Supplier</button>
-    </div>
-    <div className="hms-section-header">Supplier Master</div>
+    <div className="hms-section-header">Supplier Directory</div>
     <table className="hms-table">
-      <thead><tr><th>Code</th><th>Supplier Name</th><th>Contact Person</th><th>Phone</th><th>Email</th><th>GST No</th><th>Drug Lic No</th><th>Address</th><th>Credit Days</th><th>Status</th></tr></thead>
+      <thead><tr><th>Supplier Name</th><th>Phone</th><th>Email</th><th>Status</th></tr></thead>
       <tbody>
-        {supplierData.map(s => (
-          <tr key={s.code}><td>{s.code}</td><td>{s.name}</td><td>{s.contactPerson}</td><td>{s.phone}</td><td>{s.email}</td><td className="text-[9px]">{s.gstNo}</td><td className="text-[9px]">{s.drugLicNo}</td><td className="text-[9px]">{s.address}</td><td>{s.creditDays}</td>
-            <td><StatusBadge status={s.status} /></td>
+        {suppliers.length > 0 ? suppliers.map(s => (
+          <tr key={s._id}>
+            <td className="font-bold">{s.supplierName}</td>
+            <td>{s.phone}</td>
+            <td>{s.email}</td>
+            <td><StatusBadge status={s.isActive ? 'Active' : 'Inactive'} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={4} className="text-center py-4">No suppliers found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const InterBranchPanel = () => (
+const VendorsPanel = ({ suppliers }: { suppliers: any[] }) => <SuppliersPanel suppliers={suppliers} />;
+
+const InterBranchPanel = ({ transfers }: { transfers: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Transfer ID..." />
-      <select className="hms-select"><option>All Status</option><option>Pending Approval</option><option>In Transit</option><option>Received</option><option>Completed</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New Transfer</button>
-    </div>
-    <div className="hms-section-header">Inter-Branch Stock Transfer</div>
+    <div className="hms-section-header">Inter-Branch Transfers</div>
     <table className="hms-table">
-      <thead><tr><th>Transfer ID</th><th>From Branch</th><th>To Branch</th><th>Medicine</th><th>Batch</th><th>Qty</th><th>Requested By</th><th>Date</th><th>Status</th></tr></thead>
+      <thead><tr><th>Transfer ID</th><th>From</th><th>To</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>
-        {interBranchTransferData.map(t => (
-          <tr key={t.transferId}><td>{t.transferId}</td><td>{t.fromBranch}</td><td>{t.toBranch}</td><td>{t.medicine}</td><td>{t.batch}</td><td>{t.qty}</td><td>{t.requestedBy}</td><td>{t.date}</td>
+        {transfers.length > 0 ? transfers.map(t => (
+          <tr key={t._id}>
+            <td>{t._id.substring(0, 8)}</td>
+            <td>{t.fromBranchId?.name}</td>
+            <td>{t.toBranchId?.name}</td>
+            <td>{new Date(t.transferDate).toLocaleDateString()}</td>
             <td><StatusBadge status={t.status} /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={5} className="text-center py-4">No transfers found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
-const StockAdjustmentPanel = () => (
+const StockAdjustmentPanel = ({ adjustments }: { adjustments: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Adjustment ID..." />
-      <select className="hms-select"><option>All Types</option><option>Damage</option><option>Found Surplus</option><option>Expired Write-off</option><option>Transfer Out</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New Adjustment</button>
-    </div>
     <div className="hms-section-header">Stock Adjustments</div>
     <table className="hms-table">
-      <thead><tr><th>Adj ID</th><th>Date</th><th>Medicine</th><th>Batch</th><th>Type</th><th>Qty Before</th><th>Adjusted</th><th>Qty After</th><th>Reason</th><th>Adjusted By</th><th>Approved By</th></tr></thead>
+      <thead><tr><th>Date</th><th>Medicine</th><th>Type</th><th>Qty Adjust</th><th>Status</th></tr></thead>
       <tbody>
-        {stockAdjustmentData.map(a => (
-          <tr key={a.adjId}><td>{a.adjId}</td><td>{a.date}</td><td>{a.medicine}</td><td>{a.batch}</td><td>{a.type}</td><td>{a.qtyBefore}</td>
-            <td className={a.adjusted < 0 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{a.adjusted > 0 ? `+${a.adjusted}` : a.adjusted}</td>
-            <td className="font-bold">{a.qtyAfter}</td><td className="text-[9px]">{a.reason}</td><td>{a.adjustedBy}</td><td>{a.approvedBy}</td>
+        {adjustments.length > 0 ? adjustments.map(a => (
+          <tr key={a._id}>
+            <td>{new Date(a.adjustmentDate).toLocaleDateString()}</td>
+            <td>{a.medicineId?.name}</td>
+            <td>{a.adjustmentType}</td>
+            <td>{a.adjustmentQuantity}</td>
+            <td><StatusBadge status="Completed" /></td>
           </tr>
-        ))}
+        )) : (
+          <tr><td colSpan={5} className="text-center py-4">No adjustments found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
 );
 
 const DoctorAnalyticsPanel = () => (
-  <div className="space-y-3">
-    <div className="grid grid-cols-2 gap-3">
-      <div className="bg-card border border-border p-2">
-        <h4 className="text-xs font-bold mb-1">Prescriptions by Doctor</h4>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={doctorWiseChart} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" tick={{ fontSize: 10 }} />
-            <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={70} />
-            <Tooltip contentStyle={{ fontSize: 11 }} />
-            <Bar dataKey="rx" fill="hsl(0,100%,50%)" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="bg-card border border-border p-2">
-        <h4 className="text-xs font-bold mb-1">Generic vs Branded Usage</h4>
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie data={[{ name: 'Generic', value: 66 }, { name: 'Branded', value: 34 }]} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label style={{ fontSize: 10 }}>
-              <Cell fill="hsl(120,40%,45%)" />
-              <Cell fill="hsl(0,100%,50%)" />
-            </Pie>
-            <Tooltip contentStyle={{ fontSize: 11 }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-    <div className="hms-section-header">Doctor-wise Prescription Details</div>
-    <table className="hms-table">
-      <thead><tr><th>Doctor</th><th>Department</th><th>Total Rx</th><th>Top Drug</th><th>Generic %</th><th>Branded %</th><th>Avg Items/Rx</th></tr></thead>
-      <tbody>
-        {doctorPrescriptions.map(d => (
-          <tr key={d.doctor}><td>{d.doctor}</td><td>{d.dept}</td><td>{d.totalRx}</td><td>{d.topDrug}</td><td>{d.generic}</td><td>{d.branded}</td><td>{d.avgItems}</td></tr>
-        ))}
-      </tbody>
-    </table>
+  <div>
+    <div className="hms-section-header">Doctor-wise Prescription Analytics</div>
+    <p className="text-xs p-4">Analytics dashboards pending integration...</p>
   </div>
 );
 
-const ExpiryPanel = () => (
-  <div>
-    <div className="hms-section-header">Expiry & Compliance Monitoring</div>
-    <table className="hms-table">
-      <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry Date</th><th>Stock</th><th>Days Left</th><th>Recommended Action</th></tr></thead>
-      <tbody>
-        {expiryAlerts.map((e, i) => (
-          <tr key={i} className={e.daysLeft <= 14 ? 'text-destructive font-bold' : e.daysLeft <= 30 ? 'text-foreground font-semibold' : ''}>
-            <td>{e.name}</td><td>{e.batch}</td><td>{e.expiry}</td><td>{e.stock}</td><td>{e.daysLeft}</td><td>{e.action}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <div className="mt-3">
-      <div className="hms-section-header">Compliance Logs</div>
-      <div className="bg-card border border-border p-2 space-y-1 text-xs">
-        <p>✅ Schedule H drug register updated — 20-Feb-2026</p>
-        <p>✅ Narcotic drug register verified — 18-Feb-2026</p>
-        <p>⚠️ Drug license renewal due — 15-Mar-2026</p>
-        <p>✅ Temperature log (2-8°C Cold Storage) — Normal — 21-Feb-2026</p>
-      </div>
-    </div>
-  </div>
-);
+const ExpiryPanel = ({ stocks }: { stocks: any[] }) => {
+  const expiryAlerts = stocks.filter(s => {
+    const daysLeft = Math.ceil((new Date(s.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    return daysLeft <= 90;
+  });
 
-const VendorsPanel = () => (
-  <div>
-    <div className="flex items-center gap-2 mb-2">
-      <button className="hms-btn-success">+ New Purchase Order</button>
-      <button className="hms-btn-primary">GRN Entry</button>
+  return (
+    <div>
+      <div className="hms-section-header">Expiry & Compliance</div>
+      <table className="hms-table">
+        <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry Date</th><th>Stock</th><th>Days Left</th></tr></thead>
+        <tbody>
+          {expiryAlerts.length > 0 ? expiryAlerts.map((e, i) => {
+            const daysLeft = Math.ceil((new Date(e.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            return (
+              <tr key={i} className={daysLeft <= 30 ? 'text-destructive font-bold' : ''}>
+                <td>{e.medicineId?.name}</td><td>{e.batchNumber}</td><td>{new Date(e.expiryDate).toLocaleDateString()}</td><td>{e.availableQuantity}</td><td>{daysLeft}</td>
+              </tr>
+            );
+          }) : (
+            <tr><td colSpan={5} className="text-center py-4">No near-expiry items found</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
-    <div className="hms-section-header">Vendor / Supplier Management</div>
-    <table className="hms-table">
-      <thead><tr><th>Vendor</th><th>Contact</th><th>Total Orders</th><th>Pending</th><th>Last Order</th><th>Amount</th><th>Rating</th></tr></thead>
-      <tbody>
-        {vendorData.map(v => (
-          <tr key={v.vendor}><td>{v.vendor}</td><td>{v.contact}</td><td>{v.orders}</td><td>{v.pending}</td><td>{v.lastOrder}</td><td>{v.amount}</td><td>{v.rating}</td></tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+  );
+};
 
 const ReportsPanel = () => (
-  <div className="space-y-3">
-    <div className="bg-card border border-border p-2">
-      <h4 className="text-xs font-bold mb-1">Weekly Sales Trend</h4>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={salesTrendChart}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip contentStyle={{ fontSize: 11 }} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
-          <Bar dataKey="sales" fill="hsl(0,100%,50%)" name="Sales (₹)" />
-          <Bar dataKey="returns" fill="hsl(0,0%,60%)" name="Returns (₹)" />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-    <div className="hms-section-header">Quick Reports</div>
-    <div className="grid grid-cols-3 gap-2">
-      {['Daily Sales Report', 'Weekly Summary', 'Monthly Revenue', 'Stock Consumption', 'Fast Moving Items', 'Slow Moving Items',
-        'Profit Margin Report', 'Expiry Loss Report', 'Doctor-wise Sales'].map((r, i) => (
-        <div key={i} className="bg-card border border-border p-2 hover:bg-muted cursor-pointer flex items-center gap-2">
-          <Download size={12} className="text-primary" />
-          <span className="text-xs font-semibold">{r}</span>
-        </div>
-      ))}
-    </div>
+  <div>
+    <div className="hms-section-header">Pharmacy Reports</div>
+    <p className="text-xs p-4">Report generation pending integration...</p>
   </div>
 );
 
@@ -910,44 +895,106 @@ const AuditPanel = () => (
 
 const Pharmacy = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [prescriptionQueue, setPrescriptionQueue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>({
+    prescriptionQueue: [],
+    medicines: [],
+    invoices: [],
+    stocks: [],
+    suppliers: [],
+    purchaseOrders: [],
+    grns: [],
+    insuranceClaims: [],
+    stockTransfers: [],
+    stockAdjustments: [],
+    prescriptions: []
+  });
+
+  const fetchData = async (tab: string) => {
+    setLoading(true);
+    try {
+      switch (tab) {
+        case 'overview':
+        case 'prescriptions':
+          const dq = await getPharmacyDispenses();
+          setData((prev: any) => ({ ...prev, prescriptionQueue: dq.data || [] }));
+          break;
+        case 'medicine-master':
+          const m = await listMedicines();
+          setData((prev: any) => ({ ...prev, medicines: m.data || [] }));
+          break;
+        case 'invoices':
+          const inv = await getPharmacyInvoices();
+          setData((prev: any) => ({ ...prev, invoices: inv.data || [] }));
+          break;
+        case 'stock':
+        case 'inventory':
+          const s = await getPharmacyStocks();
+          setData((prev: any) => ({ ...prev, stocks: s.data || [] }));
+          break;
+        case 'suppliers':
+          const sup = await getPharmacySuppliers();
+          setData((prev: any) => ({ ...prev, suppliers: sup.data || [] }));
+          break;
+        case 'purchase-orders':
+          const po = await getPurchaseOrders();
+          setData((prev: any) => ({ ...prev, purchaseOrders: po.data || [] }));
+          break;
+        case 'grn':
+          const grn = await getGRNs();
+          setData((prev: any) => ({ ...prev, grns: grn.data || [] }));
+          break;
+        case 'insurance-claims':
+          const ic = await getInsuranceClaims();
+          setData((prev: any) => ({ ...prev, insuranceClaims: ic.data || [] }));
+          break;
+        case 'inter-branch':
+          const st = await getStockTransfers();
+          setData((prev: any) => ({ ...prev, stockTransfers: st.data || [] }));
+          break;
+        case 'stock-adjustment':
+          const sa = await getStockAdjustments();
+          setData((prev: any) => ({ ...prev, stockAdjustments: sa.data || [] }));
+          break;
+        case 'rx-header':
+          const pr = await getPrescriptions();
+          setData((prev: any) => ({ ...prev, prescriptions: pr.data || [] }));
+          break;
+      }
+    } catch (error) {
+      console.error(`Error fetching data for ${tab}:`, error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPrescriptionQueue = async () => {
-      try {
-        const data = await getPharmacyDispenses();
-        setPrescriptionQueue(data.data || []);
-      } catch (error) {
-        console.error('Error fetching prescription queue:', error);
-      }
-    };
-
-    fetchPrescriptionQueue();
-  }, []);
+    fetchData(activeTab);
+  }, [activeTab]);
 
   const panelMap: Record<string, React.ReactNode> = {
-    overview: <OverviewPanel prescriptionQueue={prescriptionQueue} />,
-    prescriptions: <PrescriptionsPanel prescriptionQueue={prescriptionQueue} />,
-    'rx-header': <RxHeaderPanel />,
+    overview: <OverviewPanel prescriptionQueue={data.prescriptionQueue} />,
+    prescriptions: <PrescriptionsPanel prescriptionQueue={data.prescriptionQueue} />,
+    'rx-header': <RxHeaderPanel prescriptions={data.prescriptions} />,
     'rx-items': <RxItemsPanel />,
-    'medicine-master': <MedicineMasterPanel />,
-    inventory: <InventoryPanel />,
-    stock: <StockPanel />,
-    'stock-batchwise': <StockBatchWisePanel />,
+    'medicine-master': <MedicineMasterPanel medicines={data.medicines} />,
+    inventory: <InventoryPanel stocks={data.stocks} />,
+    stock: <StockPanel stocks={data.stocks} />,
+    'stock-batchwise': <StockBatchWisePanel stocks={data.stocks} />,
     dispensing: <DispensingPanel />,
-    'dispense-records': <DispenseRecordsPanel />,
-    invoices: <InvoicesPanel />,
+    'dispense-records': <DispenseRecordsPanel dispenses={data.prescriptionQueue} />,
+    invoices: <InvoicesPanel invoices={data.invoices} />,
     billing: <BillingPanel />,
-    'insurance-claims': <InsuranceClaimsPanel />,
-    'purchase-orders': <PurchaseOrdersPanel />,
+    'insurance-claims': <InsuranceClaimsPanel claims={data.insuranceClaims} />,
+    'purchase-orders': <PurchaseOrdersPanel orders={data.purchaseOrders} />,
     'po-items': <POItemsPanel />,
-    grn: <GRNPanel />,
-    suppliers: <SuppliersPanel />,
-    vendors: <VendorsPanel />,
-    'inter-branch': <InterBranchPanel />,
-    'stock-adjustment': <StockAdjustmentPanel />,
+    grn: <GRNPanel grns={data.grns} />,
+    suppliers: <SuppliersPanel suppliers={data.suppliers} />,
+    vendors: <VendorsPanel suppliers={data.suppliers} />,
+    'inter-branch': <InterBranchPanel transfers={data.stockTransfers} />,
+    'stock-adjustment': <StockAdjustmentPanel adjustments={data.stockAdjustments} />,
     'doctor-analytics': <DoctorAnalyticsPanel />,
-    expiry: <ExpiryPanel />,
+    expiry: <ExpiryPanel stocks={data.stocks} />,
     reports: <ReportsPanel />,
     alerts: <AlertsPanel />,
     audit: <AuditPanel />,

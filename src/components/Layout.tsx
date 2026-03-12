@@ -6,12 +6,13 @@ import {
   CreditCard, Car, Pill, FileText, BarChart3, Settings, LogOut, Menu,
   Baby, RotateCcw, Award, UserCog, Building2, ChevronDown, Shield, KeyRound, Truck,
   Droplets, Skull, ShieldCheck, Microscope, Scan, Package, UtensilsCrossed,
-  Headphones, FileOutput, Scissors, Siren, Warehouse
+  Headphones, FileOutput, Scissors, Siren, Warehouse, Monitor, Activity
 } from 'lucide-react';
 
 const topNavItems = [
   { label: 'OPD', path: '/opd', icon: Stethoscope },
   { label: 'IPD', path: '/ipd', icon: BedDouble },
+  { label: 'Appointments', path: '/appointments', icon: CalendarDays },
   { label: 'Queue', path: '/queue', icon: ClipboardList },
   { label: 'Emergency', path: '/emergency', icon: Siren },
   { label: 'OT', path: '/ot', icon: Scissors },
@@ -19,6 +20,8 @@ const topNavItems = [
   { label: 'Investigations', path: '/investigations', icon: FlaskConical },
   { label: 'Day Care', path: '/daycare', icon: CalendarDays },
   { label: 'Labs', path: '/labs', icon: FlaskConical },
+  { label: 'Vitals', path: '/vitals', icon: Activity },
+  { label: 'EHR', path: '/ehr', icon: FileText },
   { label: 'Laboratory', path: '/laboratory', icon: Microscope },
   { label: 'Radiology', path: '/radiology', icon: Scan },
   { label: 'Pharmacy', path: '/pharmacy', icon: Pill },
@@ -37,8 +40,13 @@ const sidebarItems = [
   { label: 'Dashboard', path: '/', icon: BarChart3 },
   { label: 'Patient Reg', path: '/patient-registration', icon: Users },
   { label: 'Staff', path: '/staff', icon: UserCog },
+  { label: 'Attendance', path: '/attendance', icon: ClipboardList },
+  { label: 'Leave', path: '/leave', icon: CalendarDays },
+  { label: 'Payroll', path: '/payroll', icon: CreditCard },
+  { label: 'Bed Mgmt', path: '/bed-management', icon: BedDouble },
   { label: 'Inventory', path: '/inventory', icon: Warehouse },
   { label: 'Assets', path: '/assets', icon: Package },
+  { label: 'Equipment', path: '/equipment', icon: Monitor },
   { label: 'Diet/Kitchen', path: '/diet-kitchen', icon: UtensilsCrossed },
   { label: 'Help Desk', path: '/helpdesk', icon: Headphones },
   { label: 'Branches', path: '/branches', icon: Building2 },

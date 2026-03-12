@@ -1,11 +1,11 @@
 import React from 'react';
 
-const Billing = () => {
+const EHR = () => {
     return (
         <div>
-            <h1>Billing</h1>
+            <h1>EHR</h1>
         </div>
     );
 };
 
-export default Billing;
+export default EHR;

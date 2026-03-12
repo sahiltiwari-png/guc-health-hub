@@ -1,40 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Phone, MapPin, Clock, CheckCircle2, AlertTriangle, XCircle, Users, Activity, Navigation, Radio, Fuel } from 'lucide-react';
-
-const ambulanceFleet = [
-  { id: 'AMB-001', type: 'ALS (Advanced Life Support)', driver: 'Raju Singh', phone: '9876543210', status: 'Available', location: 'Hospital Parking', lastService: '2024-12-15', km: '45,230', fuel: 85, lat: '28.5855', lng: '77.3100', speed: 0 },
-  { id: 'AMB-002', type: 'BLS (Basic Life Support)', driver: 'Mohan Lal', phone: '9876543211', status: 'On Trip', location: 'Sector 62, Noida', lastService: '2024-12-20', km: '38,120', fuel: 62, lat: '28.6273', lng: '77.3654', speed: 45 },
-  { id: 'AMB-003', type: 'ALS (Advanced Life Support)', driver: 'Suresh Yadav', phone: '9876543212', status: 'Available', location: 'Hospital Parking', lastService: '2025-01-05', km: '52,800', fuel: 90, lat: '28.5855', lng: '77.3100', speed: 0 },
-  { id: 'AMB-004', type: 'Patient Transport', driver: 'Dinesh Kumar', phone: '9876543213', status: 'On Trip', location: 'Greater Noida', lastService: '2024-11-28', km: '61,400', fuel: 45, lat: '28.4744', lng: '77.5040', speed: 35 },
-  { id: 'AMB-005', type: 'BLS (Basic Life Support)', driver: 'Pappu Ram', phone: '9876543214', status: 'Maintenance', location: 'Service Center', lastService: '2025-01-10', km: '29,500', fuel: 20, lat: '28.5700', lng: '77.3200', speed: 0 },
-  { id: 'AMB-006', type: 'Neonatal Ambulance', driver: 'Amit Chauhan', phone: '9876543215', status: 'Available', location: 'Hospital Parking', lastService: '2025-01-02', km: '18,900', fuel: 78, lat: '28.5855', lng: '77.3100', speed: 0 },
-  { id: 'AMB-007', type: 'ALS (Advanced Life Support)', driver: 'Vijay Pratap', phone: '9876543216', status: 'On Trip', location: 'Delhi - Lajpat Nagar', lastService: '2024-12-28', km: '67,100', fuel: 55, lat: '28.5700', lng: '77.2400', speed: 60 },
-  { id: 'AMB-008', type: 'Dead Body Van', driver: 'Ramesh Gupta', phone: '9876543217', status: 'Available', location: 'Hospital Parking', lastService: '2025-01-08', km: '12,300', fuel: 95, lat: '28.5855', lng: '77.3100', speed: 0 },
-];
-
-const recentTrips = [
-  { id: 'TRP-1001', ambulance: 'AMB-002', patient: 'Ramesh Verma', from: 'Sector 62, Noida', to: 'GUC Hospital', time: '10:30 AM', eta: '12 min', distance: '8.5 km', status: 'In Progress', type: 'Emergency' },
-  { id: 'TRP-1002', ambulance: 'AMB-004', patient: 'Sita Devi', from: 'Greater Noida', to: 'GUC Hospital', time: '09:45 AM', eta: '25 min', distance: '22 km', status: 'In Progress', type: 'Transfer' },
-  { id: 'TRP-1003', ambulance: 'AMB-007', patient: 'Anil Kumar', from: 'Delhi - Lajpat Nagar', to: 'GUC Hospital', time: '09:15 AM', eta: '18 min', distance: '15 km', status: 'In Progress', type: 'Emergency' },
-  { id: 'TRP-1004', ambulance: 'AMB-001', patient: 'Meera Kumari', from: 'GUC Hospital', to: 'AIIMS Delhi', time: '08:00 AM', eta: '-', distance: '28 km', status: 'Completed', type: 'Transfer' },
-  { id: 'TRP-1005', ambulance: 'AMB-003', patient: 'Suraj Pal', from: 'Sector 18, Noida', to: 'GUC Hospital', time: '07:30 AM', eta: '-', distance: '5.2 km', status: 'Completed', type: 'Emergency' },
-];
-
-const gpsAlerts = [
-  { time: '10:32 AM', vehicle: 'AMB-002', alert: 'Approaching destination — ETA 12 min', severity: 'info' },
-  { time: '10:28 AM', vehicle: 'AMB-007', alert: 'Exceeded speed limit (60 km/h in 40 zone)', severity: 'warning' },
-  { time: '10:15 AM', vehicle: 'AMB-004', alert: 'Fuel level below 50%', severity: 'warning' },
-  { time: '10:05 AM', vehicle: 'AMB-002', alert: 'Route deviation detected — recalculating', severity: 'warning' },
-  { time: '09:50 AM', vehicle: 'AMB-005', alert: 'Engine diagnostic: Service overdue', severity: 'critical' },
-  { time: '09:30 AM', vehicle: 'AMB-007', alert: 'Trip started — Emergency pickup', severity: 'info' },
-  { time: '09:15 AM', vehicle: 'AMB-002', alert: 'Trip started — Emergency pickup', severity: 'info' },
-];
+import { 
+  Truck, Phone, MapPin, Clock, CheckCircle2, AlertTriangle, 
+  XCircle, Users, Activity, Navigation, Radio, Fuel, Search,
+  Plus, Edit, Trash2, Settings, History, Wrench, ShieldCheck,
+  MoreVertical, Eye, Printer, Download, RefreshCw, X
+} from 'lucide-react';
+import { 
+  listAmbulances, createAmbulance, updateAmbulance, deleteAmbulance,
+  listAmbulanceTrips, createAmbulanceTrip,
+  listAmbulanceMaintenances, createAmbulanceMaintenance,
+  listPatients, listUsers
+} from '../api/apiService';
 
 const statusColor = (s: string) => {
-  if (s === 'Available') return 'bg-hms-success text-hms-success-foreground';
-  if (s === 'On Trip' || s === 'In Progress') return 'bg-primary text-primary-foreground';
-  if (s === 'Maintenance') return 'bg-destructive text-destructive-foreground';
-  if (s === 'Completed') return 'bg-muted text-foreground';
+  if (s === 'Available' || s === 'Active' || s === 'Completed') return 'bg-hms-success text-hms-success-foreground';
+  if (s === 'On Trip' || s === 'In Progress' || s === 'OnWay' || s === 'Requested' || s === 'Dispatched') return 'bg-primary text-primary-foreground';
+  if (s === 'Maintenance' || s === 'Cancelled' || s === 'Repair') return 'bg-destructive text-destructive-foreground';
   return 'bg-muted text-muted-foreground';
 };
 
@@ -44,233 +25,501 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'fleet', label: 'Fleet Overview' },
   { key: 'trips', label: 'Trip Log' },
   { key: 'tracking', label: 'Real-Time Tracking' },
-  { key: 'alerts', label: 'GPS Alerts' },
   { key: 'maintenance', label: 'Maintenance Log' },
+  { key: 'alerts', label: 'GPS Alerts' },
 ];
 
 const Ambulance = () => {
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<Tab>('tracking');
+  const [tab, setTab] = useState<Tab>('fleet');
+  const [loading, setLoading] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
+  
+  // Data States
+  const [data, setData] = useState({
+    ambulances: [],
+    trips: [],
+    maintenances: [],
+    patients: [],
+    drivers: []
+  });
+
+  // UI States
+  const [showModal, setShowModal] = useState<string | null>(null); // 'vehicle' | 'trip' | 'maintenance'
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [ambRes, tripsRes, maintRes, patientsRes, driversRes] = await Promise.all([
+        listAmbulances(),
+        listAmbulanceTrips(),
+        listAmbulanceMaintenances(),
+        listPatients({ limit: 100 }),
+        listUsers({ role: 'Driver' }) // Assuming role filter works
+      ]);
+
+      setData({
+        ambulances: ambRes || [],
+        trips: tripsRes || [],
+        maintenances: maintRes || [],
+        patients: patientsRes.data || [],
+        drivers: driversRes.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching ambulance data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    fetchData();
     const interval = setInterval(() => setLiveTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const available = ambulanceFleet.filter(a => a.status === 'Available').length;
-  const onTrip = ambulanceFleet.filter(a => a.status === 'On Trip').length;
-  const maintenance = ambulanceFleet.filter(a => a.status === 'Maintenance').length;
+  const handleSaveAmbulance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (selectedItem._id) {
+        await updateAmbulance(selectedItem._id, selectedItem);
+      } else {
+        await createAmbulance(selectedItem);
+      }
+      setShowModal(null);
+      fetchData();
+    } catch (error) {
+      alert('Error saving ambulance');
+    }
+  };
+
+  const handleSaveTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Find the ambulance to get its current driver
+      const ambulance = data.ambulances.find((a: any) => a._id === selectedItem.ambulanceId);
+      const tripData = {
+        ...selectedItem,
+        driverId: ambulance?.driverId?._id || ambulance?.driverId // Ensure we have a driver ID
+      };
+      
+      await createAmbulanceTrip(tripData);
+      setShowModal(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      alert('Error creating trip request. Please ensure all fields are filled.');
+    }
+  };
+
+  const handleSaveMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createAmbulanceMaintenance(selectedItem);
+      setShowModal(null);
+      fetchData();
+    } catch (error) {
+      alert('Error saving maintenance record');
+    }
+  };
+
+  const handleDeleteAmbulance = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this vehicle?')) return;
+    try {
+      await deleteAmbulance(id);
+      fetchData();
+    } catch (error) {
+      alert('Error deleting ambulance');
+    }
+  };
+
+  const available = data.ambulances.filter((a: any) => a.isActive).length;
+  const onTrip = data.trips.filter((t: any) => ['Requested', 'Dispatched', 'OnWay'].includes(t.status)).length;
+  const maintenance = data.maintenances.filter((m: any) => m.type === 'Repair').length;
+
+  const renderFleet = () => (
+    <div className="space-y-3">
+      <table className="hms-table">
+        <thead><tr>
+          <th>Vehicle No</th><th>Type</th><th>Driver</th><th>Contact</th><th>Status</th><th>Last Maint.</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+          {data.ambulances.filter((a: any) => a.vehicleNumber.toLowerCase().includes(search.toLowerCase())).map((a: any) => (
+            <tr key={a._id}>
+              <td className="font-mono font-bold text-primary">{a.vehicleNumber}</td>
+              <td><span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-bold uppercase">{a.type}</span></td>
+              <td className="font-semibold">{a.driverId?.name || 'Unassigned'}</td>
+              <td>{a.contactNumber || a.driverId?.phone || '-'}</td>
+              <td>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(a.isActive ? 'Available' : 'Maintenance')}`}>
+                  {a.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </td>
+              <td>{new Date(a.updatedAt).toLocaleDateString()}</td>
+              <td>
+                <div className="flex gap-2">
+                  <button className="text-primary hover:bg-primary/10 p-1 rounded" onClick={() => { setSelectedItem(a); setShowModal('vehicle'); }}><Edit size={14} /></button>
+                  <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteAmbulance(a._id)}><Trash2 size={14} /></button>
+                </div>
+              </td>
+            </tr>
+          ))}
+          {data.ambulances.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-muted-foreground italic">No vehicles found in fleet</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderTrips = () => (
+    <div className="space-y-3">
+      <table className="hms-table">
+        <thead><tr>
+          <th>Trip ID</th><th>Vehicle</th><th>Patient</th><th>From</th><th>To</th><th>Type</th><th>Status</th><th>Time</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+          {data.trips.map((t: any) => (
+            <tr key={t._id}>
+              <td className="font-mono text-[10px]">{t._id.slice(-6).toUpperCase()}</td>
+              <td className="font-bold">{t.ambulanceId?.vehicleNumber}</td>
+              <td className="font-semibold">{t.patientId?.patientName || t.patientId?.name || 'Unknown'}</td>
+              <td className="text-[10px] max-w-[150px] truncate">{t.fromLocation}</td>
+              <td className="text-[10px] max-w-[150px] truncate">{t.toLocation}</td>
+              <td><span className="text-[9px] border border-border px-1 py-0.5 rounded uppercase">{t.tripType}</span></td>
+              <td><span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(t.status)}`}>{t.status}</span></td>
+              <td className="text-[10px]">{new Date(t.requestedAt).toLocaleString()}</td>
+              <td>
+                <div className="flex gap-2">
+                  <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Update Status"><RefreshCw size={14} /></button>
+                  <button className="text-muted-foreground hover:bg-muted p-1 rounded"><Printer size={14} /></button>
+                </div>
+              </td>
+            </tr>
+          ))}
+          {data.trips.length === 0 && <tr><td colSpan={9} className="text-center py-10 text-muted-foreground italic">No trip history records</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderMaintenance = () => (
+    <div className="space-y-3">
+      <table className="hms-table">
+        <thead><tr>
+          <th>Date</th><th>Vehicle</th><th>Type</th><th>Description</th><th>Cost</th><th>Performed By</th>
+        </tr></thead>
+        <tbody>
+          {data.maintenances.map((m: any) => (
+            <tr key={m._id}>
+              <td>{new Date(m.maintenanceDate).toLocaleDateString()}</td>
+              <td className="font-bold">{m.ambulanceId?.vehicleNumber}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(m.type)}`}>{m.type}</span></td>
+              <td className="text-[10px] max-w-[200px]">{m.description}</td>
+              <td className="font-mono font-bold text-hms-success">₹{m.cost.toLocaleString()}</td>
+              <td>{m.performedBy?.name || 'Staff'}</td>
+            </tr>
+          ))}
+          {data.maintenances.length === 0 && <tr><td colSpan={6} className="text-center py-10 text-muted-foreground italic">No maintenance records</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderTracking = () => (
+    <div className="p-4 bg-muted/10 min-h-[500px]">
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-8 space-y-4">
+          <div className="bg-card border border-border p-4 shadow-sm">
+            <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Navigation size={14} className="text-primary" /> Live Fleet Status</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {data.ambulances.map((a: any) => (
+                <div key={a._id} className="border border-border p-3 rounded hover:border-primary transition-colors cursor-pointer group">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="bg-primary/10 p-2 rounded"><Truck size={18} className="text-primary" /></div>
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(a.isActive ? 'Available' : 'Maintenance')}`}>
+                      {a.isActive ? 'Available' : 'Busy'}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold font-mono">{a.vehicleNumber}</h4>
+                  <p className="text-[10px] text-muted-foreground mb-2">{a.type} Support</p>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {a.driverId?.name || 'N/A'}</div>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1"><MapPin size={10} /> Hospital Base</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="col-span-4 space-y-4">
+          <div className="bg-card border border-border p-4 shadow-sm">
+            <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Clock size={14} className="text-hms-info" /> Active Requests</h3>
+            <div className="space-y-2">
+              {data.trips.filter((t: any) => t.status !== 'Completed' && t.status !== 'Cancelled').map((t: any) => (
+                <div key={t._id} className="bg-primary/5 border-l-2 border-primary p-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-mono text-[9px] font-bold">#{t._id.slice(-4).toUpperCase()}</span>
+                    <span className="text-[8px] bg-primary text-white px-1 py-0.5 rounded uppercase font-bold">{t.status}</span>
+                  </div>
+                  <p className="text-[10px] font-bold">{t.patientId?.patientName}</p>
+                  <p className="text-[9px] text-muted-foreground">{t.fromLocation} → {t.toLocation}</p>
+                </div>
+              ))}
+              {data.trips.filter((t: any) => t.status !== 'Completed' && t.status !== 'Cancelled').length === 0 && (
+                <p className="text-[10px] text-center text-muted-foreground italic py-4">No active trips</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div>
+    <div className="space-y-3">
       <div className="hms-section-header flex items-center justify-between">
-        <div className="flex items-center gap-2"><Truck size={16} /> Ambulance Management & Real-Time Tracking</div>
+        <div className="flex items-center gap-2"><Truck size={16} /> Ambulance Management System</div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] bg-hms-success text-hms-success-foreground px-2 py-0.5 flex items-center gap-1"><Radio size={10} className="animate-pulse" /> LIVE {liveTime.toLocaleTimeString('en-IN')}</span>
-          <input className="hms-input w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
-          <button className="hms-btn-primary">+ New Trip</button>
-          <button className="hms-btn-secondary">+ Add Vehicle</button>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+            <input className="hms-input pl-7 w-48" placeholder="Search vehicle..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="hms-btn-primary flex items-center gap-1" onClick={() => { setSelectedItem({ vehicleNumber: '', type: 'Basic', contactNumber: '', isActive: true }); setShowModal('vehicle'); }}><Plus size={14} /> Add Vehicle</button>
+          <button className="hms-btn-primary flex items-center gap-1" onClick={() => { 
+            setSelectedItem({ 
+              ambulanceId: '', 
+              patientId: '', 
+              visitId: '', 
+              fromLocation: 'Hospital Base', 
+              toLocation: '', 
+              tripType: 'Emergency' 
+            }); 
+            setShowModal('trip'); 
+          }}><Navigation size={14} /> New Trip</button>
+          <button className="hms-btn-secondary flex items-center gap-1" onClick={() => { 
+            setSelectedItem({ 
+              ambulanceId: '', 
+              type: 'Routine', 
+              description: '', 
+              cost: 0,
+              maintenanceDate: new Date().toISOString().split('T')[0]
+            }); 
+            setShowModal('maintenance'); 
+          }}><Wrench size={14} /> Maint.</button>
+          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} /></button>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-7 gap-1 my-1">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-6 gap-2">
         {[
-          { label: 'Total Fleet', value: ambulanceFleet.length },
-          { label: 'Available', value: available, color: '' },
-          { label: 'On Trip', value: onTrip, color: 'text-primary' },
-          { label: 'Maintenance', value: maintenance, color: 'text-destructive' },
-          { label: "Today's Trips", value: recentTrips.length },
-          { label: 'Active Alerts', value: gpsAlerts.filter(a => a.severity !== 'info').length, color: 'text-destructive' },
-          { label: 'Avg Response', value: '8 min' },
+          { label: 'Total Fleet', value: data.ambulances.length, icon: Truck, color: 'text-primary' },
+          { label: 'Available', value: available, icon: CheckCircle2, color: 'text-hms-success' },
+          { label: 'On Trip', value: onTrip, icon: Activity, color: 'text-hms-info' },
+          { label: 'Maintenance', value: maintenance, icon: Wrench, color: 'text-destructive' },
+          { label: 'Total Trips', value: data.trips.length, icon: History, color: 'text-muted-foreground' },
+          { label: 'Avg Speed', value: '42 km/h', icon: Navigation, color: 'text-primary' },
         ].map((k, i) => (
-          <div key={i} className="bg-card border border-border p-1.5 text-center">
-            <div className={`text-lg font-bold ${k.color || ''}`}>{k.value}</div>
-            <div className="text-[9px] text-muted-foreground">{k.label}</div>
+          <div key={i} className="bg-card border border-border p-3 flex items-center gap-3 shadow-sm">
+            <div className={`p-2 rounded-full bg-muted/20 ${k.color}`}><k.icon size={18} /></div>
+            <div>
+              <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+              <div className="text-[9px] font-bold uppercase text-muted-foreground">{k.label}</div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0 bg-primary overflow-x-auto">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border bg-card">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${tab === t.key ? 'bg-card text-foreground' : 'text-primary-foreground hover:bg-primary-foreground/10'}`}>
+            className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
+            {t.key === 'fleet' && <Truck size={13} />}
+            {t.key === 'trips' && <History size={13} />}
+            {t.key === 'tracking' && <Navigation size={13} />}
+            {t.key === 'maintenance' && <Wrench size={13} />}
+            {t.key === 'alerts' && <AlertTriangle size={13} />}
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-card border border-border">
-        {tab === 'tracking' && (
-          <div className="p-2">
-            <div className="grid grid-cols-3 gap-2">
-              {/* Live Vehicle Status Panel */}
-              <div className="col-span-2">
-                <div className="text-xs font-bold mb-1 flex items-center gap-1"><Navigation size={12} /> Live Vehicle Positions</div>
-                <div className="border border-border bg-muted/30 p-2" style={{ minHeight: 300 }}>
-                  {/* Simulated map grid */}
-                  <div className="grid grid-cols-4 gap-1">
-                    {ambulanceFleet.map(a => (
-                      <div key={a.id} className={`border p-1.5 text-[10px] ${a.status === 'On Trip' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="font-bold">{a.id}</span>
-                          <span className={`px-1 py-0.5 ${statusColor(a.status)}`}>{a.status}</span>
-                        </div>
-                        <div className="text-muted-foreground">{a.driver}</div>
-                        <div className="flex items-center gap-0.5"><MapPin size={8} />{a.location}</div>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <span className="flex items-center gap-0.5"><Activity size={8} />{a.speed} km/h</span>
-                          <span className="flex items-center gap-0.5"><Fuel size={8} />{a.fuel}%</span>
-                        </div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">GPS: {a.lat}°N, {a.lng}°E</div>
-                        {a.status === 'On Trip' && (
-                          <div className="mt-1">
-                            <div className="w-full bg-muted h-1"><div className="bg-primary h-1" style={{ width: `${60 + Math.random() * 30}%` }}></div></div>
-                            <div className="text-[9px] text-primary font-semibold mt-0.5">
-                              ETA: {recentTrips.find(t => t.ambulance === a.id)?.eta || '-'}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Trips Sidebar */}
-              <div>
-                <div className="text-xs font-bold mb-1 flex items-center gap-1"><Clock size={12} /> Active Trips</div>
-                <div className="space-y-1">
-                  {recentTrips.filter(t => t.status === 'In Progress').map(t => (
-                    <div key={t.id} className="border border-primary p-1.5 text-[10px] bg-primary/5">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-bold">{t.id}</span>
-                        <span className={`px-1 py-0.5 ${t.type === 'Emergency' ? 'bg-destructive text-destructive-foreground' : 'bg-hms-info text-primary-foreground'}`}>{t.type}</span>
-                      </div>
-                      <div><strong>Vehicle:</strong> {t.ambulance}</div>
-                      <div><strong>Patient:</strong> {t.patient}</div>
-                      <div className="flex items-center gap-0.5"><MapPin size={8} />{t.from} → {t.to}</div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span><strong>Distance:</strong> {t.distance}</span>
-                        <span className="text-primary font-bold">ETA: {t.eta}</span>
-                      </div>
-                      <div className="mt-1 flex gap-1">
-                        <button className="hms-btn-primary text-[9px] py-0.5 px-1.5">Track</button>
-                        <button className="hms-btn-secondary text-[9px] py-0.5 px-1.5">Call Driver</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="text-xs font-bold mt-2 mb-1 flex items-center gap-1"><AlertTriangle size={12} /> Recent Alerts</div>
-                <div className="space-y-0.5">
-                  {gpsAlerts.slice(0, 4).map((a, i) => (
-                    <div key={i} className={`text-[10px] px-1.5 py-1 border-l-2 ${a.severity === 'critical' ? 'border-destructive bg-destructive/5' : a.severity === 'warning' ? 'border-hms-warning bg-hms-warning/5' : 'border-hms-info bg-hms-info/5'}`}>
-                      <span className="font-semibold">{a.time}</span> [{a.vehicle}] {a.alert}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      {/* Main Content Area */}
+      <div className="bg-card border border-border min-h-[400px]">
+        {loading ? (
+          <div className="flex items-center justify-center h-64 flex-col gap-2">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-semibold text-muted-foreground">Syncing Ambulance Data...</span>
           </div>
-        )}
-
-        {tab === 'fleet' && (
-          <table className="hms-table">
-            <thead><tr>
-              <th>Vehicle ID</th><th>Type</th><th>Driver</th><th>Phone</th><th>Status</th><th>Location</th><th>Speed</th><th>Fuel</th><th>Last Service</th><th>KM</th><th>Actions</th>
-            </tr></thead>
-            <tbody>
-              {ambulanceFleet.filter(a => a.id.toLowerCase().includes(search.toLowerCase()) || a.driver.toLowerCase().includes(search.toLowerCase())).map(a => (
-                <tr key={a.id}>
-                  <td className="font-semibold">{a.id}</td>
-                  <td className="text-[10px]">{a.type}</td>
-                  <td>{a.driver}</td>
-                  <td><div className="flex items-center gap-1"><Phone size={10} />{a.phone}</div></td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${statusColor(a.status)}`}>{a.status}</span></td>
-                  <td><div className="flex items-center gap-1"><MapPin size={10} />{a.location}</div></td>
-                  <td>{a.speed} km/h</td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <div className="w-12 bg-muted h-1.5"><div className={`h-1.5 ${a.fuel > 50 ? 'bg-hms-success' : a.fuel > 25 ? 'bg-hms-warning' : 'bg-destructive'}`} style={{ width: `${a.fuel}%` }}></div></div>
-                      <span className="text-[10px]">{a.fuel}%</span>
-                    </div>
-                  </td>
-                  <td>{a.lastService}</td>
-                  <td>{a.km}</td>
-                  <td>
-                    <button className="hms-btn-secondary text-[10px] mr-1">Track</button>
-                    <button className="hms-btn-secondary text-[10px]">Edit</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'trips' && (
-          <table className="hms-table">
-            <thead><tr>
-              <th>Trip ID</th><th>Ambulance</th><th>Patient</th><th>From</th><th>To</th><th>Time</th><th>Distance</th><th>ETA</th><th>Type</th><th>Status</th>
-            </tr></thead>
-            <tbody>
-              {recentTrips.map(t => (
-                <tr key={t.id}>
-                  <td className="font-semibold">{t.id}</td>
-                  <td>{t.ambulance}</td>
-                  <td>{t.patient}</td>
-                  <td><div className="flex items-center gap-1"><MapPin size={10} />{t.from}</div></td>
-                  <td><div className="flex items-center gap-1"><MapPin size={10} />{t.to}</div></td>
-                  <td>{t.time}</td>
-                  <td>{t.distance}</td>
-                  <td className={t.eta !== '-' ? 'text-primary font-bold' : ''}>{t.eta}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${t.type === 'Emergency' ? 'bg-destructive text-destructive-foreground' : 'bg-hms-info text-primary-foreground'}`}>{t.type}</span></td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${statusColor(t.status)}`}>{t.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {tab === 'alerts' && (
-          <div className="p-2">
-            <table className="hms-table">
-              <thead><tr><th>Time</th><th>Vehicle</th><th>Alert</th><th>Severity</th></tr></thead>
-              <tbody>
-                {gpsAlerts.map((a, i) => (
-                  <tr key={i}>
-                    <td>{a.time}</td><td className="font-semibold">{a.vehicle}</td><td>{a.alert}</td>
-                    <td><span className={`text-[10px] px-1.5 py-0.5 ${a.severity === 'critical' ? 'bg-destructive text-destructive-foreground' : a.severity === 'warning' ? 'bg-hms-warning' : 'bg-hms-info text-primary-foreground'}`}>{a.severity.toUpperCase()}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'maintenance' && (
-          <table className="hms-table">
-            <thead><tr><th>Vehicle</th><th>Type</th><th>Last Service</th><th>Next Service</th><th>KM at Service</th><th>Service Center</th><th>Cost (₹)</th><th>Status</th></tr></thead>
-            <tbody>
-              {[
-                { v: 'AMB-005', type: 'Full Service', last: '10-Jan-2026', next: '10-Apr-2026', km: '29,200', center: 'Tata Motors Noida', cost: '₹18,500', s: 'In Service' },
-                { v: 'AMB-001', type: 'Oil Change', last: '15-Dec-2024', next: '15-Mar-2025', km: '44,800', center: 'Hospital Workshop', cost: '₹3,200', s: 'Completed' },
-                { v: 'AMB-004', type: 'Tyre Replacement', last: '28-Nov-2024', next: '-', km: '60,000', center: 'MRF Tyre Center', cost: '₹12,000', s: 'Completed' },
-                { v: 'AMB-007', type: 'AC Repair', last: '28-Dec-2024', next: '-', km: '66,500', center: 'Hospital Workshop', cost: '₹5,500', s: 'Completed' },
-              ].map((m, i) => (
-                <tr key={i}>
-                  <td className="font-semibold">{m.v}</td><td>{m.type}</td><td>{m.last}</td><td>{m.next}</td><td>{m.km}</td><td>{m.center}</td><td>{m.cost}</td>
-                  <td><span className={`text-[10px] px-1.5 py-0.5 ${m.s === 'In Service' ? 'bg-hms-warning' : 'bg-hms-success text-hms-success-foreground'}`}>{m.s}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        ) : (
+          <>
+            {tab === 'fleet' && renderFleet()}
+            {tab === 'trips' && renderTrips()}
+            {tab === 'maintenance' && renderMaintenance()}
+            {tab === 'tracking' && renderTracking()}
+            {tab === 'alerts' && (
+              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground italic">
+                <AlertTriangle size={48} className="mb-2 opacity-20" />
+                <p>No active GPS alerts detected in the system.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* Vehicle Modal */}
+      {showModal === 'vehicle' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Truck size={16} className="text-primary" /> {selectedItem?._id ? 'Edit Vehicle' : 'Add New Vehicle'}</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveAmbulance} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Vehicle Number</label>
+                  <input className="hms-input w-full font-mono" required value={selectedItem?.vehicleNumber} onChange={e => setSelectedItem({...selectedItem, vehicleNumber: e.target.value})} placeholder="DL-01-AMB-1234" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Vehicle Type</label>
+                  <select className="hms-select w-full" value={selectedItem?.type} onChange={e => setSelectedItem({...selectedItem, type: e.target.value})}>
+                    <option value="Basic">Basic Life Support</option>
+                    <option value="Advanced">Advanced Life Support</option>
+                    <option value="ICU">ICU Ambulance</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Assign Driver</label>
+                <select className="hms-select w-full" value={selectedItem?.driverId?._id || selectedItem?.driverId} onChange={e => setSelectedItem({...selectedItem, driverId: e.target.value})}>
+                  <option value="">-- Select Driver --</option>
+                  {data.drivers.map((d: any) => <option key={d._id} value={d._id}>{d.name} ({d.phone})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Direct Contact Number</label>
+                <input className="hms-input w-full" value={selectedItem?.contactNumber} onChange={e => setSelectedItem({...selectedItem, contactNumber: e.target.value})} placeholder="Emergency contact..." />
+              </div>
+              <div className="flex items-center gap-2 py-2">
+                <input type="checkbox" checked={selectedItem?.isActive} onChange={e => setSelectedItem({...selectedItem, isActive: e.target.checked})} id="amb-active" />
+                <label htmlFor="amb-active" className="text-xs font-semibold">Mark as Active & Available</label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Save Vehicle</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Trip Modal */}
+      {showModal === 'trip' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Navigation size={16} className="text-primary" /> New Trip Request</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveTrip} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Ambulance</label>
+                  <select className="hms-select w-full" required value={selectedItem?.ambulanceId} onChange={e => setSelectedItem({...selectedItem, ambulanceId: e.target.value})}>
+                    <option value="">-- Select --</option>
+                    {data.ambulances.filter((a: any) => a.isActive).map((a: any) => <option key={a._id} value={a._id}>{a.vehicleNumber} ({a.type})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Trip Type</label>
+                  <select className="hms-select w-full" value={selectedItem?.tripType} onChange={e => setSelectedItem({...selectedItem, tripType: e.target.value})}>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Routine">Routine</option>
+                    <option value="Transfer">Transfer</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Patient</label>
+                <select className="hms-select w-full" required value={selectedItem?.patientId} onChange={e => {
+                  const patient = data.patients.find((p: any) => p._id === e.target.value);
+                  setSelectedItem({...selectedItem, patientId: e.target.value, visitId: patient?.currentVisitId || '65f1a2b3c4d5e6f7a8b9c0d1'}); // Mock visit if not found
+                }}>
+                  <option value="">-- Select Patient --</option>
+                  {data.patients.map((p: any) => <option key={p._id} value={p._id}>{p.patientName} ({p.patientID})</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">From Location</label>
+                  <input className="hms-input w-full" required value={selectedItem?.fromLocation} onChange={e => setSelectedItem({...selectedItem, fromLocation: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">To Location</label>
+                  <input className="hms-input w-full" required value={selectedItem?.toLocation} onChange={e => setSelectedItem({...selectedItem, toLocation: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Dispatch Now</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Maintenance Modal */}
+      {showModal === 'maintenance' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Wrench size={16} className="text-primary" /> Log Maintenance</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveMaintenance} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Vehicle</label>
+                  <select className="hms-select w-full" required value={selectedItem?.ambulanceId} onChange={e => setSelectedItem({...selectedItem, ambulanceId: e.target.value})}>
+                    <option value="">-- Select --</option>
+                    {data.ambulances.map((a: any) => <option key={a._id} value={a._id}>{a.vehicleNumber}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Service Type</label>
+                  <select className="hms-select w-full" value={selectedItem?.type} onChange={e => setSelectedItem({...selectedItem, type: e.target.value})}>
+                    <option value="Routine">Routine Service</option>
+                    <option value="Repair">Repair</option>
+                    <option value="Accident">Accident Repair</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Service Cost (₹)</label>
+                  <input type="number" className="hms-input w-full" required value={selectedItem?.cost} onChange={e => setSelectedItem({...selectedItem, cost: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Service Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.maintenanceDate} onChange={e => setSelectedItem({...selectedItem, maintenanceDate: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Service Description</label>
+                <textarea className="hms-input w-full h-20" required value={selectedItem?.description} onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} placeholder="Describe the work done..." />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Save Record</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Ambulance;
+

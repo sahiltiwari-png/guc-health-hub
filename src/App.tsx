@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import Appointments from "@/pages/Appointments";
 import OPD from "@/pages/OPD";
 import IPD from "@/pages/IPD";
 import Queue from "@/pages/Queue";
@@ -17,6 +18,9 @@ import Labs from "@/pages/Labs";
 import Pharmacy from "@/pages/Pharmacy";
 import PatientRegistration from "@/pages/PatientRegistration";
 import Staff from "@/pages/Staff";
+import Attendance from "@/pages/Attendance";
+import Leave from "@/pages/Leave";
+import Payroll from "@/pages/Payroll";
 import Parking from "@/pages/Parking";
 import Billing from "@/pages/Billing";
 import BirthReg from "@/pages/BirthReg";
@@ -34,8 +38,10 @@ import BloodBank from "@/pages/BloodBank";
 import DeathPostmortem from "@/pages/DeathPostmortem";
 import CSSD from "@/pages/CSSD";
 import Laboratory from "@/pages/Laboratory";
+import Vitals from "@/pages/Vitals";
 import Radiology from "@/pages/Radiology";
 import Assets from "@/pages/Assets";
+import Equipment from "@/pages/Equipment";
 import DietKitchen from "@/pages/DietKitchen";
 import HelpDesk from "@/pages/HelpDesk";
 import Discharge from "@/pages/Discharge";
@@ -43,6 +49,8 @@ import OTManagement from "@/pages/OTManagement";
 import ICUWard from "@/pages/ICUWard";
 import Emergency from "@/pages/Emergency";
 import Inventory from "@/pages/Inventory";
+import BedManagement from "@/pages/BedManagement";
+import EHR from "@/pages/EHR";
 import OnboardingStepper from "@/components/OnboardingStepper";
 import HiringBanner from "@/components/HiringBanner";
 import NotFound from "./pages/NotFound";
@@ -88,6 +96,7 @@ const AppRoutes = () => {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/appointments" element={<Appointments />} />
           <Route path="/opd" element={<OPD />} />
           <Route path="/ipd" element={<IPD />} />
           <Route path="/queue" element={<Queue />} />
@@ -97,6 +106,9 @@ const AppRoutes = () => {
           <Route path="/pharmacy" element={<Pharmacy />} />
           <Route path="/patient-registration" element={<PatientRegistration />} />
           <Route path="/staff" element={<Staff />} />
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/leave" element={<Leave />} />
+          <Route path="/payroll" element={<Payroll />} />
           <Route path="/parking" element={<Parking />} />
           <Route path="/billing" element={<Billing />} />
           <Route path="/birth-reg" element={<BirthReg />} />
@@ -111,9 +123,11 @@ const AppRoutes = () => {
           <Route path="/blood-bank" element={<BloodBank />} />
           <Route path="/death-postmortem" element={<DeathPostmortem />} />
           <Route path="/cssd" element={<CSSD />} />
+          <Route path="/vitals" element={<Vitals />} />
           <Route path="/laboratory" element={<Laboratory />} />
           <Route path="/radiology" element={<Radiology />} />
           <Route path="/assets" element={<Assets />} />
+          <Route path="/equipment" element={<Equipment />} />
           <Route path="/diet-kitchen" element={<DietKitchen />} />
           <Route path="/helpdesk" element={<HelpDesk />} />
           <Route path="/discharge" element={<Discharge />} />
@@ -121,6 +135,8 @@ const AppRoutes = () => {
           <Route path="/icu-ward" element={<ICUWard />} />
           <Route path="/emergency" element={<Emergency />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/bed-management" element={<BedManagement />} />
+          <Route path="/ehr" element={<EHR />} />
           <Route path="/2fa-setup" element={<TwoFactorSetup />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
@@ -136,7 +152,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <AppRoutes />
         </BrowserRouter>
       </AuthProvider>

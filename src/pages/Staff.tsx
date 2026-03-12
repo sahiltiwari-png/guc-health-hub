@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
 import { listUsers, listRoles, deleteUser, updateUser } from '@/api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
 
+type Tab = 'all' | 'doctors' | 'nurses' | 'hierarchy';
+
 const Staff = () => {
   const { toast } = useToast();
-  const [tab, setTab] = useState<'all' | 'doctor' | 'nurse' | 'technician' | 'other'>('all');
+  const [tab, setTab] = useState<Tab>('all');
   const [staff, setStaff] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [viewingStaff, setViewingStaff] = useState<any | null>(null);
-  const [editingStaff, setEditingStaff] = useState<any | null>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalEntries, setTotalEntries] = useState(0);
   const limit = 20;
 
   const fetchRoles = async () => {
@@ -35,22 +34,14 @@ const Staff = () => {
   const fetchStaff = async (page = 1) => {
     setIsLoading(true);
     try {
-      const params: any = {
-        page,
-        limit
-      };
-      if (tab !== 'all' && tab !== 'other') {
-        params.role = tab;
-      }
-      if (selectedRole) {
-        params.role = selectedRole;
-      }
-      if (searchQuery) {
-        params.search = searchQuery;
-      }
+      const params: any = { page, limit, populate: 'role department_id managerId' };
+      if (tab === 'doctors') params.roleName = 'Doctor';
+      if (tab === 'nurses') params.roleName = 'Nurse';
+      if (selectedRole) params.role = selectedRole;
+      if (searchQuery) params.search = searchQuery;
+      
       const res = await listUsers(params);
       setStaff(res.data || []);
-      setTotalEntries(res.total || 0);
       setTotalPages(Math.ceil((res.total || 0) / limit));
       setCurrentPage(page);
     } catch (error: any) {
@@ -65,18 +56,7 @@ const Staff = () => {
 
   useEffect(() => {
     fetchStaff(1);
-  }, [tab, selectedRole]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchStaff(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      fetchStaff(newPage);
-    }
-  };
+  }, [tab, selectedRole, searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this staff member?")) {
@@ -90,306 +70,221 @@ const Staff = () => {
     }
   };
 
-  const handleUpdateStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    try {
-      await updateUser(id, { status: newStatus });
-      toast({ title: "Success", description: `Staff member is now ${newStatus}` });
-      fetchStaff();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
-    }
-  };
-
-  const handleAddStaff = () => {
-    setIsAdding(false);
-    fetchStaff();
-    toast({ title: "Success", description: "Staff member added successfully" });
+  const getTeamUnder = (managerId: string) => {
+    return staff.filter(s => s.managerId?._id === managerId);
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <div className="flex items-center justify-between bg-card border-b border-border px-4 py-2 shadow-sm">
+    <div className="flex flex-col h-full space-y-4 p-4">
+      <div className="hms-section-header flex items-center justify-between">
         <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-          <Users size={20} /> Staff Management
+          <Users size={20} /> Staff & Team Management
         </h2>
-        <div className="flex items-center gap-3">
-          {message.text && (
-            <div className={`px-4 py-1 text-xs font-medium rounded ${
-              message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {message.text}
-            </div>
-          )}
-          <button onClick={() => setIsAdding(true)} className="hms-btn-primary flex items-center gap-2 h-8 px-4 text-xs font-bold">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsAdding(true)} className="hms-btn-primary flex items-center gap-2 h-8 px-4 text-xs font-bold uppercase">
             <Plus size={14} /> Add Staff
           </button>
+          <button className="hms-btn-secondary h-8" onClick={() => fetchStaff()}><RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
-      <div className="p-4 space-y-4 overflow-auto flex-1">
-        {isAdding && <AddStaff onAdd={handleAddStaff} onCancel={() => setIsAdding(false)} />}
-
-        {/* Dense Single-Row Filters */}
-        <div className="flex flex-wrap items-center gap-3 bg-card p-2 border border-border rounded-md shadow-sm">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input 
-                className="hms-input pl-9 w-64 h-8 text-xs" 
-                placeholder="Search by Name, Email, Phone..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="hms-btn-primary px-4 h-8 flex items-center gap-2 text-[11px] font-bold">
-              <Search size={14} /> Search
-            </button>
-          </form>
-
-          <div className="h-6 w-px bg-border mx-1"></div>
-
-          <select 
-            className="hms-select w-40 h-8 text-xs font-semibold"
-            value={selectedRole}
-            onChange={(e) => { setSelectedRole(e.target.value); setTab('all'); }}
-          >
-            <option value="">All Roles</option>
-            {roles.map(r => (
-              <option key={r._id} value={r.name}>{r.name}</option>
-            ))}
-          </select>
-
-          <div className="h-6 w-px bg-border mx-1"></div>
-
-          <div className="flex gap-0.5 p-0.5 bg-secondary/30 rounded-md">
-            {(['all', 'doctor', 'nurse', 'technician', 'other'] as const).map(t => (
-              <button 
-                key={t} 
-                onClick={() => { setTab(t); setSelectedRole(''); }} 
-                className={`px-3 py-1 text-[10px] font-bold capitalize rounded-sm transition-all ${
-                  tab === t 
-                    ? 'bg-primary text-primary-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                }`}
-              >
-                {t === 'all' ? 'All' : t === 'doctor' ? 'Doctors' : t === 'nurse' ? 'Nurses' : t === 'technician' ? 'Techs' : 'Others'}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-wrap items-center gap-3 bg-card p-2 border border-border rounded-sm shadow-sm">
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input 
+            className="hms-input pl-9 w-full h-8 text-xs" 
+            placeholder="Search by Name, Email, ID..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        {/* IPD Style Table */}
-        <div className="bg-card border border-border rounded-md shadow-sm overflow-hidden">
+        <select 
+          className="hms-select w-40 h-8 text-xs font-bold"
+          value={selectedRole}
+          onChange={(e) => setSelectedRole(e.target.value)}
+        >
+          <option value="">All Roles</option>
+          {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+        </select>
+
+        <div className="flex gap-0.5 p-0.5 bg-muted rounded-sm">
+          {(['all', 'doctors', 'nurses', 'hierarchy'] as const).map(t => (
+            <button 
+              key={t} 
+              onClick={() => setTab(t)} 
+              className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all ${
+                tab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-card border border-border flex-1 overflow-auto shadow-sm">
+        {tab === 'hierarchy' ? (
+          <div className="p-6 space-y-8">
+            {staff.filter(s => !s.managerId).map(manager => (
+              <div key={manager._id} className="space-y-4">
+                <div className="flex items-center gap-3 bg-primary/5 p-3 border-l-4 border-primary rounded-r">
+                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      {manager.name.charAt(0)}
+                   </div>
+                   <div>
+                      <div className="font-bold text-sm flex items-center gap-2">
+                        {manager.name} <span className="text-[10px] px-2 py-0.5 bg-primary text-primary-foreground rounded-full uppercase">{manager.role?.name || manager.role}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{manager.department_id?.name} • MANAGER</div>
+                   </div>
+                </div>
+                
+                <div className="ml-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-l-2 border-dashed border-border pl-6 relative">
+                   {getTeamUnder(manager._id).map(reportee => (
+                      <div key={reportee._id} className="bg-card border border-border p-3 rounded shadow-sm hover:border-primary/50 transition-all group relative">
+                         <div className="absolute -left-6 top-1/2 w-6 h-0.5 bg-dashed border-t-2 border-border"></div>
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs">
+                               {reportee.name.charAt(0)}
+                            </div>
+                            <div>
+                               <div className="font-bold text-xs">{reportee.name}</div>
+                               <div className="text-[9px] text-muted-foreground font-bold uppercase">{reportee.role?.name || reportee.role}</div>
+                            </div>
+                         </div>
+                      </div>
+                   ))}
+                   {getTeamUnder(manager._id).length === 0 && (
+                      <div className="text-[10px] text-muted-foreground italic py-2">No direct reports</div>
+                   )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
           <table className="hms-table">
             <thead>
               <tr>
-                <th>S.No.</th>
                 <th>Employee ID</th>
                 <th>Name</th>
-                <th>Contact Details</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Hospital / Branch</th>
+                <th>Role/Dept</th>
+                <th>Contact</th>
+                <th>Managed By</th>
+                <th>Teams</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {staff.length > 0 ? (
-                staff.map((s, index) => (
-                  <tr key={s._id}>
-                    <td>{index + 1}</td>
-                    <td className="font-medium text-primary uppercase tracking-tight">{s.employee_id}</td>
-                    <td className="font-semibold">{s.name}</td>
-                    <td>
-                      <div className="flex flex-col text-[11px] gap-0">
-                        <span className="font-medium text-gray-700">{s.email}</span>
-                        <span className="text-muted-foreground">{s.phone || 'N/A'}</span>
+              {staff.map((s) => (
+                <tr key={s._id}>
+                  <td className="font-bold text-primary uppercase tracking-tighter">{s.employee_id}</td>
+                  <td>
+                    <div className="font-bold">{s.name}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase">{s.gender}</div>
+                  </td>
+                  <td>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold">{s.role?.name || s.role}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase">{s.department_id?.name}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex flex-col text-[10px]">
+                      <span className="font-bold">{s.email}</span>
+                      <span className="text-muted-foreground">{s.phone}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {s.managerId ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary font-bold">
+                          {s.managerId.name?.charAt(0)}
+                        </div>
+                        <span className="text-[11px] font-bold">{s.managerId.name}</span>
                       </div>
-                    </td>
-                    <td>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase">
-                        {typeof s.role === 'object' ? s.role?.name : s.role}
-                      </span>
-                    </td>
-                    <td>{s.department_id?.name || 'N/A'}</td>
-                    <td className="text-[10px] text-muted-foreground leading-tight">
-                      {s.hospitalId?.name || 'N/A'} / {s.branchId?.name || 'N/A'}
-                    </td>
-                    <td>
-                      <button 
-                        onClick={() => handleUpdateStatus(s._id, s.status || 'Active')}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition-all hover:scale-105 ${
-                          s.status === 'Active' || !s.status 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {s.status || 'Active'}
-                      </button>
-                    </td>
-                    <td className="flex gap-2">
-                      <button 
-                        onClick={() => setViewingStaff(s)}
-                        title="View Profile" 
-                        className="p-1 hover:bg-secondary rounded text-primary"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button 
-                        title="Edit Details" 
-                        className="p-1 hover:bg-secondary rounded text-primary"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(s._id)}
-                        title="Delete Staff" 
-                        className="p-1 hover:bg-secondary rounded text-red-600"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                    {isLoading ? 'Loading Records...' : 'No staff members found.'}
+                    ) : (
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase italic tracking-widest opacity-50">Head</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-1">
+                      <Users size={12} className="text-primary" />
+                      <span className="text-xs font-bold">{getTeamUnder(s._id).length}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                      s.status === 'Active' || !s.status ? 'bg-hms-success/10 text-hms-success' : 'bg-destructive/10 text-destructive'
+                    }`}>
+                      {s.status || 'Active'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <button onClick={() => setViewingStaff(s)} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="View Profile"><Eye size={14} /></button>
+                      <button className="p-1.5 hover:bg-muted rounded text-muted-foreground" title="Edit Details"><Edit size={14} /></button>
+                      <button onClick={() => handleDelete(s._id)} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="Delete Staff"><Trash2 size={14} /></button>
+                    </div>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
-        </table>
-
-        {/* Pagination Controls */}
-        {staff.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 bg-card border-t border-border">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center rounded-md border border-border bg-card px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-secondary disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="relative ml-3 inline-flex items-center rounded-md border border-border bg-card px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-secondary disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  Showing <span className="font-bold text-foreground">{(currentPage - 1) * limit + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * limit, totalEntries)}</span> of <span className="font-bold text-foreground">{totalEntries}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-muted-foreground ring-1 ring-inset ring-border hover:bg-secondary focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <ChevronLeft size={16} />
-                  </button>
-                  
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 text-xs font-bold focus:z-20 ring-1 ring-inset ring-border ${
-                          currentPage === pageNum
-                            ? 'z-10 bg-primary text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-                            : 'text-muted-foreground hover:bg-secondary'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-muted-foreground ring-1 ring-inset ring-border hover:bg-secondary focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                  >
-                    <span className="sr-only">Next</span>
-                    <ChevronRight size={16} />
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
+          </table>
         )}
       </div>
-    </div>
 
-      {/* View Modal */}
+      {isAdding && <AddStaff onAdd={() => { setIsAdding(false); fetchStaff(); }} onCancel={() => setIsAdding(false)} />}
+
+      {/* Profile Viewer Modal */}
       {viewingStaff && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-3 border-b bg-primary text-white">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Eye size={16} /> Staff Details
-              </h3>
-              <button onClick={() => setViewingStaff(null)} className="p-1 hover:bg-white/20 rounded transition-colors">
-                <X size={18} />
-              </button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-2xl shadow-2xl rounded-sm overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2 text-primary uppercase tracking-widest"><Shield size={16} /> Staff Profile Details</h3>
+              <button onClick={() => setViewingStaff(null)}><X size={18} /></button>
             </div>
-            <div className="p-6 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Name</p>
-                <p className="font-bold text-sm text-gray-800">{viewingStaff.name}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Email</p>
-                <p className="font-bold text-sm text-gray-800">{viewingStaff.email}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Phone</p>
-                <p className="font-bold text-sm text-gray-800">{viewingStaff.phone || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Role</p>
-                <p className="font-bold text-sm text-gray-800 capitalize">{typeof viewingStaff.role === 'object' ? viewingStaff.role?.name : viewingStaff.role}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Department</p>
-                <p className="font-bold text-sm text-gray-800">{viewingStaff.department_id?.name || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Employee ID</p>
-                <p className="font-bold text-sm text-gray-800 uppercase tracking-wider">{viewingStaff.employee_id}</p>
-              </div>
-              <div className="col-span-2 space-y-1 border-t pt-4">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Hospital / Branch</p>
-                <p className="font-bold text-gray-800">{viewingStaff.hospitalId?.name || 'N/A'} - {viewingStaff.branchId?.name || 'N/A'}</p>
-              </div>
-              <div className="col-span-2 space-y-1 border-t pt-4">
-                <p className="text-muted-foreground font-semibold uppercase text-[9px]">Address</p>
-                <p className="font-bold text-gray-800">{viewingStaff.address || 'N/A'}</p>
-              </div>
-            </div>
-            <div className="p-3 border-t bg-gray-50 flex justify-end">
-              <button onClick={() => setViewingStaff(null)} className="hms-btn-primary px-8 h-8 text-[11px]">Close</button>
+            <div className="p-6">
+               <div className="flex gap-6 mb-6 pb-6 border-b border-border">
+                  <div className="w-24 h-24 rounded bg-primary/10 flex items-center justify-center text-4xl text-primary font-bold">
+                     {viewingStaff.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                     <h2 className="text-2xl font-bold">{viewingStaff.name}</h2>
+                     <p className="text-sm font-bold text-primary uppercase tracking-widest">{viewingStaff.role?.name || viewingStaff.role}</p>
+                     <p className="text-xs text-muted-foreground">{viewingStaff.department_id?.name} Department</p>
+                     <div className="flex gap-2 pt-2">
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] font-bold uppercase tracking-tighter">ID: {viewingStaff.employee_id}</span>
+                        <span className="px-2 py-0.5 bg-hms-success/10 text-hms-success rounded text-[10px] font-bold uppercase tracking-tighter">{viewingStaff.status || 'Active'}</span>
+                     </div>
+                  </div>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                  {[
+                    { label: 'Email', value: viewingStaff.email },
+                    { label: 'Phone', value: viewingStaff.phone },
+                    { label: 'Qualification', value: viewingStaff.qualification },
+                    { label: 'Reports To', value: viewingStaff.managerId?.name || 'Top Management' },
+                    { label: 'Joining Date', value: viewingStaff.joiningDate ? new Date(viewingStaff.joiningDate).toLocaleDateString() : 'N/A' },
+                    { label: 'Team Size', value: `${getTeamUnder(viewingStaff._id).length} People` },
+                  ].map((d, i) => (
+                    <div key={i} className="space-y-0.5">
+                       <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">{d.label}</span>
+                       <p className="text-xs font-bold">{d.value}</p>
+                    </div>
+                  ))}
+               </div>
+               
+               <div className="mt-8 flex gap-3">
+                  <button className="hms-btn-primary flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold uppercase">
+                     <UserCheck size={14} /> View Performance
+                  </button>
+                  <button className="hms-btn-secondary flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold uppercase">
+                     <Network size={14} /> Org Chart
+                  </button>
+               </div>
             </div>
           </div>
         </div>
