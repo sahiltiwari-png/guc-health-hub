@@ -10,7 +10,7 @@ import {
   getInsuranceClaims,
   getStockTransfers,
   getStockAdjustments,
-  getPrescriptions
+  getPharmacyPrescriptions
 } from '../api/apiService';
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
@@ -957,7 +957,7 @@ const Pharmacy = () => {
           setData((prev: any) => ({ ...prev, stockAdjustments: sa.data || [] }));
           break;
         case 'rx-header':
-          const pr = await getPrescriptions();
+          const pr = await getPharmacyPrescriptions();
           setData((prev: any) => ({ ...prev, prescriptions: pr.data || [] }));
           break;
       }

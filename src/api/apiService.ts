@@ -892,7 +892,7 @@ export const getStockAdjustments = async (params = {}) => {
     }
 };
 
-export const getPrescriptions = async (params = {}) => {
+export const getPharmacyPrescriptions = async (params = {}) => {
     try {
         const response = await api.get('/pharmacy/prescriptions', { params });
         return response.data;
@@ -1694,15 +1694,6 @@ export const completeToken = async (id: string) => {
     }
 };
 
-export const getDashboardStats = async () => {
-    try {
-        const response = await api.get('/dashboard/stats');
-        return response.data;
-    } catch (error) {
-        throw error.response?.data || error;
-    }
-};
-
 export const listInvestigationOrders = async (params = {}) => {
     try {
         const response = await api.get('/investigation-orders', { params });
@@ -1792,7 +1783,7 @@ export const createPatientHistory = async (data: any) => {
     }
 };
 
-export const getPrescriptions = async (params = {}) => {
+export const getEHRPrescriptions = async (params = {}) => {
     try {
         const response = await api.get('/ehr/prescriptions', { params });
         return response.data;
