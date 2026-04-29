@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { login as apiLogin } from '@/api/apiService';
+import { login as loginAPI } from '../api/apiService';
 
 const Login = () => {
   const { login } = useAuth();
@@ -15,8 +15,20 @@ const Login = () => {
     setError('');
     setIsLoading(true);
     try {
-      const userData = await apiLogin(email, password);
-      login(userData.user, userData.token); // Assuming useAuth's login handles this
+      const response = await loginAPI(email, password);
+      if (response.ok && response.data) {
+        const userData = response.data.user || response.data;
+        const token = response.data.token || response.data.access_token;
+        login({
+          _id: userData._id || userData.id,
+          email: userData.email || email,
+          role: userData.role || 'User',
+          name: userData.name || userData.username || 'User',
+          branch: branch
+        }, token);
+      } else {
+        setError('Invalid email or password');
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

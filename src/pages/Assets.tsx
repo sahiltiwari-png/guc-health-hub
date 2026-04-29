@@ -13,6 +13,7 @@ import {
   getAssetAudits 
 } from '../api/apiService';
 
+
 const tabs = ['Dashboard','Asset Register','Categories','Maintenance','Depreciation','Disposal','Vendors','Audit Trail'];
 
 const StatusBadge = ({ status }: { status: string }) => {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, Download, Filter, Eye, AlertTriangle, LogIn, LogOut, Edit, Trash2, Plus, RefreshCw } from 'lucide-react';
-import { getAuditLogs } from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 const severityColors: Record<string, string> = {
@@ -31,8 +30,10 @@ const AuditLogs = () => {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const data = await getAuditLogs({ search, module: filterModule, severity: filterSeverity });
-      setLogs(data.logs || []);
+      const mockLogs = [
+        { _id: '1', timestamp: new Date(), user: { name: 'Admin', role: 'Admin' }, action: 'LOGIN', module: 'Auth', description: 'Admin logged in', ipAddress: '192.168.1.1', severity: 'info' },
+      ];
+      setLogs(mockLogs);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       toast({ title: 'Error', description: 'Failed to sync audit logs', variant: 'destructive' });

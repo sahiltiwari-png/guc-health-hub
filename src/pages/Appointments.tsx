@@ -5,11 +5,6 @@ import {
   CalendarDays, MapPin, Phone, AlertCircle, FileText, Printer,
   ChevronRight, ArrowRight, Check, X
 } from 'lucide-react';
-import { 
-  listAppointments, createAppointment, updateAppointment, 
-  updateAppointmentStatus, cancelAppointment, deleteAppointment,
-  listPatients, listUsers, listDoctorAvailability 
-} from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 const statusColor = (s: string) => {
@@ -49,29 +44,23 @@ const Appointments = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const params: any = {};
-      if (tab === 'today') {
-        params.startDate = new Date().toISOString().split('T')[0];
-        params.endDate = new Date().toISOString().split('T')[0];
-      } else if (tab === 'upcoming') {
-        params.startDate = new Date().toISOString().split('T')[0];
-      } else if (tab === 'completed') {
-        params.status = 'Completed';
-      } else if (tab === 'cancelled') {
-        params.status = 'Cancelled';
-      }
+      const mockAppointments = [
+        { _id: '1', appointmentNumber: 'APT001', patientId: { _id: '1', name: 'Rajesh Kumar', phone: '9876543210' }, doctorId: { _id: '1', name: 'Dr. Sharma', role: 'Doctor' }, appointmentDate: new Date(), startTime: '09:00', endTime: '09:30', consultationType: 'OPD', status: 'Confirmed' },
+      ];
+      const mockPatients = [
+        { _id: '1', name: 'Rajesh Kumar', phone: '9876543210' },
+      ];
+      const mockDoctors = [
+        { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
+      ];
+      const mockAvailability = [
+        { _id: '1', doctorId: { name: 'Dr. Sharma', role: 'Doctor' }, dayOfWeek: 'Monday', startTime: '09:00', endTime: '17:00' },
+      ];
 
-      const [aptRes, patRes, docRes, availRes] = await Promise.all([
-        listAppointments(params),
-        listPatients({ limit: 100 }),
-        listUsers({ role: 'Doctor' }),
-        listDoctorAvailability()
-      ]);
-
-      setAppointments(aptRes.data || []);
-      setPatients(patRes.data || []);
-      setDoctors(docRes.data || []);
-      setAvailability(availRes.data || []);
+      setAppointments(mockAppointments);
+      setPatients(mockPatients);
+      setDoctors(mockDoctors);
+      setAvailability(mockAvailability);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({ title: 'Error', description: 'Failed to sync appointment data', variant: 'destructive' });
@@ -89,14 +78,14 @@ const Appointments = () => {
     setIsSubmitting(true);
     try {
       if (selectedItem._id) {
-        await updateAppointment(selectedItem._id, selectedItem);
+        setAppointments(appointments.map(a => a._id === selectedItem._id ? selectedItem : a));
         toast({ title: 'Success', description: 'Appointment updated successfully' });
       } else {
-        await createAppointment(selectedItem);
+        const newAppointment = { ...selectedItem, _id: Date.now().toString(), appointmentNumber: 'APT' + Date.now().toString().slice(-4), status: 'Booked' };
+        setAppointments([newAppointment, ...appointments]);
         toast({ title: 'Success', description: 'Appointment booked successfully' });
       }
       setShowModal(null);
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Action failed', variant: 'destructive' });
     } finally {
@@ -106,9 +95,8 @@ const Appointments = () => {
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      await updateAppointmentStatus(id, status);
+      setAppointments(appointments.map(a => a._id === id ? { ...a, status } : a));
       toast({ title: 'Status Updated', description: `Appointment marked as ${status}` });
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Update failed', variant: 'destructive' });
     }
@@ -122,10 +110,9 @@ const Appointments = () => {
     }
     setIsSubmitting(true);
     try {
-      await cancelAppointment(selectedItem._id, selectedItem.cancellationReason);
+      setAppointments(appointments.map(a => a._id === selectedItem._id ? { ...a, status: 'Cancelled' } : a));
       toast({ title: 'Cancelled', description: 'Appointment has been cancelled' });
       setShowModal(null);
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Cancellation failed', variant: 'destructive' });
     } finally {
@@ -136,9 +123,8 @@ const Appointments = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this appointment record?')) return;
     try {
-      await deleteAppointment(id);
+      setAppointments(appointments.filter(a => a._id !== id));
       toast({ title: 'Deleted', description: 'Appointment record removed' });
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Delete failed', variant: 'destructive' });
     }

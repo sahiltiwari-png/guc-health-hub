@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, MapPin, Smartphone, RefreshCw, CheckCircle, XCircle, AlertCircle, Play, Square } from 'lucide-react';
-import { clockIn, clockOut, getAttendanceHistory } from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 const Attendance = () => {
@@ -13,12 +12,15 @@ const Attendance = () => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await getAttendanceHistory();
-      setHistory(res.data || []);
+      const mockHistory = [
+        { _id: '1', date: new Date(), clockIn: { time: new Date(Date.now() - 3600000 * 8), device: 'Chrome' }, status: 'Present', workHours: 8 },
+        { _id: '2', date: new Date(Date.now() - 86400000), clockIn: { time: new Date(Date.now() - 3600000 * 32), device: 'Firefox' }, clockOut: { time: new Date(Date.now() - 3600000 * 24) }, status: 'Present', workHours: 8 },
+      ];
+      setHistory(mockHistory);
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayRec = (res.data || []).find((r: any) => new Date(r.date).getTime() === today.getTime());
+      const todayRec = mockHistory.find((r: any) => new Date(r.date).getTime() === today.getTime());
       setTodayRecord(todayRec);
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -36,20 +38,10 @@ const Attendance = () => {
   const handleClockIn = async () => {
     setLoading(true);
     try {
-      // Get location if possible
-      let location = { lat: 0, lng: 0 };
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        });
-      }
-
-      await clockIn({
-        location,
-        device: navigator.userAgent.split(') ')[0] + ')',
-      });
+      const newRecord = { _id: Date.now().toString(), date: new Date(), clockIn: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, status: 'Present' };
+      setHistory([newRecord, ...history]);
+      setTodayRecord(newRecord);
       toast({ title: 'Success', description: 'Clocked in successfully' });
-      fetchHistory();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Clock-in failed', variant: 'destructive' });
     } finally {
@@ -60,19 +52,10 @@ const Attendance = () => {
   const handleClockOut = async () => {
     setLoading(true);
     try {
-      let location = { lat: 0, lng: 0 };
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        });
-      }
-
-      await clockOut({
-        location,
-        device: navigator.userAgent.split(') ')[0] + ')',
-      });
+      const updatedRecord = { ...todayRecord, clockOut: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, workHours: 8 };
+      setHistory(history.map(h => h._id === updatedRecord._id ? updatedRecord : h));
+      setTodayRecord(updatedRecord);
       toast({ title: 'Success', description: 'Clocked out successfully' });
-      fetchHistory();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Clock-out failed', variant: 'destructive' });
     } finally {

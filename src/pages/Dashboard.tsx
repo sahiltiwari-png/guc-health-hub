@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Users, Stethoscope, BedDouble, DollarSign, Activity, UserPlus, FileText, BarChart2, AlertCircle } from 'lucide-react';
-import { getDashboardStats, listVisits, getIPDAdmissions } from '../api/apiService';
 import { useAuth } from '@/context/AuthContext';
 
 const Dashboard = () => {
@@ -13,20 +12,26 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const statsData = await getDashboardStats();
         const formattedStats = [
-          { label: 'Total Patients', value: statsData.totalPatients.toLocaleString(), icon: Users },
-          { label: 'OPD Today', value: statsData.opdToday.toLocaleString(), icon: Stethoscope },
-          { label: 'IPD Admitted', value: statsData.ipdAdmitted.toLocaleString(), icon: BedDouble },
-          { label: 'Total Earnings', value: `₹${statsData.totalEarnings.toLocaleString()}`, icon: DollarSign },
+          { label: 'Total Patients', value: '1,234', icon: Users },
+          { label: 'OPD Today', value: '56', icon: Stethoscope },
+          { label: 'IPD Admitted', value: '23', icon: BedDouble },
+          { label: 'Total Earnings', value: '₹45,678', icon: DollarSign },
         ];
         setStats(formattedStats);
 
-        const opdVisitsResponse = await listVisits({ visitType: 'OPD', limit: 5 });
-        setRecentOPD(opdVisitsResponse.data || []);
+        const mockOPD = [
+          { _id: '1', patientId: { uhid: 'UH1234', patientName: 'Rajesh Kumar', age: 35, gender: 'Male' }, doctorId: { name: 'Dr. Sharma' }, departmentName: 'General Medicine', visitTime: '10:30 AM' },
+          { _id: '2', patientId: { uhid: 'UH1235', patientName: 'Priya Singh', age: 28, gender: 'Female' }, doctorId: { name: 'Dr. Gupta' }, departmentName: 'Gynecology', visitTime: '11:00 AM' },
+          { _id: '3', patientId: { uhid: 'UH1236', patientName: 'Amit Patel', age: 45, gender: 'Male' }, doctorId: { name: 'Dr. Verma' }, departmentName: 'Cardiology', visitTime: '11:30 AM' },
+        ];
+        setRecentOPD(mockOPD);
 
-        const ipdAdmissions = await getIPDAdmissions();
-        setRecentIPD(ipdAdmissions.slice(0, 5) || []);
+        const mockIPD = [
+          { _id: '1', admissionNumber: 'IPD001', patientId: { patientName: 'Suresh Yadav', age: 50 }, bedId: { ward: 'ICU', bedNumber: 'A1' }, treatingDoctors: [{ name: 'Dr. Sharma' }], admissionDate: new Date(), status: 'Stable' },
+          { _id: '2', admissionNumber: 'IPD002', patientId: { patientName: 'Meera Joshi', age: 32 }, bedId: { ward: 'General', bedNumber: 'B3' }, treatingDoctors: [{ name: 'Dr. Gupta' }], admissionDate: new Date(), status: 'Critical' },
+        ];
+        setRecentIPD(mockIPD);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       }

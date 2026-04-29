@@ -1,16 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Search, Edit, Eye, Printer, Plus, UserSearch, Bed, ClipboardList, LogOut } from 'lucide-react';
-import { 
-  findPatientByUhid, 
-  createQuickAdmission, 
-  getIPDAdmissions,
-  listDepartments,
-  listUsers,
-  listStates,
-  listCities,
-  listCountries
-} from '../api/apiService';
 
 const IPD = () => {
   const [ipdList, setIpdList] = useState([]);
@@ -29,20 +19,29 @@ const IPD = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [deptRes, docRes, stateRes, countryRes] = await Promise.all([
-          listDepartments(),
-          listUsers({ role: 'Doctor' }),
-          listStates(),
-          listCountries()
-        ]);
-        setDepartments(deptRes.data || []);
-        setDoctors(docRes.data || []);
-        setStates(stateRes.data || []);
-        const countriesList = countryRes.data || [];
-        setCountries(countriesList);
+        const mockDepartments = [
+          { _id: '1', name: 'General Medicine' },
+          { _id: '2', name: 'Cardiology' },
+          { _id: '3', name: 'Orthopedics' },
+        ];
+        const mockDoctors = [
+          { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
+          { _id: '2', name: 'Dr. Verma', role: 'Doctor' },
+        ];
+        const mockStates = [
+          { _id: '1', name: 'Uttar Pradesh' },
+          { _id: '2', name: 'Delhi' },
+        ];
+        const mockCountries = [
+          { _id: '1', name: 'India' },
+        ];
+        setDepartments(mockDepartments);
+        setDoctors(mockDoctors);
+        setStates(mockStates);
+        setCountries(mockCountries);
         
         // Find India and set its ID as default
-        const india = countriesList.find((c: any) => c.name === 'India');
+        const india = mockCountries.find((c: any) => c.name === 'India');
         if (india) {
           setFormData(prev => ({ ...prev, country: india._id }));
         }

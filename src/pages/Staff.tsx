@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
-import { listUsers, listRoles, deleteUser, updateUser } from '@/api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
 
@@ -22,48 +21,26 @@ const Staff = () => {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
-  const fetchRoles = async () => {
-    try {
-      const res = await listRoles();
-      setRoles(res.data || []);
-    } catch (error: any) {
-      console.error("Failed to fetch roles:", error);
-    }
-  };
-
-  const fetchStaff = async (page = 1) => {
-    setIsLoading(true);
-    try {
-      const params: any = { page, limit, populate: 'role department_id managerId' };
-      if (tab === 'doctors') params.roleName = 'Doctor';
-      if (tab === 'nurses') params.roleName = 'Nurse';
-      if (selectedRole) params.role = selectedRole;
-      if (searchQuery) params.search = searchQuery;
-      
-      const res = await listUsers(params);
-      setStaff(res.data || []);
-      setTotalPages(Math.ceil((res.total || 0) / limit));
-      setCurrentPage(page);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to fetch staff.", variant: "destructive" });
-    }
-    setIsLoading(false);
-  };
-
   useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  useEffect(() => {
-    fetchStaff(1);
+    const mockRoles = [
+      { _id: '1', name: 'Admin' },
+      { _id: '2', name: 'Doctor' },
+      { _id: '3', name: 'Nurse' },
+    ];
+    const mockStaff = [
+      { _id: '1', employee_id: 'EMP001', name: 'Dr. Sharma', role: { name: 'Doctor' }, department_id: { name: 'General Medicine' }, gender: 'Male', email: 'dr.sharma@guc.com', phone: '9876543210', status: 'Active' },
+      { _id: '2', employee_id: 'EMP002', name: 'Nurse Jane', role: { name: 'Nurse' }, department_id: { name: 'ICU' }, gender: 'Female', email: 'nurse.jane@guc.com', phone: '9876543211', status: 'Active' },
+    ];
+    setRoles(mockRoles);
+    setStaff(mockStaff);
+    setTotalPages(1);
   }, [tab, selectedRole, searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this staff member?")) {
       try {
-        await deleteUser(id);
         toast({ title: "Success", description: "Staff member deleted successfully" });
-        fetchStaff();
+        setStaff(staff.filter(s => s._id !== id));
       } catch (error: any) {
         toast({ title: "Error", description: error.message || "Failed to delete staff", variant: "destructive" });
       }

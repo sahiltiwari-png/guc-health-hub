@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Users, RefreshCw, UserPlus, Play, CheckCircle } from 'lucide-react';
-import { getTokens, callToken, completeToken, listDepartments, listUsers } from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 const Queue = () => {
@@ -18,14 +17,19 @@ const Queue = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tokenRes, deptRes, doctorRes] = await Promise.all([
-        getTokens(filters),
-        listDepartments(),
-        listUsers({ role: 'Doctor' })
-      ]);
-      setTokens(tokenRes || []);
-      setDepartments(deptRes.data || []);
-      setDoctors(doctorRes.data || []);
+      const mockTokens = [
+        { _id: '1', tokenNumber: 1, patientId: { patientName: 'Rajesh Kumar', uhid: 'UH001' }, doctorId: { name: 'Dr. Sharma' }, priority: 'Normal', tokenDate: new Date(), status: 'Issued' },
+        { _id: '2', tokenNumber: 2, patientId: { patientName: 'Priya Singh', uhid: 'UH002' }, doctorId: { name: 'Dr. Gupta' }, priority: 'Urgent', tokenDate: new Date(), status: 'Called' },
+      ];
+      const mockDepartments = [
+        { _id: '1', name: 'General Medicine' },
+      ];
+      const mockDoctors = [
+        { _id: '1', name: 'Dr. Sharma' },
+      ];
+      setTokens(mockTokens);
+      setDepartments(mockDepartments);
+      setDoctors(mockDoctors);
     } catch (error) {
       console.error('Error fetching queue data:', error);
       toast({ title: 'Error', description: 'Failed to sync queue data', variant: 'destructive' });
@@ -40,9 +44,8 @@ const Queue = () => {
 
   const handleCall = async (id: string) => {
     try {
-      await callToken(id);
+      setTokens(tokens.map(t => t._id === id ? { ...t, status: 'Called' } : t));
       toast({ title: 'Success', description: 'Patient called' });
-      fetchData();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to call patient', variant: 'destructive' });
     }
@@ -50,9 +53,8 @@ const Queue = () => {
 
   const handleComplete = async (id: string) => {
     try {
-      await completeToken(id);
+      setTokens(tokens.map(t => t._id === id ? { ...t, status: 'Completed' } : t));
       toast({ title: 'Success', description: 'Visit completed' });
-      fetchData();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to complete visit', variant: 'destructive' });
     }

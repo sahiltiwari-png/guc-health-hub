@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Heart, Thermometer, Wind, Droplets, Plus, X, Search, RefreshCw, Eye, History, AlertTriangle } from 'lucide-react';
-import { 
-  getGlobalVitals, getVisitVitals, createVisitVitals, updateVisitVitals, deleteVisitVitals,
-  listVisits, listDepartments
-} from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2, Printer } from 'lucide-react';
 

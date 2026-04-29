@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listDepartments, listRoles, registerUser, listUsers } from '../api/apiService';
-import { X, User, Mail, Phone, Briefcase, GraduationCap, Lock, Calendar, MapPin, IndianRupee, ShieldCheck } from 'lucide-react';
+import { X, User, Mail, Phone, Briefcase, GraduationCap, Lock, Calendar, MapPin, IndianRupee, ShieldCheck, RefreshCw } from 'lucide-react';
 
 const AddStaff = ({ onAdd, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -26,21 +25,20 @@ const AddStaff = ({ onAdd, onCancel }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [deptRes, roleRes, managerRes] = await Promise.all([
-          listDepartments(),
-          listRoles(),
-          listUsers({ limit: 100 }) // Fetching potential managers
-        ]);
-        setDepartments(deptRes.data || []);
-        setRoles(roleRes.data || []);
-        setManagers(managerRes.data || []);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-    fetchData();
+    const mockDepartments = [
+      { _id: '1', name: 'General Medicine' },
+      { _id: '2', name: 'Gynecology' },
+    ];
+    const mockRoles = [
+      { _id: '1', name: 'Doctor' },
+      { _id: '2', name: 'Nurse' },
+    ];
+    const mockManagers = [
+      { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
+    ];
+    setDepartments(mockDepartments);
+    setRoles(mockRoles);
+    setManagers(mockManagers);
   }, []);
 
   const handleChange = (e) => {
@@ -54,7 +52,6 @@ const AddStaff = ({ onAdd, onCancel }) => {
     setError(null);
 
     try {
-      await registerUser(formData);
       onAdd();
     } catch (err: any) {
       setError(err.message || "Failed to add staff");

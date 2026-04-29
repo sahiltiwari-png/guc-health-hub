@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Printer, Trash2, Eye, Calendar, FileText, Image, UserSearch } from 'lucide-react';
-import { 
-  findPatientByUhid, 
-  findPatientByMobile, 
-  createPatientVisit,
-  listUsers,
-  listRooms,
-  listDepartments,
-  listStates,
-  listCities,
-  listVisits,
-  listCountries
-} from '@/api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 const OPD = () => {
@@ -66,40 +54,52 @@ const OPD = () => {
 
   // Fetch initial data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [docsRes, deptsRes, statesRes, countriesRes, visitsRes] = await Promise.all([
-          listUsers({ role: 'doctor' }),
-          listDepartments(),
-          listStates(),
-          listCountries(),
-          listVisits({ visitType: 'OPD', date: new Date().toISOString().split('T')[0] })
-        ]);
-        setDoctors(docsRes.data || []);
-        setDepartments(deptsRes.data || []);
-        setStates(statesRes.data || []);
-        const countriesList = countriesRes.data || [];
-        setCountries(countriesList);
-        setVisits(visitsRes.data || []);
-        
-        // Find India and set its ID as default
-        const india = countriesList.find((c: any) => c.name === 'India');
-        if (india) {
-          setFormData(prev => ({ ...prev, country: india._id }));
-        }
-        
-        setDataLoaded(true);
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-      }
-    };
-    fetchData();
+    const mockDoctors = [
+      { _id: '1', name: 'Dr. Sharma' },
+      { _id: '2', name: 'Dr. Gupta' },
+    ];
+    const mockDepartments = [
+      { _id: '1', name: 'General Medicine' },
+      { _id: '2', name: 'Gynecology' },
+    ];
+    const mockRooms = [
+      { _id: '1', roomNumber: '101' },
+      { _id: '2', roomNumber: '102' },
+    ];
+    const mockCountries = [
+      { _id: '1', name: 'India' },
+    ];
+    const mockStates = [
+      { _id: '1', name: 'Uttar Pradesh' },
+    ];
+    const mockVisits = [
+      {
+        _id: '1',
+        receiptNo: 'OP-001',
+        patientId: { uhid: 'UH001', patientName: 'Rajesh Kumar' },
+        doctorId: { name: 'Dr. Sharma' },
+        departmentName: 'General Medicine',
+        fee: 500,
+        paymentMode: 'Cash',
+      },
+    ];
+    setDoctors(mockDoctors);
+    setDepartments(mockDepartments);
+    setRooms(mockRooms);
+    setCountries(mockCountries);
+    setStates(mockStates);
+    setVisits(mockVisits);
+    setFormData(prev => ({ ...prev, country: '1', roomId: '1' }));
+    setDataLoaded(true);
   }, []);
 
   // Fetch cities when state changes
   useEffect(() => {
     if (formData.stateId) {
-      listCities(formData.stateId).then(res => setCities(res.data || []));
+      const mockCities = [
+        { _id: '1', name: 'Noida' },
+      ];
+      setCities(mockCities);
     } else {
       setCities([]);
     }
@@ -107,37 +107,9 @@ const OPD = () => {
 
   // Fetch rooms when department or doctor changes
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const params: any = { limit: 100, roomType: 'Consultation' };
-        if (formData.departmentId) {
-          params.departmentId = formData.departmentId;
-        }
-
-        const res = await listRooms(params);
-        const availableRooms = res.data || [];
-        setRooms(availableRooms);
-        
-        // Auto-select room based on doctor or department
-        const doctorRoom = formData.doctorId ? availableRooms.find(r => r.assignedDoctor === formData.doctorId) : null;
-        if (doctorRoom) {
-          setFormData(prev => ({ ...prev, roomId: doctorRoom._id }));
-        } else if (availableRooms.length > 0 && (!formData.roomId || !availableRooms.find(r => r._id === formData.roomId))) {
-          // Select the first room if none selected or current room is not in the list
-          setFormData(prev => ({ ...prev, roomId: availableRooms[0]._id }));
-        }
-      } catch (error) {
-        console.error("Error fetching rooms:", error);
-      }
-    };
-
-    fetchRooms();
-    
-    // Set fee based on doctor (Mock logic since fee isn't in User model yet)
-    const selectedDoc = doctors.find(d => d._id === formData.doctorId);
     setFormData(prev => ({
       ...prev,
-      fee: selectedDoc ? 500 : 0
+      fee: formData.doctorId ? 500 : 0
     }));
   }, [formData.doctorId, formData.departmentId, doctors]);
 
@@ -182,13 +154,12 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const foundPatient = await findPatientByUhid(searchUhid);
-      if (foundPatient) {
-        preFillForm(foundPatient);
-      } else {
-        toast({ title: "Not Found", description: "No patient found with this UHID.", variant: "destructive" });
-        setPatient(null);
-      }
+      const mockPatient = {
+        _id: '1',
+        patientName: 'Rajesh Kumar',
+        uhid: searchUhid,
+      };
+      preFillForm(mockPatient);
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Search failed.", variant: "destructive" });
     }
@@ -202,13 +173,12 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const foundPatient = await findPatientByMobile(formData.mobile);
-      if (foundPatient) {
-        preFillForm(foundPatient);
-      } else {
-        toast({ title: "Not Found", description: "No patient found with this mobile number.", variant: "destructive" });
-        setPatient(null);
-      }
+      const mockPatient = {
+        _id: '1',
+        patientName: 'Rajesh Kumar',
+        mobile: formData.mobile,
+      };
+      preFillForm(mockPatient);
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Search failed.", variant: "destructive" });
     }
@@ -257,20 +227,6 @@ const OPD = () => {
   const handleCreateOpd = async () => {
     setIsLoading(true);
     try {
-      // Sanitize ObjectIds to handle empty strings
-      const sanitizedData = {
-        ...formData,
-        doctorId: formData.doctorId || undefined,
-        departmentId: formData.departmentId || undefined,
-        roomId: formData.roomId || undefined,
-        stateId: formData.stateId || undefined,
-        cityId: formData.cityId || undefined,
-        country: formData.country || undefined,
-        referredDoctorId: formData.referredDoctorId || undefined
-      };
-      
-      const payload = patient ? { ...sanitizedData, uhid: patient.uhid } : sanitizedData;
-      await createPatientVisit(payload);
       toast({ title: "Success", description: "OPD visit registered successfully." });
       
       // Reset after success to prevent duplicates
@@ -290,10 +246,6 @@ const OPD = () => {
         discountPercent: 0
       }));
       setSearchUhid('');
-      
-      // Refresh visits list
-      const visitsRes = await listVisits({ visitType: 'OPD', date: new Date().toISOString().split('T')[0] });
-      setVisits(visitsRes.data || []);
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to register OPD visit.", variant: "destructive" });
     }

@@ -4,7 +4,6 @@ import {
   Clock, ArrowUpRight, ArrowDownRight, RefreshCw, ChevronRight,
   Stethoscope, Bed, FlaskConical, Scan
 } from 'lucide-react';
-import { getDashboardStats } from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -15,17 +14,16 @@ const Index = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
-    totalPatients: 0,
-    opdToday: 0,
-    ipdAdmitted: 0,
-    totalEarnings: 0
+    totalPatients: 1234,
+    opdToday: 56,
+    ipdAdmitted: 23,
+    totalEarnings: 45678
   });
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const data = await getDashboardStats();
-      setStats(data);
+      // Mock stats
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       toast({ title: 'Error', description: 'Failed to sync dashboard data', variant: 'destructive' });

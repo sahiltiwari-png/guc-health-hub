@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, X, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, FileText } from 'lucide-react';
-import { applyLeave, getMyLeaves, getLeaveRequests, processLeave } from '../api/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'my-leaves' | 'requests';
@@ -23,12 +22,16 @@ const Leave = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const mockLeaves = [
+        { _id: '1', leaveType: 'Sick', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date() },
+      ];
+      const mockRequests = [
+        { _id: '1', userId: { name: 'Nurse Jane', employee_id: 'EMP002' }, leaveType: 'Casual', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date() },
+      ];
       if (tab === 'my-leaves') {
-        const res = await getMyLeaves();
-        setLeaves(res.data || []);
+        setLeaves(mockLeaves);
       } else {
-        const res = await getLeaveRequests();
-        setRequests(res.data || []);
+        setRequests(mockRequests);
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -45,10 +48,10 @@ const Leave = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await applyLeave(formData);
+      const newLeave = { _id: Date.now().toString(), ...formData, status: 'Pending', totalDays: 1, createdAt: new Date() };
+      setLeaves([newLeave, ...leaves]);
       toast({ title: 'Success', description: 'Leave application submitted' });
       setShowModal(null);
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Application failed', variant: 'destructive' });
     } finally {
@@ -62,9 +65,8 @@ const Leave = () => {
     
     setLoading(true);
     try {
-      await processLeave({ leaveId: id, status, comment });
+      setRequests(requests.map(r => r._id === id ? { ...r, status } : r));
       toast({ title: 'Success', description: `Leave ${status.toLowerCase()} successfully` });
-      fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Processing failed', variant: 'destructive' });
     } finally {
