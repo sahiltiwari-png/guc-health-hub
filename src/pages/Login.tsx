@@ -1,19 +1,18 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
 
-const Login = () =&gt; {
+const Login = () => {
   const { login, setBranch } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [branch, setBranchLocal] = useState('Main Branch - Noida');
-  const [selectedRole, setSelectedRole] = useState&lt;UserRole&gt;('RECEPTIONIST');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('RECEPTIONIST');
   const [isLoading, setIsLoading] = useState(false);
 
-  const roleOptions: Array&lt;{ label: string; value: UserRole; email: string }&gt; = [
+  const roleOptions: Array<{ label: string; value: UserRole; email: string }> = [
     { label: 'Super Admin', value: 'SUPER_ADMIN', email: 'admin@hospital.com' },
     { label: 'Doctor', value: 'DOCTOR', email: 'doctor@hospital.com' },
     { label: 'Nurse', value: 'NURSE', email: 'nurse@hospital.com' },
@@ -22,14 +21,14 @@ const Login = () =&gt; {
     { label: 'Lab Technician', value: 'LAB_TECHNICIAN', email: 'lab@hospital.com' }
   ];
 
-  const handleLogin = async (e: React.FormEvent) =&gt; {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     setBranch(branch);
 
     try {
-      const selectedRoleOption = roleOptions.find(r =&gt; r.value === selectedRole);
+      const selectedRoleOption = roleOptions.find(r => r.value === selectedRole);
       const userData = {
         _id: 'user_' + selectedRole.toLowerCase(),
         email: selectedRoleOption?.email || email,
@@ -54,91 +53,91 @@ const Login = () =&gt; {
   };
 
   return (
-    &lt;div className="min-h-screen flex items-center justify-center bg-muted"&gt;
-      &lt;div className="bg-card border border-border p-0 w-[450px] shadow-lg"&gt;
-        &lt;div className="bg-primary text-primary-foreground px-6 py-4 text-center"&gt;
-          &lt;h1 className="text-xl font-bold tracking-wide"&gt;Samrat HMS&lt;/h1&gt;
-          &lt;p className="text-xs mt-1 opacity-90"&gt;
+    <div className="min-h-screen flex items-center justify-center bg-muted">
+      <div className="bg-card border border-border p-0 w-[450px] shadow-lg">
+        <div className="bg-primary text-primary-foreground px-6 py-4 text-center">
+          <h1 className="text-xl font-bold tracking-wide">Samrat HMS</h1>
+          <p className="text-xs mt-1 opacity-90">
             Hospital Management Software
-          &lt;/p&gt;
-        &lt;/div&gt;
+          </p>
+        </div>
 
-        &lt;form onSubmit={handleLogin} className="p-6 space-y-4"&gt;
-          &lt;div&gt;
-            &lt;label className="hms-form-label block mb-1"&gt;Select Role (Demo)&lt;/label&gt;
-            &lt;select
+        <form onSubmit={handleLogin} className="p-6 space-y-4">
+          <div>
+            <label className="hms-form-label block mb-1">Select Role (Demo)</label>
+            <select
               className="hms-select w-full"
               value={selectedRole}
-              onChange={(e) =&gt; setSelectedRole(e.target.value as UserRole)}
+              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
               disabled={isLoading}
-            &gt;
-              {roleOptions.map((role) =&gt; (
-                &lt;option key={role.value} value={role.value}&gt;{role.label}&lt;/option&gt;
+            >
+              {roleOptions.map((role) => (
+                <option key={role.value} value={role.value}>{role.label}</option>
               ))}
-            &lt;/select&gt;
-          &lt;/div&gt;
+            </select>
+          </div>
 
-          &lt;div&gt;
-            &lt;label className="hms-form-label block mb-1"&gt;Branch&lt;/label&gt;
-            &lt;select
+          <div>
+            <label className="hms-form-label block mb-1">Branch</label>
+            <select
               className="hms-select w-full"
               value={branch}
-              onChange={(e) =&gt; setBranchLocal(e.target.value)}
+              onChange={(e) => setBranchLocal(e.target.value)}
               disabled={isLoading}
-            &gt;
-              &lt;option&gt;Main Branch - Noida&lt;/option&gt;
-              &lt;option&gt;Branch 2 - Delhi&lt;/option&gt;
-              &lt;option&gt;Branch 3 - Gurgaon&lt;/option&gt;
-              &lt;option&gt;Branch 4 - Ghaziabad&lt;/option&gt;
-            &lt;/select&gt;
-          &lt;/div&gt;
+            >
+              <option>Main Branch - Noida</option>
+              <option>Branch 2 - Delhi</option>
+              <option>Branch 3 - Gurgaon</option>
+              <option>Branch 4 - Ghaziabad</option>
+            </select>
+          </div>
 
-          &lt;div&gt;
-            &lt;label className="hms-form-label block mb-1"&gt;Email&lt;/label&gt;
-            &lt;input
+          <div>
+            <label className="hms-form-label block mb-1">Email</label>
+            <input
               type="email"
               className="hms-input w-full"
               value={email}
-              onChange={(e) =&gt; setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               disabled={isLoading}
-            /&gt;
-          &lt;/div&gt;
+            />
+          </div>
 
-          &lt;div&gt;
-            &lt;label className="hms-form-label block mb-1"&gt;Password&lt;/label&gt;
-            &lt;input
+          <div>
+            <label className="hms-form-label block mb-1">Password</label>
+            <input
               type="password"
               className="hms-input w-full"
               value={password}
-              onChange={(e) =&gt; setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               disabled={isLoading}
-            /&gt;
-          &lt;/div&gt;
+            />
+          </div>
 
-          {error &amp;&amp; (
-            &lt;p className="text-destructive text-xs font-semibold"&gt;
+          {error && (
+            <p className="text-destructive text-xs font-semibold">
               {error}
-            &lt;/p&gt;
+            </p>
           )}
 
-          &lt;button
+          <button
             type="submit"
             className="hms-btn-primary w-full py-2 text-sm"
             disabled={isLoading}
-          &gt;
-            {isLoading ? 'Logging in...' : 'Login as ' + (roleOptions.find(r =&gt; r.value === selectedRole)?.label || 'User')}
-          &lt;/button&gt;
+          >
+            {isLoading ? 'Logging in...' : 'Login as ' + (roleOptions.find(r => r.value === selectedRole)?.label || 'User')}
+          </button>
 
-          &lt;div className="mt-4 border-t border-border pt-3"&gt;
-            &lt;p className="text-[10px] text-muted-foreground text-center"&gt;
+          <div className="mt-4 border-t border-border pt-3">
+            <p className="text-[10px] text-muted-foreground text-center">
               Select a role above to see the dashboard (demo mode)
-            &lt;/p&gt;
-          &lt;/div&gt;
-        &lt;/form&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 

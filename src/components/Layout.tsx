@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -69,7 +68,7 @@ const sidebarItems: NavItem[] = [
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
-const Layout = ({ children }: { children: React.ReactNode }) =&gt; {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, logout, currentBranch, setBranch } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -78,45 +77,45 @@ const Layout = ({ children }: { children: React.ReactNode }) =&gt; {
   const validRoles: UserRole[] = ['SUPER_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN'];
   const normalizedRole = validRoles.includes(userRole) ? userRole : 'RECEPTIONIST';
 
-  const filteredTopNav = topNavItems.filter(item =&gt; item.roles.includes(normalizedRole));
-  const filteredSidebar = sidebarItems.filter(item =&gt; item.roles.includes(normalizedRole));
+  const filteredTopNav = topNavItems.filter(item => item.roles.includes(normalizedRole));
+  const filteredSidebar = sidebarItems.filter(item => item.roles.includes(normalizedRole));
 
   return (
-    &lt;div className="min-h-screen flex flex-col bg-background"&gt;
-      &lt;div className="bg-hms-nav text-hms-nav-foreground flex items-center justify-between px-2 py-1 text-xs"&gt;
-        &lt;div className="flex items-center gap-2"&gt;
-          &lt;button onClick={() =&gt; setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-primary/20 rounded"&gt;
-            &lt;Menu size={16} /&gt;
-          &lt;/button&gt;
-          &lt;span className="font-bold text-sm"&gt;GUC HMS&lt;/span&gt;
-          &lt;span className="text-muted-foreground"&gt;|&lt;/span&gt;
-          &lt;span className="text-[10px]"&gt;{currentBranch}&lt;/span&gt;
-        &lt;/div&gt;
-        &lt;div className="flex items-center gap-3"&gt;
-          &lt;select
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="bg-hms-nav text-hms-nav-foreground flex items-center justify-between px-2 py-1 text-xs">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-primary/20 rounded">
+            <Menu size={16} />
+          </button>
+          <span className="font-bold text-sm">GUC HMS</span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-[10px]">{currentBranch}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
             data-tour="branch-selector"
             className="bg-hms-nav text-hms-nav-foreground text-[10px] border border-muted-foreground/30 px-1 py-0.5 rounded-none"
             value={currentBranch}
-            onChange={e =&gt; setBranch(e.target.value)}
-          &gt;
-            &lt;option&gt;Main Branch - Noida&lt;/option&gt;
-            &lt;option&gt;Branch 2 - Delhi&lt;/option&gt;
-            &lt;option&gt;Branch 3 - Gurgaon&lt;/option&gt;
-            &lt;option&gt;Branch 4 - Ghaziabad&lt;/option&gt;
-          &lt;/select&gt;
-          &lt;span&gt;{user?.name} ({normalizedRole.replace('_', ' ')})&lt;/span&gt;
-          &lt;button onClick={logout} className="flex items-center gap-1 hover:text-destructive"&gt;
-            &lt;LogOut size={12} /&gt; Logout
-          &lt;/button&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+            onChange={e => setBranch(e.target.value)}
+          >
+            <option>Main Branch - Noida</option>
+            <option>Branch 2 - Delhi</option>
+            <option>Branch 3 - Gurgaon</option>
+            <option>Branch 4 - Ghaziabad</option>
+          </select>
+          <span>{user?.name} ({normalizedRole.replace('_', ' ')})</span>
+          <button onClick={logout} className="flex items-center gap-1 hover:text-destructive">
+            <LogOut size={12} /> Logout
+          </button>
+        </div>
+      </div>
 
-      &lt;div className="bg-primary flex items-center gap-0 overflow-x-auto"&gt;
-        {filteredTopNav.map(item =&gt; {
+      <div className="bg-primary flex items-center gap-0 overflow-x-auto">
+        {filteredTopNav.map(item => {
           const Icon = item.icon;
           const active = location.pathname === item.path;
           return (
-            &lt;NavLink
+            <NavLink
               key={item.path}
               to={item.path}
               data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -125,22 +124,22 @@ const Layout = ({ children }: { children: React.ReactNode }) =&gt; {
                   ? 'bg-card text-foreground'
                   : 'text-primary-foreground hover:bg-primary-foreground/10'
                 }`}
-            &gt;
-              &lt;Icon size={14} /&gt;
+            >
+              <Icon size={14} />
               {item.label}
-            &lt;/NavLink&gt;
+            </NavLink>
           );
         })}
-      &lt;/div&gt;
+      </div>
 
-      &lt;div className="flex flex-1 overflow-hidden"&gt;
-        {sidebarOpen &amp;&amp; (
-          &lt;div className="w-14 bg-hms-sidebar flex flex-col items-center py-2 gap-1 overflow-y-auto"&gt;
-            {filteredSidebar.map(item =&gt; {
+      <div className="flex flex-1 overflow-hidden">
+        {sidebarOpen && (
+          <div className="w-14 bg-hms-sidebar flex flex-col items-center py-2 gap-1 overflow-y-auto">
+            {filteredSidebar.map(item => {
               const Icon = item.icon;
               const active = location.pathname === item.path;
               return (
-                &lt;NavLink
+                <NavLink
                   key={item.path}
                   to={item.path}
                   title={item.label}
@@ -150,25 +149,25 @@ const Layout = ({ children }: { children: React.ReactNode }) =&gt; {
                       ? 'bg-primary-foreground text-primary'
                       : 'text-hms-sidebar-foreground hover:bg-primary-foreground/10'
                     }`}
-                &gt;
-                  &lt;Icon size={16} /&gt;
-                  &lt;span className="mt-0.5 truncate w-full"&gt;{item.label}&lt;/span&gt;
-                &lt;/NavLink&gt;
+                >
+                  <Icon size={16} />
+                  <span className="mt-0.5 truncate w-full">{item.label}</span>
+                </NavLink>
               );
             })}
-          &lt;/div&gt;
+          </div>
         )}
 
-        &lt;div className="flex-1 overflow-auto p-3"&gt;
+        <div className="flex-1 overflow-auto p-3">
           {children}
-        &lt;/div&gt;
-      &lt;/div&gt;
+        </div>
+      </div>
 
-      &lt;div className="bg-hms-nav text-hms-nav-foreground text-[10px] px-3 py-0.5 flex justify-between"&gt;
-        &lt;span&gt;GUC Hospital Management Software v1.0&lt;/span&gt;
-        &lt;span&gt;{new Date().toLocaleDateString('en-IN')} | {normalizedRole.replace('_', ' ')}&lt;/span&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+      <div className="bg-hms-nav text-hms-nav-foreground text-[10px] px-3 py-0.5 flex justify-between">
+        <span>GUC Hospital Management Software v1.0</span>
+        <span>{new Date().toLocaleDateString('en-IN')} | {normalizedRole.replace('_', ' ')}</span>
+      </div>
+    </div>
   );
 };
 
