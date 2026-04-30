@@ -6,11 +6,13 @@ export interface User {
   role: string;
   name: string;
   branch?: string;
+  hospitalId?: string;
+  branchId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (userData: User, token: string) => void;
+  login: (userData: User, token: string, hospitalId?: string, branchId?: string) => void;
   logout: () => void;
   currentBranch: string;
   setBranch: (branch: string) => void;
@@ -23,23 +25,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const savedUser = localStorage.getItem('hms_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [currentBranch, setCurrentBranch] = useState('Main Branch - Noida');
+  const [currentBranch, setCurrentBranch] = useState(() => {
+    return localStorage.getItem('current_branch') || 'Main Branch - Noida';
+  });
 
-  const login = (userData: User, token: string) => {
-    const fullUser = { ...userData, branch: currentBranch };
+  const login = (userData: User, token: string, hospitalId?: string, branchId?: string) => {
+    const fullUser = { ...userData, branch: currentBranch, hospitalId, branchId };
     setUser(fullUser);
     localStorage.setItem('hms_token', token);
     localStorage.setItem('hms_user', JSON.stringify(fullUser));
+    if (hospitalId) localStorage.setItem('hospital_id', hospitalId);
+    if (branchId) localStorage.setItem('branch_id', branchId);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('hms_token');
     localStorage.removeItem('hms_user');
+    localStorage.removeItem('hospital_id');
+    localStorage.removeItem('branch_id');
+  };
+
+  const setBranch = (branch: string) => {
+    setCurrentBranch(branch);
+    localStorage.setItem('current_branch', branch);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, currentBranch, setBranch: setCurrentBranch }}>
+    <AuthContext.Provider value={{ user, login, logout, currentBranch, setBranch }}>
       {children}
     </AuthContext.Provider>
   );
