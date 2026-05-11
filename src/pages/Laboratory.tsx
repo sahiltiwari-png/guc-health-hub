@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FlaskConical, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Microscope, TestTube, FileText } from 'lucide-react';
-import { 
-  getLabSamples, createLabSample, updateLabSampleStatus,
-  getLabResults, createLabResult, updateLabResultStatus,
-  listInvestigationOrders, listInvestigationMasters,
-  getEquipments, listUsers
-} from '../api/apiService';
+import { createLabResult, createLabSample, getEquipments, getLabResults, getLabSamples, listInvestigationMasters, listInvestigationOrders, listUsers, updateLabResultStatus, updateLabSampleStatus } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'samples' | 'reports' | 'equipment' | 'testmaster' | 'qc' | 'outsource' | 'tat';
@@ -39,7 +34,6 @@ const Laboratory = () => {
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -53,12 +47,12 @@ const Laboratory = () => {
       ]);
 
       setData({
-        samples: sampleRes.data || [],
-        results: resultRes.data || [],
-        equipments: eqRes.data || [],
-        testMasters: testRes.data || [],
-        investigationOrders: invRes.orders || [],
-        users: userRes.data || []
+        samples: sampleRes.data?.data || sampleRes.data || [],
+        results: resultRes.data?.data || resultRes.data || [],
+        equipments: eqRes.data?.data || eqRes.data || [],
+        testMasters: testRes.data?.data || testRes.data || [],
+        investigationOrders: invRes.data?.data || invRes.data || invRes.orders || [],
+        users: userRes.data?.data || userRes.data || []
       });
     } catch (error) {
       console.error('Error fetching laboratory data:', error);

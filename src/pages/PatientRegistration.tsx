@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Eye, Printer, Plus, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { patientRegister, listPatients } from '../api/apiService';
+import { getAutoPatients, patientRegister, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities } from "@/api/apiService";
 
 const PatientRegistration = () => {
   const { toast } = useToast();
@@ -42,19 +42,17 @@ const PatientRegistration = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const mockCountries = [
-          { _id: '1', name: 'India' },
-          { _id: '2', name: 'United States' },
-          { _id: '3', name: 'United Kingdom' },
-        ];
-        const mockStates = [
-          { _id: '1', name: 'Uttar Pradesh' },
-          { _id: '2', name: 'Delhi' },
-          { _id: '3', name: 'Haryana' },
-        ];
-        setCountries(mockCountries);
-        setStates(mockStates);
-        setFormData(prev => ({ ...prev, country: '1' }));
+        const [cRes, sRes] = await Promise.all([
+          getAutoGeoCountries(),
+          getAutoGeoStates()
+        ]);
+        
+        if (cRes.ok) setCountries(cRes.data || []);
+        if (sRes.ok) setStates(sRes.data || []);
+        
+        if (cRes.data && cRes.data.length > 0) {
+          setFormData(prev => ({ ...prev, country: cRes.data[0]._id }));
+        }
       } catch (error: any) {
         console.error("Error fetching initial data:", error);
       }
@@ -64,26 +62,37 @@ const PatientRegistration = () => {
 
   // Fetch cities when state changes
    useEffect(() => {
-     if (formData.stateId) {
-       const mockCities = [
-         { _id: '1', name: 'Noida' },
-         { _id: '2', name: 'Gurgaon' },
-         { _id: '3', name: 'Ghaziabad' },
-       ];
-       setCities(mockCities);
-     } else {
-       setCities([]);
-     }
+     const fetchCities = async () => {
+       if (formData.stateId) {
+         try {
+           const res = await getAutoGeoCities({ stateId: formData.stateId });
+           if (res.ok) setCities(res.data || []);
+         } catch (e) {
+           console.error("Error fetching cities:", e);
+         }
+       } else {
+         setCities([]);
+       }
+     };
+     fetchCities();
    }, [formData.stateId]);
 
   useEffect(() => {
-    if (activeTab === 'list') {
-      const mockPatients = [
-        { _id: '1', uhid: 'UH001', patientName: 'Rajesh Kumar', age: 35, gender: 'Male', mobile: '9876543210', address: 'Noida', guardianName: 'Ramesh Kumar', createdAt: new Date() },
-        { _id: '2', uhid: 'UH002', patientName: 'Priya Singh', age: 28, gender: 'Female', mobile: '9876543211', address: 'Delhi', guardianName: 'Mohan Singh', createdAt: new Date() },
-      ];
-      setPatients(mockPatients);
-    }
+    const fetchPatients = async () => {
+      if (activeTab === 'list') {
+        setIsLoading(true);
+        try {
+          const res = await getAutoPatients();
+          if (res.ok) {
+            setPatients(res.data?.data || res.data || []);
+          }
+        } catch (e) {
+          console.error("Error fetching patients:", e);
+        }
+        setIsLoading(false);
+      }
+    };
+    fetchPatients();
   }, [activeTab]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -98,7 +107,7 @@ const PatientRegistration = () => {
     }
     setIsLoading(true);
     try {
-      const response = await listPatients();
+      const response = await getAutoPatients();
       const foundPatient = response.data?.find((p: any) => p.mobile === mobile || p.phone === mobile);
       if (foundPatient) {
         setPatient(foundPatient);

@@ -1,19 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer, ArrowLeftRight, FileText } from 'lucide-react';
-import { 
-  getEquipments, createEquipment, deleteEquipment,
-  getEquipmentCategories, createEquipmentCategory,
-  getEquipmentVendors,
-  getEquipmentLocations, 
-  getEquipmentMaintenanceSchedules, createEquipmentMaintenanceSchedule,
-  getEquipmentMaintenanceLogs,
-  getEquipmentCalibrationRecords,
-  getEquipmentTransfers,
-  getEquipmentBreakdowns, createEquipmentBreakdown,
-  getEquipmentSpareParts,
-  getEquipmentUsageLogs,
-  getEquipmentDocuments
-} from '../api/apiService';
+import { createEquipment, createEquipmentBreakdown, createEquipmentCategory, createEquipmentMaintenanceSchedule, deleteEquipment, getEquipmentBreakdowns, getEquipmentCalibrationRecords, getEquipmentCategories, getEquipmentDocuments, getEquipmentEquipments, getAutoEquipmentLocations, getEquipmentMaintenanceLogs, getEquipmentMaintenanceSchedules, getEquipmentSpareParts, getEquipmentTransfers, getEquipmentUsageLogs, getEquipmentVendors, getEquipments } from "@/api/apiService";
 
 const tabs = ['Dashboard','Equipment Register','Categories','Maintenance','Calibration','Breakdowns','Spare Parts','Transfers','Usage Logs','Documents','Vendors'];
 
@@ -57,43 +44,47 @@ const Equipment = () => {
       switch (currentTab) {
         case 'Equipment Register':
           const eqRes = await getEquipments();
-          setData((prev: any) => ({ ...prev, equipments: eqRes.data }));
+          setData((prev: any) => ({ ...prev, equipments: eqRes.data?.data || eqRes.data || [] }));
           break;
         case 'Categories':
           const catRes = await getEquipmentCategories();
-          setData((prev: any) => ({ ...prev, categories: catRes.data }));
+          setData((prev: any) => ({ ...prev, categories: catRes.data?.data || catRes.data || [] }));
           break;
         case 'Maintenance':
           const [schRes, logRes] = await Promise.all([getEquipmentMaintenanceSchedules(), getEquipmentMaintenanceLogs()]);
-          setData((prev: any) => ({ ...prev, maintenanceSchedules: schRes.data, maintenanceLogs: logRes.data }));
+          setData((prev: any) => ({ 
+            ...prev, 
+            maintenanceSchedules: schRes.data?.data || schRes.data || [], 
+            maintenanceLogs: logRes.data?.data || logRes.data || [] 
+          }));
           break;
         case 'Calibration':
           const calRes = await getEquipmentCalibrationRecords();
-          setData((prev: any) => ({ ...prev, calibrationRecords: calRes.data }));
+          setData((prev: any) => ({ ...prev, calibrationRecords: calRes.data?.data || calRes.data || [] }));
           break;
         case 'Breakdowns':
           const breakRes = await getEquipmentBreakdowns();
-          setData((prev: any) => ({ ...prev, breakdowns: breakRes.data }));
+          setData((prev: any) => ({ ...prev, breakdowns: breakRes.data?.data || breakRes.data || [] }));
           break;
         case 'Spare Parts':
           const spareRes = await getEquipmentSpareParts();
-          setData((prev: any) => ({ ...prev, spareParts: spareRes.data }));
+          setData((prev: any) => ({ ...prev, spareParts: spareRes.data?.data || spareRes.data || [] }));
           break;
         case 'Transfers':
           const transRes = await getEquipmentTransfers();
-          setData((prev: any) => ({ ...prev, transfers: transRes.data }));
+          setData((prev: any) => ({ ...prev, transfers: transRes.data?.data || transRes.data || [] }));
           break;
         case 'Usage Logs':
           const usageRes = await getEquipmentUsageLogs();
-          setData((prev: any) => ({ ...prev, usageLogs: usageRes.data }));
+          setData((prev: any) => ({ ...prev, usageLogs: usageRes.data?.data || usageRes.data || [] }));
           break;
         case 'Documents':
           const docRes = await getEquipmentDocuments();
-          setData((prev: any) => ({ ...prev, documents: docRes.data }));
+          setData((prev: any) => ({ ...prev, documents: docRes.data?.data || docRes.data || [] }));
           break;
         case 'Vendors':
           const venRes = await getEquipmentVendors();
-          setData((prev: any) => ({ ...prev, vendors: venRes.data }));
+          setData((prev: any) => ({ ...prev, vendors: venRes.data?.data || venRes.data || [] }));
           break;
         case 'Dashboard':
           const [e, c, m, b] = await Promise.all([
@@ -104,16 +95,16 @@ const Equipment = () => {
           ]);
           setData((prev: any) => ({ 
             ...prev, 
-            equipments: e.data, 
-            categories: c.data, 
-            maintenanceSchedules: m.data,
-            breakdowns: b.data,
-            totalEquipments: e.total
+            equipments: e.data?.data || e.data || [], 
+            categories: c.data?.data || c.data || [], 
+            maintenanceSchedules: m.data?.data || m.data || [],
+            breakdowns: b.data?.data || b.data || [],
+            totalEquipments: e.total || e.data?.total || 0
           }));
           break;
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    } catch (e) {
+      console.error('Error fetching equipment data:', e);
     } finally {
       setLoading(false);
     }

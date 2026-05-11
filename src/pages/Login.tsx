@@ -1,25 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-
-type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
+import * as apiService from '@/api/apiService';
+import { createLogin } from "@/api/apiService";
 
 const Login = () => {
   const { login, setBranch } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [branch, setBranchLocal] = useState('Main Branch - Noida');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('RECEPTIONIST');
   const [isLoading, setIsLoading] = useState(false);
-
-  const roleOptions: Array<{ label: string; value: UserRole; email: string }> = [
-    { label: 'Super Admin', value: 'SUPER_ADMIN', email: 'admin@hospital.com' },
-    { label: 'Doctor', value: 'DOCTOR', email: 'doctor@hospital.com' },
-    { label: 'Nurse', value: 'NURSE', email: 'nurse@hospital.com' },
-    { label: 'Receptionist', value: 'RECEPTIONIST', email: 'reception@hospital.com' },
-    { label: 'Pharmacist', value: 'PHARMACIST', email: 'pharmacist@hospital.com' },
-    { label: 'Lab Technician', value: 'LAB_TECHNICIAN', email: 'lab@hospital.com' }
-  ];
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,23 +18,15 @@ const Login = () => {
     setBranch(branch);
 
     try {
-      const selectedRoleOption = roleOptions.find(r => r.value === selectedRole);
-      const userData = {
-        _id: 'user_' + selectedRole.toLowerCase(),
-        email: selectedRoleOption?.email || email,
-        role: selectedRole,
-        name: selectedRoleOption?.label || 'User',
-        branch: branch,
-        hospitalId: 'hosp_001',
-        branchId: 'branch_001'
-      };
+      const response = await apiService.createLogin({ username, password });
+      
+      if (!response.ok || !response.data) {
+        throw new Error('Invalid username or password');
+      }
 
-      login(
-        userData,
-        'demo_token_' + Date.now(),
-        'hosp_001',
-        'branch_001'
-      );
+      const { user, token, hospitalId, branchId } = response.data;
+      
+      login(user, token, hospitalId, branchId);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {
@@ -64,20 +46,6 @@ const Login = () => {
 
         <form onSubmit={handleLogin} className="p-6 space-y-4">
           <div>
-            <label className="hms-form-label block mb-1">Select Role (Demo)</label>
-            <select
-              className="hms-select w-full"
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-              disabled={isLoading}
-            >
-              {roleOptions.map((role) => (
-                <option key={role.value} value={role.value}>{role.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="hms-form-label block mb-1">Branch</label>
             <select
               className="hms-select w-full"
@@ -93,14 +61,15 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="hms-form-label block mb-1">Email</label>
+            <label className="hms-form-label block mb-1">Username</label>
             <input
-              type="email"
+              type="text"
               className="hms-input w-full"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
               disabled={isLoading}
+              required
             />
           </div>
 
@@ -113,6 +82,7 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               disabled={isLoading}
+              required
             />
           </div>
 
@@ -127,14 +97,8 @@ const Login = () => {
             className="hms-btn-primary w-full py-2 text-sm"
             disabled={isLoading}
           >
-            {isLoading ? 'Logging in...' : 'Login as ' + (roleOptions.find(r => r.value === selectedRole)?.label || 'User')}
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
-
-          <div className="mt-4 border-t border-border pt-3">
-            <p className="text-[10px] text-muted-foreground text-center">
-              Select a role above to see the dashboard (demo mode)
-            </p>
-          </div>
         </form>
       </div>
     </div>

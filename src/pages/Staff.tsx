@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
+import { deleteUsersById, getTeamUnder, getAutoUsers } from "@/api/apiService";
 
 type Tab = 'all' | 'doctors' | 'nurses' | 'hierarchy';
 
@@ -15,32 +16,48 @@ const Staff = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [viewingStaff, setViewingStaff] = useState<any | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const limit = 20;
+  const fetchStaff = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getAutoUsers({ 
+        role: tab !== 'all' ? tab.slice(0, -1).toUpperCase() : undefined, // simple heuristic for 'doctors' -> 'DOCTOR'
+        search: searchQuery,
+        page: currentPage,
+        limit: 20
+      });
+      if (res.ok) {
+        const data = res.data?.data || res.data;
+        setStaff(Array.isArray(data) ? data : (data?.users || data?.data || []));
+        setTotalPages(res.data?.totalPages || res.data?.data?.totalPages || 1);
+      }
+    } catch (e) { 
+      console.error('Error fetching staff:', e); 
+    } finally { 
+      setIsLoading(false); 
+    }
+  };
 
-  useEffect(() => {
-    const mockRoles = [
-      { _id: '1', name: 'Admin' },
-      { _id: '2', name: 'Doctor' },
-      { _id: '3', name: 'Nurse' },
-    ];
-    const mockStaff = [
-      { _id: '1', employee_id: 'EMP001', name: 'Dr. Sharma', role: { name: 'Doctor' }, department_id: { name: 'General Medicine' }, gender: 'Male', email: 'dr.sharma@guc.com', phone: '9876543210', status: 'Active' },
-      { _id: '2', employee_id: 'EMP002', name: 'Nurse Jane', role: { name: 'Nurse' }, department_id: { name: 'ICU' }, gender: 'Female', email: 'nurse.jane@guc.com', phone: '9876543211', status: 'Active' },
-    ];
-    setRoles(mockRoles);
-    setStaff(mockStaff);
-    setTotalPages(1);
-  }, [tab, selectedRole, searchQuery]);
+  useEffect(() => { 
+    fetchStaff(); 
+  }, [tab, searchQuery, currentPage]);
+
+  const limit = 20;
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this staff member?")) {
       try {
-        toast({ title: "Success", description: "Staff member deleted successfully" });
-        setStaff(staff.filter(s => s._id !== id));
+        const res = await deleteUsersById(id);
+        if (res.ok) {
+          toast({ title: "Success", description: "Staff member deleted successfully" });
+          fetchStaff();
+        } else {
+          throw new Error("Failed to delete staff");
+        }
       } catch (error: any) {
         toast({ title: "Error", description: error.message || "Failed to delete staff", variant: "destructive" });
       }
@@ -48,6 +65,7 @@ const Staff = () => {
   };
 
   const getTeamUnder = (managerId: string) => {
+    if (!Array.isArray(staff)) return [];
     return staff.filter(s => s.managerId?._id === managerId);
   };
 

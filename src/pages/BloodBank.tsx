@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Droplets, Users, Clock, CheckCircle2, AlertTriangle, ThermometerSun, Search, Printer, Eye, Plus, Edit, Trash2, RefreshCw, X } from 'lucide-react';
-import { 
-  listBloodInventory, listBloodRequests, listBloodDonors, 
-  listBloodDonations, listBloodGroups, listBloodComponents,
-  createBloodRequest, updateBloodRequestStatus, createBloodDonor,
-  createBloodDonation, issueBlood, listPatients, listUsers,
-  updateBloodDonor, deleteBloodDonor, updateBloodRequest, deleteBloodRequest,
-  updateBloodInventoryStatus, deleteBloodInventory, createBloodComponent,
-  createBloodInventory
-} from '../api/apiService';
+import { createBloodComponent, createBloodDonation, createBloodDonor, createBloodInventory, createBloodRequest, deleteBloodDonor, deleteBloodInventory, deleteBloodRequest, getBloodDonors, getBloodInventory, getBloodRequests, issueBlood, listBloodComponents, listBloodDonations, listBloodDonors, listBloodGroups, listBloodInventory, listBloodRequests, getAutoPatients, listUsers, updateBloodDonor, updateBloodInventoryStatus, updateBloodRequest, updateBloodRequestStatus } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 const statusColor = (s: string) => {
@@ -66,7 +58,6 @@ const BloodBank = () => {
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null); // 'request' | 'donor' | 'donation'
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -77,19 +68,19 @@ const BloodBank = () => {
         listBloodDonations(),
         listBloodGroups(),
         listBloodComponents(),
-        listPatients({ limit: 100 }),
+        getAutoPatients({ limit: 100 }),
         listUsers({ role: 'Doctor' })
       ]);
 
       setData({
-        inventory: invRes.data || [],
-        requests: reqRes.data || [],
-        donors: donorRes.data || [],
-        donations: donRes.data || [],
-        groups: grpRes.data || [],
-        components: compRes.data || [],
-        patients: patRes.data || [],
-        doctors: docRes.data || []
+        inventory: invRes.data?.data || invRes.data || [],
+        requests: reqRes.data?.data || reqRes.data || [],
+        donors: donorRes.data?.data || donorRes.data || [],
+        donations: donRes.data?.data || donRes.data || [],
+        groups: grpRes.data?.data || grpRes.data || [],
+        components: compRes.data?.data || compRes.data || [],
+        patients: patRes.data?.data || patRes.data || [],
+        doctors: docRes.data?.data || docRes.data || []
       });
     } catch (error) {
       console.error('Error fetching blood bank data:', error);

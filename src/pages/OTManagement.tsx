@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
+import { post } from "@/api/apiService";
 
 const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
 

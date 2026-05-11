@@ -1,27 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  getPharmacyDispenses, createPharmacyDispense,
-  listMedicines, createMedicine,
-  getPharmacyInvoices, createPharmacyInvoice,
-  getPharmacyStocks, createPharmacyStock,
-  getPharmacySuppliers, createPharmacySupplier,
-  getPurchaseOrders,
-  getGRNs,
-  getInsuranceClaims,
-  getStockTransfers,
-  getStockAdjustments,
-  getPharmacyPrescriptions
-} from '../api/apiService';
+import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStocks, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
   Truck, Activity, Bell, Clock, ChevronDown, Download, ArrowLeftRight,
   BookOpen, Receipt, Layers, ShoppingCart, Wrench, UserCheck, Archive
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend
-} from 'recharts';
 
 /* ───────── DUMMY DATA ───────── */
 
@@ -34,54 +18,6 @@ const kpiCards = [
   { label: 'Revenue Today', value: '₹1,82,500', icon: TrendingUp, change: '+8% vs avg', color: 'bg-primary' },
 ];
 
-const inventoryData = [
-  { sno: 1, name: 'Paracetamol 500mg', batch: 'B-2026-A01', category: 'Analgesic', stock: 1200, minStock: 500, unit: 'Tabs', mrp: 2.5, expiry: '15-Dec-2027', supplier: 'Cipla Ltd', status: 'OK' },
-  { sno: 2, name: 'Amoxicillin 250mg', batch: 'B-2026-A02', category: 'Antibiotic', stock: 8, minStock: 30, unit: 'Caps', mrp: 12, expiry: '15-Apr-2026', supplier: 'Sun Pharma', status: 'Low' },
-  { sno: 3, name: 'Cetrizine 10mg', batch: 'B-2026-A03', category: 'Anti-allergy', stock: 5, minStock: 20, unit: 'Tabs', mrp: 3, expiry: '28-Feb-2026', supplier: 'Dr. Reddy', status: 'Critical' },
-  { sno: 4, name: 'Metformin 500mg', batch: 'B-2026-A04', category: 'Anti-diabetic', stock: 850, minStock: 200, unit: 'Tabs', mrp: 5, expiry: '30-Jun-2027', supplier: 'USV Pvt Ltd', status: 'OK' },
-  { sno: 5, name: 'Atorvastatin 10mg', batch: 'B-2026-A05', category: 'Lipid Lowering', stock: 15, minStock: 50, unit: 'Tabs', mrp: 8, expiry: '15-Mar-2026', supplier: 'Ranbaxy', status: 'Low' },
-  { sno: 6, name: 'Omeprazole 20mg', batch: 'B-2026-A06', category: 'Antacid', stock: 600, minStock: 100, unit: 'Caps', mrp: 6, expiry: '20-Sep-2027', supplier: 'Cipla Ltd', status: 'OK' },
-  { sno: 7, name: 'Azithromycin 500mg', batch: 'B-2026-A07', category: 'Antibiotic', stock: 45, minStock: 40, unit: 'Tabs', mrp: 65, expiry: '10-Aug-2026', supplier: 'Alkem Labs', status: 'OK' },
-  { sno: 8, name: 'Insulin Glargine', batch: 'B-2026-A08', category: 'Anti-diabetic', stock: 3, minStock: 10, unit: 'Vials', mrp: 850, expiry: '05-Mar-2026', supplier: 'Novo Nordisk', status: 'Critical' },
-];
-
-const dispensingLog = [
-  { id: 'D-001', rxId: 'RX-2026-003', patient: 'Mr. Amit Sharma', uhid: 'U-1003', medicine: 'Diclofenac 50mg x 10', pharmacist: 'Ankit Gupta', time: '09:50 AM', payStatus: 'Paid', amount: '₹120' },
-  { id: 'D-002', rxId: 'RX-2026-001', patient: 'Mr. Rajesh Kumar', uhid: 'U-1001', medicine: 'Paracetamol 500mg x 20', pharmacist: 'Ankit Gupta', time: '09:25 AM', payStatus: 'Paid', amount: '₹50' },
-  { id: 'D-003', rxId: 'RX-2026-002', patient: 'Mrs. Sunita Devi', uhid: 'U-1002', medicine: 'Metformin 500mg x 30', pharmacist: 'Renu Singh', time: '09:40 AM', payStatus: 'Pending', amount: '₹150' },
-  { id: 'D-004', rxId: 'RX-2026-006', patient: 'Mrs. Kamla Devi', uhid: 'U-1006', medicine: 'Calcium + Vit D3 x 30', pharmacist: 'Renu Singh', time: '10:35 AM', payStatus: 'Insurance', amount: '₹280' },
-];
-
-const billingData = [
-  { billNo: 'PH-B-001', patient: 'Mr. Rajesh Kumar', uhid: 'U-1001', items: 4, gross: 450, discount: 0, net: 450, mode: 'Cash', insurance: '-', status: 'Paid' },
-  { billNo: 'PH-B-002', patient: 'Mrs. Sunita Devi', uhid: 'U-1002', items: 6, gross: 1200, discount: 120, net: 1080, mode: 'Card', insurance: 'Star Health', status: 'Partial' },
-  { billNo: 'PH-B-003', patient: 'Mr. Amit Sharma', uhid: 'U-1003', items: 3, gross: 300, discount: 0, net: 300, mode: 'UPI', insurance: '-', status: 'Paid' },
-  { billNo: 'PH-B-004', patient: 'Mrs. Kamla Devi', uhid: 'U-1006', items: 4, gross: 950, discount: 50, net: 900, mode: 'Insurance', insurance: 'ICICI Lombard', status: 'Pending' },
-];
-
-const doctorPrescriptions = [
-  { doctor: 'Dr. Alok Mehta', dept: 'General Medicine', totalRx: 52, topDrug: 'Paracetamol 500mg', generic: '72%', branded: '28%', avgItems: 4.2 },
-  { doctor: 'Dr. Priya Singh', dept: 'Gynecology', totalRx: 38, topDrug: 'Folic Acid 5mg', generic: '65%', branded: '35%', avgItems: 5.1 },
-  { doctor: 'Dr. Rahul Verma', dept: 'Orthopedics', totalRx: 41, topDrug: 'Diclofenac 50mg', generic: '58%', branded: '42%', avgItems: 3.8 },
-  { doctor: 'Dr. Neha Gupta', dept: 'Pediatrics', totalRx: 29, topDrug: 'Amoxicillin Syrup', generic: '80%', branded: '20%', avgItems: 3.5 },
-  { doctor: 'Dr. Sanjay Kapoor', dept: 'Cardiology', totalRx: 34, topDrug: 'Atorvastatin 10mg', generic: '55%', branded: '45%', avgItems: 5.8 },
-];
-
-const expiryAlerts = [
-  { name: 'Cetrizine 10mg', batch: 'B-2026-A03', expiry: '28-Feb-2026', stock: 5, daysLeft: 7, action: 'Return/Destroy' },
-  { name: 'Insulin Glargine', batch: 'B-2026-A08', expiry: '05-Mar-2026', stock: 3, daysLeft: 12, action: 'Use Priority' },
-  { name: 'Atorvastatin 10mg', batch: 'B-2026-A05', expiry: '15-Mar-2026', stock: 15, daysLeft: 22, action: 'Use Priority' },
-  { name: 'Amoxicillin 250mg', batch: 'B-2026-A02', expiry: '15-Apr-2026', stock: 8, daysLeft: 53, action: 'Monitor' },
-  { name: 'Clopidogrel 75mg', batch: 'B-2026-C11', expiry: '20-Apr-2026', stock: 22, daysLeft: 58, action: 'Monitor' },
-];
-
-const vendorData = [
-  { vendor: 'Cipla Ltd', contact: '9876543210', orders: 12, pending: 2, lastOrder: '18-Feb-2026', amount: '₹45,000', rating: '4.5/5' },
-  { vendor: 'Sun Pharma', contact: '9876543211', orders: 8, pending: 1, lastOrder: '15-Feb-2026', amount: '₹32,000', rating: '4.2/5' },
-  { vendor: 'Dr. Reddy', contact: '9876543212', orders: 6, pending: 0, lastOrder: '12-Feb-2026', amount: '₹28,500', rating: '4.0/5' },
-  { vendor: 'Novo Nordisk', contact: '9876543213', orders: 3, pending: 1, lastOrder: '10-Feb-2026', amount: '₹1,25,000', rating: '4.8/5' },
-];
-
 const auditLogs = [
   { time: '10:35 AM', user: 'Ankit Gupta', action: 'Dispensed', detail: 'RX-2026-006 - Calcium + Vit D3 x 30 to Mrs. Kamla Devi', module: 'Dispensing' },
   { time: '10:20 AM', user: 'Admin', action: 'Stock Update', detail: 'Added 500 units of Paracetamol 500mg (Batch B-2026-A01)', module: 'Inventory' },
@@ -89,150 +25,6 @@ const auditLogs = [
   { time: '09:50 AM', user: 'Ankit Gupta', action: 'Dispensed', detail: 'RX-2026-003 - Diclofenac 50mg x 10 to Mr. Amit Sharma', module: 'Dispensing' },
   { time: '09:30 AM', user: 'Admin', action: 'Price Update', detail: 'Amoxicillin 250mg MRP changed ₹10 → ₹12', module: 'Inventory' },
   { time: '09:15 AM', user: 'System', action: 'Alert', detail: 'Low stock alert triggered for Insulin Glargine (3 units)', module: 'Alerts' },
-];
-
-/* Charts Data */
-const doctorWiseChart = [
-  { name: 'Dr. Alok', rx: 52 }, { name: 'Dr. Priya', rx: 38 }, { name: 'Dr. Rahul', rx: 41 },
-  { name: 'Dr. Neha', rx: 29 }, { name: 'Dr. Sanjay', rx: 34 },
-];
-
-const stockUsageChart = [
-  { name: 'Mon', dispensed: 180, received: 50 }, { name: 'Tue', dispensed: 210, received: 0 },
-  { name: 'Wed', dispensed: 195, received: 120 }, { name: 'Thu', dispensed: 230, received: 0 },
-  { name: 'Fri', dispensed: 250, received: 80 }, { name: 'Sat', dispensed: 160, received: 200 },
-  { name: 'Sun', dispensed: 90, received: 0 },
-];
-
-const categoryPieData = [
-  { name: 'Analgesic', value: 28 }, { name: 'Antibiotic', value: 22 },
-  { name: 'Anti-diabetic', value: 18 }, { name: 'Cardiac', value: 15 },
-  { name: 'Anti-allergy', value: 10 }, { name: 'Others', value: 7 },
-];
-
-const PIE_COLORS = ['hsl(0,100%,50%)', 'hsl(0,100%,40%)', 'hsl(30,90%,50%)', 'hsl(200,80%,50%)', 'hsl(120,40%,45%)', 'hsl(0,0%,55%)'];
-
-const salesTrendChart = [
-  { name: 'Week 1', sales: 125000, returns: 3200 }, { name: 'Week 2', sales: 142000, returns: 4100 },
-  { name: 'Week 3', sales: 138000, returns: 2800 }, { name: 'Week 4', sales: 155000, returns: 3500 },
-];
-
-/* ───── NEW DATA for additional modules ───── */
-
-const grnData = [
-  { grnNo: 'GRN-2026-001', poNo: 'PO-2026-005', supplier: 'Cipla Ltd', date: '20-Feb-2026', items: 12, totalQty: 5000, amount: '₹45,000', receivedBy: 'Ankit Gupta', status: 'Verified' },
-  { grnNo: 'GRN-2026-002', poNo: 'PO-2026-006', supplier: 'Sun Pharma', date: '19-Feb-2026', items: 8, totalQty: 2500, amount: '₹32,000', receivedBy: 'Renu Singh', status: 'Pending QC' },
-  { grnNo: 'GRN-2026-003', poNo: 'PO-2026-004', supplier: 'Novo Nordisk', date: '18-Feb-2026', items: 3, totalQty: 50, amount: '₹1,25,000', receivedBy: 'Ankit Gupta', status: 'Verified' },
-  { grnNo: 'GRN-2026-004', poNo: 'PO-2026-007', supplier: 'Dr. Reddy', date: '17-Feb-2026', items: 6, totalQty: 1800, amount: '₹28,500', receivedBy: 'Renu Singh', status: 'Rejected' },
-  { grnNo: 'GRN-2026-005', poNo: 'PO-2026-008', supplier: 'Alkem Labs', date: '16-Feb-2026', items: 10, totalQty: 3200, amount: '₹56,000', receivedBy: 'Ankit Gupta', status: 'Verified' },
-];
-
-const insuranceClaimsData = [
-  { claimId: 'IC-2026-001', patient: 'Mrs. Sunita Devi', uhid: 'U-1002', insurer: 'Star Health', policyNo: 'SH-98765', billAmt: 1200, claimAmt: 1080, tpa: 'Medi Assist', submittedOn: '20-Feb-2026', status: 'Submitted' },
-  { claimId: 'IC-2026-002', patient: 'Mrs. Kamla Devi', uhid: 'U-1006', insurer: 'ICICI Lombard', policyNo: 'IL-45678', billAmt: 950, claimAmt: 900, tpa: 'Raksha TPA', submittedOn: '20-Feb-2026', status: 'Under Review' },
-  { claimId: 'IC-2026-003', patient: 'Mr. Ramesh Jain', uhid: 'U-1010', insurer: 'HDFC Ergo', policyNo: 'HE-33221', billAmt: 3500, claimAmt: 3200, tpa: 'Vidal Health', submittedOn: '18-Feb-2026', status: 'Approved' },
-  { claimId: 'IC-2026-004', patient: 'Mrs. Pooja Singh', uhid: 'U-1015', insurer: 'Bajaj Allianz', policyNo: 'BA-77889', billAmt: 2100, claimAmt: 1800, tpa: 'Medi Assist', submittedOn: '15-Feb-2026', status: 'Rejected' },
-  { claimId: 'IC-2026-005', patient: 'Mr. Suresh Yadav', uhid: 'U-1005', insurer: 'Star Health', policyNo: 'SH-11223', billAmt: 4500, claimAmt: 4200, tpa: 'Paramount Health', submittedOn: '14-Feb-2026', status: 'Settled' },
-];
-
-const interBranchTransferData = [
-  { transferId: 'IBT-001', fromBranch: 'Main Branch - Noida', toBranch: 'Branch 2 - Delhi', medicine: 'Paracetamol 500mg', batch: 'B-2026-A01', qty: 500, requestedBy: 'Dr. Mehta', date: '20-Feb-2026', status: 'In Transit' },
-  { transferId: 'IBT-002', fromBranch: 'Branch 3 - Gurgaon', toBranch: 'Main Branch - Noida', medicine: 'Insulin Glargine', batch: 'B-2026-A08', qty: 10, requestedBy: 'Ankit Gupta', date: '19-Feb-2026', status: 'Received' },
-  { transferId: 'IBT-003', fromBranch: 'Main Branch - Noida', toBranch: 'Branch 4 - Ghaziabad', medicine: 'Amoxicillin 250mg', batch: 'B-2026-A02', qty: 200, requestedBy: 'Renu Singh', date: '18-Feb-2026', status: 'Pending Approval' },
-  { transferId: 'IBT-004', fromBranch: 'Branch 2 - Delhi', toBranch: 'Branch 3 - Gurgaon', medicine: 'Omeprazole 20mg', batch: 'B-2026-A06', qty: 300, requestedBy: 'Admin', date: '17-Feb-2026', status: 'Completed' },
-];
-
-const medicineMasterData = [
-  { code: 'MED-001', name: 'Paracetamol 500mg', genericName: 'Acetaminophen', category: 'Analgesic', schedule: 'OTC', form: 'Tablet', strength: '500mg', hsnCode: '30049099', gst: '12%', rackNo: 'A-01', status: 'Active' },
-  { code: 'MED-002', name: 'Amoxicillin 250mg', genericName: 'Amoxicillin', category: 'Antibiotic', schedule: 'H', form: 'Capsule', strength: '250mg', hsnCode: '30041000', gst: '12%', rackNo: 'A-05', status: 'Active' },
-  { code: 'MED-003', name: 'Metformin 500mg', genericName: 'Metformin HCl', category: 'Anti-diabetic', schedule: 'H', form: 'Tablet', strength: '500mg', hsnCode: '30049099', gst: '12%', rackNo: 'B-02', status: 'Active' },
-  { code: 'MED-004', name: 'Insulin Glargine', genericName: 'Insulin Glargine', category: 'Anti-diabetic', schedule: 'H', form: 'Injection', strength: '100IU/ml', hsnCode: '30041000', gst: '5%', rackNo: 'Cold-01', status: 'Active' },
-  { code: 'MED-005', name: 'Diclofenac 50mg', genericName: 'Diclofenac Sodium', category: 'NSAID', schedule: 'H', form: 'Tablet', strength: '50mg', hsnCode: '30049099', gst: '12%', rackNo: 'A-03', status: 'Active' },
-  { code: 'MED-006', name: 'Cetrizine 10mg', genericName: 'Cetirizine HCl', category: 'Anti-allergy', schedule: 'OTC', form: 'Tablet', strength: '10mg', hsnCode: '30049099', gst: '12%', rackNo: 'C-01', status: 'Active' },
-  { code: 'MED-007', name: 'Clopidogrel 75mg', genericName: 'Clopidogrel', category: 'Antiplatelet', schedule: 'H', form: 'Tablet', strength: '75mg', hsnCode: '30049099', gst: '12%', rackNo: 'B-08', status: 'Inactive' },
-];
-
-const dispenseRecordData = [
-  { dispenseId: 'DR-001', rxId: 'RX-2026-003', patient: 'Mr. Amit Sharma', uhid: 'U-1003', medicine: 'Diclofenac 50mg', batch: 'B-2026-D01', qtyPrescribed: 10, qtyDispensed: 10, pharmacist: 'Ankit Gupta', time: '09:50 AM', returnQty: 0, status: 'Completed' },
-  { dispenseId: 'DR-002', rxId: 'RX-2026-001', patient: 'Mr. Rajesh Kumar', uhid: 'U-1001', medicine: 'Paracetamol 500mg', batch: 'B-2026-A01', qtyPrescribed: 20, qtyDispensed: 20, pharmacist: 'Ankit Gupta', time: '09:25 AM', returnQty: 0, status: 'Completed' },
-  { dispenseId: 'DR-003', rxId: 'RX-2026-002', patient: 'Mrs. Sunita Devi', uhid: 'U-1002', medicine: 'Metformin 500mg', batch: 'B-2026-A04', qtyPrescribed: 30, qtyDispensed: 30, pharmacist: 'Renu Singh', time: '09:40 AM', returnQty: 5, status: 'Partial Return' },
-  { dispenseId: 'DR-004', rxId: 'RX-2026-006', patient: 'Mrs. Kamla Devi', uhid: 'U-1006', medicine: 'Calcium + Vit D3', batch: 'B-2026-C05', qtyPrescribed: 30, qtyDispensed: 30, pharmacist: 'Renu Singh', time: '10:35 AM', returnQty: 0, status: 'Completed' },
-  { dispenseId: 'DR-005', rxId: 'RX-2026-004', patient: 'Baby Riya', uhid: 'U-1004', medicine: 'Amoxicillin Syrup', batch: 'B-2026-S01', qtyPrescribed: 1, qtyDispensed: 1, pharmacist: 'Ankit Gupta', time: '10:10 AM', returnQty: 0, status: 'Completed' },
-];
-
-const invoiceData = [
-  { invoiceNo: 'INV-PH-001', date: '21-Feb-2026', patient: 'Mr. Rajesh Kumar', uhid: 'U-1001', rxId: 'RX-2026-001', items: 4, grossAmt: 450, discount: 0, gst: 54, netAmt: 504, payMode: 'Cash', status: 'Paid' },
-  { invoiceNo: 'INV-PH-002', date: '21-Feb-2026', patient: 'Mrs. Sunita Devi', uhid: 'U-1002', rxId: 'RX-2026-002', items: 6, grossAmt: 1200, discount: 120, gst: 130, netAmt: 1210, payMode: 'Card', status: 'Paid' },
-  { invoiceNo: 'INV-PH-003', date: '21-Feb-2026', patient: 'Mr. Amit Sharma', uhid: 'U-1003', rxId: 'RX-2026-003', items: 3, grossAmt: 300, discount: 0, gst: 36, netAmt: 336, payMode: 'UPI', status: 'Paid' },
-  { invoiceNo: 'INV-PH-004', date: '21-Feb-2026', patient: 'Mrs. Kamla Devi', uhid: 'U-1006', rxId: 'RX-2026-006', items: 4, grossAmt: 950, discount: 50, gst: 108, netAmt: 1008, payMode: 'Insurance', status: 'Pending' },
-  { invoiceNo: 'INV-PH-005', date: '20-Feb-2026', patient: 'Mr. Suresh Yadav', uhid: 'U-1005', rxId: 'RX-2026-005', items: 7, grossAmt: 2200, discount: 200, gst: 240, netAmt: 2240, payMode: 'Cash', status: 'Paid' },
-];
-
-const stockData = [
-  { sno: 1, medicine: 'Paracetamol 500mg', category: 'Analgesic', openingStock: 1500, received: 500, dispensed: 800, adjustment: 0, closingStock: 1200, unit: 'Tabs', value: '₹3,000' },
-  { sno: 2, medicine: 'Amoxicillin 250mg', category: 'Antibiotic', openingStock: 50, received: 0, dispensed: 42, adjustment: 0, closingStock: 8, unit: 'Caps', value: '₹96' },
-  { sno: 3, medicine: 'Metformin 500mg', category: 'Anti-diabetic', openingStock: 1000, received: 200, dispensed: 350, adjustment: 0, closingStock: 850, unit: 'Tabs', value: '₹4,250' },
-  { sno: 4, medicine: 'Insulin Glargine', category: 'Anti-diabetic', openingStock: 10, received: 0, dispensed: 7, adjustment: 0, closingStock: 3, unit: 'Vials', value: '₹2,550' },
-  { sno: 5, medicine: 'Omeprazole 20mg', category: 'Antacid', openingStock: 700, received: 200, dispensed: 300, adjustment: 0, closingStock: 600, unit: 'Caps', value: '₹3,600' },
-  { sno: 6, medicine: 'Azithromycin 500mg', category: 'Antibiotic', openingStock: 60, received: 0, dispensed: 15, adjustment: 0, closingStock: 45, unit: 'Tabs', value: '₹2,925' },
-];
-
-const stockBatchWiseData = [
-  { medicine: 'Paracetamol 500mg', batch: 'B-2026-A01', mfgDate: '15-Jan-2026', expDate: '15-Dec-2027', qty: 800, mrp: 2.5, purchasePrice: 1.8, supplier: 'Cipla Ltd', rackNo: 'A-01' },
-  { medicine: 'Paracetamol 500mg', batch: 'B-2025-P12', mfgDate: '10-Oct-2025', expDate: '10-Oct-2027', qty: 400, mrp: 2.5, purchasePrice: 1.7, supplier: 'Cipla Ltd', rackNo: 'A-01' },
-  { medicine: 'Amoxicillin 250mg', batch: 'B-2026-A02', mfgDate: '01-Dec-2025', expDate: '15-Apr-2026', qty: 8, mrp: 12, purchasePrice: 8, supplier: 'Sun Pharma', rackNo: 'A-05' },
-  { medicine: 'Metformin 500mg', batch: 'B-2026-A04', mfgDate: '20-Jan-2026', expDate: '30-Jun-2027', qty: 500, mrp: 5, purchasePrice: 3.2, supplier: 'USV Pvt Ltd', rackNo: 'B-02' },
-  { medicine: 'Metformin 500mg', batch: 'B-2025-M08', mfgDate: '15-Aug-2025', expDate: '15-Aug-2027', qty: 350, mrp: 5, purchasePrice: 3, supplier: 'USV Pvt Ltd', rackNo: 'B-02' },
-  { medicine: 'Insulin Glargine', batch: 'B-2026-A08', mfgDate: '05-Sep-2025', expDate: '05-Mar-2026', qty: 3, mrp: 850, purchasePrice: 620, supplier: 'Novo Nordisk', rackNo: 'Cold-01' },
-];
-
-const purchaseOrderData = [
-  { poNo: 'PO-2026-005', date: '18-Feb-2026', supplier: 'Cipla Ltd', items: 12, totalQty: 5000, amount: '₹45,000', deliveryDate: '22-Feb-2026', createdBy: 'Admin', status: 'Delivered' },
-  { poNo: 'PO-2026-006', date: '17-Feb-2026', supplier: 'Sun Pharma', items: 8, totalQty: 2500, amount: '₹32,000', deliveryDate: '23-Feb-2026', createdBy: 'Admin', status: 'In Transit' },
-  { poNo: 'PO-2026-007', date: '16-Feb-2026', supplier: 'Dr. Reddy', items: 6, totalQty: 1800, amount: '₹28,500', deliveryDate: '24-Feb-2026', createdBy: 'Ankit Gupta', status: 'Approved' },
-  { poNo: 'PO-2026-008', date: '15-Feb-2026', supplier: 'Alkem Labs', items: 10, totalQty: 3200, amount: '₹56,000', deliveryDate: '25-Feb-2026', createdBy: 'Admin', status: 'Pending Approval' },
-  { poNo: 'PO-2026-009', date: '14-Feb-2026', supplier: 'Novo Nordisk', items: 3, totalQty: 50, amount: '₹1,25,000', deliveryDate: '20-Feb-2026', createdBy: 'Admin', status: 'Delivered' },
-];
-
-const purchaseOrderItemsData = [
-  { poNo: 'PO-2026-005', sno: 1, medicine: 'Paracetamol 500mg', qty: 2000, unit: 'Tabs', rate: 1.8, amount: 3600, batch: 'B-2026-A01', expiry: '15-Dec-2027', received: 2000, status: 'Complete' },
-  { poNo: 'PO-2026-005', sno: 2, medicine: 'Omeprazole 20mg', qty: 1000, unit: 'Caps', rate: 4, amount: 4000, batch: 'B-2026-A06', expiry: '20-Sep-2027', received: 1000, status: 'Complete' },
-  { poNo: 'PO-2026-005', sno: 3, medicine: 'Azithromycin 500mg', qty: 500, unit: 'Tabs', rate: 45, amount: 22500, batch: 'B-2026-A07', expiry: '10-Aug-2026', received: 500, status: 'Complete' },
-  { poNo: 'PO-2026-006', sno: 1, medicine: 'Amoxicillin 250mg', qty: 1000, unit: 'Caps', rate: 8, amount: 8000, batch: '-', expiry: '-', received: 0, status: 'Pending' },
-  { poNo: 'PO-2026-006', sno: 2, medicine: 'Cetrizine 10mg', qty: 500, unit: 'Tabs', rate: 2, amount: 1000, batch: '-', expiry: '-', received: 0, status: 'Pending' },
-  { poNo: 'PO-2026-007', sno: 1, medicine: 'Atorvastatin 10mg', qty: 800, unit: 'Tabs', rate: 5.5, amount: 4400, batch: '-', expiry: '-', received: 0, status: 'Pending' },
-];
-
-const stockAdjustmentData = [
-  { adjId: 'ADJ-001', date: '20-Feb-2026', medicine: 'Cetrizine 10mg', batch: 'B-2026-A03', type: 'Damage', qtyBefore: 8, adjusted: -3, qtyAfter: 5, reason: 'Water damage in storage', adjustedBy: 'Admin', approvedBy: 'Dr. Mehta' },
-  { adjId: 'ADJ-002', date: '18-Feb-2026', medicine: 'Paracetamol 500mg', batch: 'B-2026-A01', type: 'Found Surplus', qtyBefore: 1180, adjusted: 20, qtyAfter: 1200, reason: 'Physical count mismatch', adjustedBy: 'Ankit Gupta', approvedBy: 'Admin' },
-  { adjId: 'ADJ-003', date: '15-Feb-2026', medicine: 'Insulin Glargine', batch: 'B-2026-A08', type: 'Expired Write-off', qtyBefore: 5, adjusted: -2, qtyAfter: 3, reason: 'Units found expired on inspection', adjustedBy: 'Renu Singh', approvedBy: 'Admin' },
-  { adjId: 'ADJ-004', date: '12-Feb-2026', medicine: 'Omeprazole 20mg', batch: 'B-2026-A06', type: 'Transfer Out', qtyBefore: 700, adjusted: -100, qtyAfter: 600, reason: 'Transferred to Branch 2 - Delhi', adjustedBy: 'Admin', approvedBy: 'Admin' },
-];
-
-const supplierData = [
-  { code: 'SUP-001', name: 'Cipla Ltd', contactPerson: 'Mr. Rakesh Sharma', phone: '9876543210', email: 'orders@cipla.com', gstNo: '09AABCC1234F1ZP', drugLicNo: 'DL-UP-2025-1001', address: 'Plot 12, Noida Sec-62', creditDays: 30, status: 'Active' },
-  { code: 'SUP-002', name: 'Sun Pharma', contactPerson: 'Ms. Meera Patel', phone: '9876543211', email: 'sales@sunpharma.com', gstNo: '24AABCS5678G1ZX', drugLicNo: 'DL-GJ-2024-0567', address: 'Unit 5, Ahmedabad', creditDays: 45, status: 'Active' },
-  { code: 'SUP-003', name: 'Dr. Reddy', contactPerson: 'Mr. Vinay Rao', phone: '9876543212', email: 'supply@drreddy.com', gstNo: '36AABCD9012H1ZY', drugLicNo: 'DL-TS-2025-0890', address: 'Banjara Hills, Hyderabad', creditDays: 30, status: 'Active' },
-  { code: 'SUP-004', name: 'Novo Nordisk', contactPerson: 'Mr. Arjun Nair', phone: '9876543213', email: 'india@novonordisk.com', gstNo: '27AABEN3456I1ZW', drugLicNo: 'DL-MH-2025-1122', address: 'BKC, Mumbai', creditDays: 60, status: 'Active' },
-  { code: 'SUP-005', name: 'Alkem Labs', contactPerson: 'Mr. Deepak Joshi', phone: '9876543214', email: 'trade@alkem.com', gstNo: '27AABCA7890J1ZV', drugLicNo: 'DL-MH-2024-0334', address: 'Andheri, Mumbai', creditDays: 30, status: 'Active' },
-  { code: 'SUP-006', name: 'Ranbaxy (Sun)', contactPerson: 'Ms. Kavita Singh', phone: '9876543215', email: 'orders@ranbaxy.com', gstNo: '07AABCR1234K1ZU', drugLicNo: 'DL-DL-2023-0778', address: 'Connaught Place, Delhi', creditDays: 45, status: 'Inactive' },
-];
-
-const prescriptionHeaderData = [
-  { rxId: 'RX-2026-001', uhid: 'U-1001', patient: 'Mr. Rajesh Kumar', age: '45Y', gender: 'M', doctor: 'Dr. Alok Mehta', dept: 'General Medicine', visitType: 'OPD', diagnosis: 'Acute Fever', allergies: 'None', date: '21-Feb-2026', status: 'Active' },
-  { rxId: 'RX-2026-002', uhid: 'U-1002', patient: 'Mrs. Sunita Devi', age: '32Y', gender: 'F', doctor: 'Dr. Priya Singh', dept: 'Gynecology', visitType: 'OPD', diagnosis: 'PCOD', allergies: 'Sulfa drugs', date: '21-Feb-2026', status: 'Active' },
-  { rxId: 'RX-2026-003', uhid: 'U-1003', patient: 'Mr. Amit Sharma', age: '28Y', gender: 'M', doctor: 'Dr. Rahul Verma', dept: 'Orthopedics', visitType: 'OPD', diagnosis: 'Knee Pain', allergies: 'None', date: '21-Feb-2026', status: 'Dispensed' },
-  { rxId: 'RX-2026-004', uhid: 'U-1004', patient: 'Baby Riya', age: '2Y', gender: 'F', doctor: 'Dr. Neha Gupta', dept: 'Pediatrics', visitType: 'OPD', diagnosis: 'Cold & Cough', allergies: 'None', date: '21-Feb-2026', status: 'Active' },
-];
-
-const prescriptionItemsData = [
-  { rxId: 'RX-2026-001', sno: 1, medicine: 'Paracetamol 500mg', dosage: '1-0-1', duration: '5 days', qty: 10, route: 'Oral', instruction: 'After food', substitution: 'Allowed', status: 'Dispensed' },
-  { rxId: 'RX-2026-001', sno: 2, medicine: 'Azithromycin 500mg', dosage: '1-0-0', duration: '3 days', qty: 3, route: 'Oral', instruction: 'Before food', substitution: 'Not Allowed', status: 'Dispensed' },
-  { rxId: 'RX-2026-001', sno: 3, medicine: 'Cetrizine 10mg', dosage: '0-0-1', duration: '5 days', qty: 5, route: 'Oral', instruction: 'At bedtime', substitution: 'Allowed', status: 'Dispensed' },
-  { rxId: 'RX-2026-001', sno: 4, medicine: 'Omeprazole 20mg', dosage: '1-0-0', duration: '5 days', qty: 5, route: 'Oral', instruction: 'Empty stomach', substitution: 'Allowed', status: 'Dispensed' },
-  { rxId: 'RX-2026-002', sno: 1, medicine: 'Metformin 500mg', dosage: '1-0-1', duration: '30 days', qty: 60, route: 'Oral', instruction: 'After food', substitution: 'Allowed', status: 'In Progress' },
-  { rxId: 'RX-2026-002', sno: 2, medicine: 'Folic Acid 5mg', dosage: '1-0-0', duration: '30 days', qty: 30, route: 'Oral', instruction: 'Before food', substitution: 'Allowed', status: 'In Progress' },
 ];
 
 /* ───────── TABS ───────── */
@@ -279,7 +71,7 @@ const StatusBadge = ({ status }: { status: string }) => {
             : status === 'Partial Return'
               ? 'bg-hms-info text-hms-success-foreground'
               : 'bg-muted text-foreground';
-  return <span className={`px-2 py-0.5 text-[10px] font-bold ${cls}`}>{status}</span>;
+  return <span className={`px-2 py-0.5 text-[10px] font-bold \${cls}`}>{status}</span>;
 };
 
 /* ───────── TAB PANELS ───────── */
@@ -296,9 +88,6 @@ const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
-        {/* ... (Charts kept same for now) */}
-      </div>
       <div>
         <div className="hms-section-header">Live Prescription Queue</div>
         <table className="hms-table">
@@ -353,13 +142,6 @@ const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
 
 const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Rx ID / Patient..." />
-      <select className="hms-select"><option>All Doctors</option>{doctorPrescriptions.map(d => <option key={d.doctor}>{d.doctor}</option>)}</select>
-      <select className="hms-select"><option>All Status</option><option>Pending</option><option>In Progress</option><option>Dispensed</option></select>
-      <select className="hms-select"><option>Today</option><option>Last 7 Days</option><option>This Month</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
     <div className="hms-section-header">Prescription Management</div>
     <table className="hms-table">
       <thead><tr><th>S.No</th><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Date/Time</th><th>Status</th><th>Action</th></tr></thead>
@@ -384,12 +166,8 @@ const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] })
   </div>
 );
 
-const PrescriptionHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
+const RxHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Rx ID / UHID..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
     <div className="hms-section-header">Prescription Headers</div>
     <table className="hms-table">
       <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
@@ -414,10 +192,6 @@ const PrescriptionHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) =>
 
 const RxItemsPanel = () => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Rx ID..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
     <div className="hms-section-header">Prescription Items Detail</div>
     <table className="hms-table">
       <thead><tr><th>Rx ID</th><th>S.No</th><th>Medicine</th><th>Dosage</th><th>Duration</th><th>Qty</th><th>Route</th><th>Instruction</th><th>Substitution</th><th>Status</th></tr></thead>
@@ -430,13 +204,6 @@ const RxItemsPanel = () => (
 
 const MedicineMasterPanel = ({ medicines }: { medicines: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Medicine..." />
-      <select className="hms-select"><option>All Categories</option><option>Analgesic</option><option>Antibiotic</option><option>Anti-diabetic</option><option>NSAID</option></select>
-      <select className="hms-select"><option>All Schedules</option><option>OTC</option><option>H</option><option>H1</option><option>X</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ Add Medicine</button>
-    </div>
     <div className="hms-section-header">Medicine Master Catalog</div>
     <table className="hms-table">
       <thead><tr><th>Code</th><th>Name</th><th>Generic Name</th><th>Category</th><th>Schedule</th><th>Form</th><th>Strength</th><th>HSN</th><th>GST</th><th>Status</th></tr></thead>
@@ -464,11 +231,6 @@ const MedicineMasterPanel = ({ medicines }: { medicines: any[] }) => (
 
 const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Inventory..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success ml-auto">+ Add Opening Stock</button>
-    </div>
     <div className="hms-section-header">Current Pharmacy Inventory</div>
     <table className="hms-table">
       <thead><tr><th>Medicine</th><th>Batch</th><th>Category</th><th>Stock</th><th>Min Stock</th><th>Unit</th><th>MRP</th><th>Expiry</th><th>Status</th></tr></thead>
@@ -494,12 +256,6 @@ const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
 
 const StockPanel = ({ stocks }: { stocks: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Medicine..." />
-      <select className="hms-select"><option>Today</option><option>This Week</option><option>This Month</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-primary"><Download size={12} /> Export</button>
-    </div>
     <div className="hms-section-header">Pharmacy Stock Summary</div>
     <table className="hms-table">
       <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th></tr></thead>
@@ -525,10 +281,6 @@ const StockPanel = ({ stocks }: { stocks: any[] }) => (
 
 const StockBatchWisePanel = ({ stocks }: { stocks: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Medicine / Batch..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
     <div className="hms-section-header">Stock — Batch-Wise Detail</div>
     <table className="hms-table">
       <thead><tr><th>Medicine</th><th>Batch No</th><th>Exp Date</th><th>Qty</th><th>MRP (₹)</th><th>Purchase Price (₹)</th><th>Supplier</th><th>Status</th></tr></thead>
@@ -558,11 +310,8 @@ const DispensingPanel = () => (
     <table className="hms-table">
       <thead><tr><th>ID</th><th>Rx ID</th><th>Patient</th><th>UHID</th><th>Medicine & Qty</th><th>Pharmacist</th><th>Time</th><th>Amount</th><th>Payment</th></tr></thead>
       <tbody>
-        {dispensingLog.map(d => (
-          <tr key={d.id}><td>{d.id}</td><td>{d.rxId}</td><td>{d.patient}</td><td>{d.uhid}</td><td>{d.medicine}</td><td>{d.pharmacist}</td><td>{d.time}</td><td>{d.amount}</td>
-            <td><StatusBadge status={d.payStatus} /></td>
-          </tr>
-        ))}
+        {/* Mock data for dispensing log */}
+        <tr><td colSpan={9} className="text-center py-4">No dispensing logs found</td></tr>
       </tbody>
     </table>
   </div>
@@ -570,10 +319,6 @@ const DispensingPanel = () => (
 
 const DispenseRecordsPanel = ({ dispenses }: { dispenses: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Dispense ID / Rx ID..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
     <div className="hms-section-header">Pharmacy Dispense Records</div>
     <table className="hms-table">
       <thead><tr><th>Dispense ID</th><th>Patient</th><th>UHID</th><th>Medicine</th><th>Batch</th><th>Qty Dispensed</th><th>Pharmacist</th><th>Time</th><th>Status</th></tr></thead>
@@ -600,12 +345,6 @@ const DispenseRecordsPanel = ({ dispenses }: { dispenses: any[] }) => (
 
 const InvoicesPanel = ({ invoices }: { invoices: any[] }) => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Invoice No / Patient..." />
-      <select className="hms-select"><option>Today</option><option>Last 7 Days</option><option>This Month</option></select>
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-      <button className="hms-btn-success">+ New Invoice</button>
-    </div>
     <div className="hms-section-header">Pharmacy Invoices</div>
     <table className="hms-table">
       <thead><tr><th>Invoice No</th><th>Date</th><th>Patient</th><th>UHID</th><th>Net Amt (₹)</th><th>Status</th><th>Action</th></tr></thead>
@@ -634,39 +373,7 @@ const BillingPanel = () => (
     <table className="hms-table">
       <thead><tr><th>Bill No</th><th>Patient</th><th>UHID</th><th>Items</th><th>Gross (₹)</th><th>Discount (₹)</th><th>Net (₹)</th><th>Mode</th><th>Insurance</th><th>Status</th></tr></thead>
       <tbody>
-        {billingData.map(b => (
-          <tr key={b.billNo}><td>{b.billNo}</td><td>{b.patient}</td><td>{b.uhid}</td><td>{b.items}</td><td>{b.gross}</td><td>{b.discount}</td><td>{b.net}</td><td>{b.mode}</td><td>{b.insurance}</td>
-            <td><StatusBadge status={b.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-const RxHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
-  <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-48" placeholder="Search Rx ID / UHID..." />
-      <button className="hms-btn-primary"><Search size={12} /> Search</button>
-    </div>
-    <div className="hms-section-header">Prescription Headers</div>
-    <table className="hms-table">
-      <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
-      <tbody>
-        {prescriptions.length > 0 ? prescriptions.map(p => (
-          <tr key={p._id}>
-            <td>{p._id.substring(0, 8)}</td>
-            <td>{p.patientId?.uhid}</td>
-            <td className="font-semibold">{p.patientId?.patientName}</td>
-            <td>{p.doctorId?.name}</td>
-            <td>{p.departmentId?.name}</td>
-            <td>{new Date(p.prescriptionDate).toLocaleDateString()}</td>
-            <td><StatusBadge status={p.status || 'Active'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={7} className="text-center py-4">No prescriptions found</td></tr>
-        )}
+        <tr><td colSpan={10} className="text-center py-4">No billing data found</td></tr>
       </tbody>
     </table>
   </div>
@@ -873,12 +580,6 @@ const AlertsPanel = () => (
 
 const AuditPanel = () => (
   <div>
-    <div className="flex items-center gap-2 mb-2">
-      <input className="hms-input w-40" placeholder="Search logs..." />
-      <select className="hms-select"><option>All Modules</option><option>Dispensing</option><option>Inventory</option><option>Alerts</option></select>
-      <select className="hms-select"><option>Today</option><option>Last 7 Days</option><option>This Month</option></select>
-      <button className="hms-btn-primary">Filter</button>
-    </div>
     <div className="hms-section-header">Audit Logs</div>
     <table className="hms-table">
       <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th><th>Module</th></tr></thead>
@@ -917,48 +618,48 @@ const Pharmacy = () => {
         case 'overview':
         case 'prescriptions':
           const dq = await getPharmacyDispenses();
-          setData((prev: any) => ({ ...prev, prescriptionQueue: dq.data || [] }));
+          setData((prev: any) => ({ ...prev, prescriptionQueue: dq.data?.data || dq.data || [] }));
           break;
         case 'medicine-master':
           const m = await listMedicines();
-          setData((prev: any) => ({ ...prev, medicines: m.data || [] }));
+          setData((prev: any) => ({ ...prev, medicines: m.data?.data || m.data || [] }));
           break;
         case 'invoices':
           const inv = await getPharmacyInvoices();
-          setData((prev: any) => ({ ...prev, invoices: inv.data || [] }));
+          setData((prev: any) => ({ ...prev, invoices: inv.data?.data || inv.data || [] }));
           break;
         case 'stock':
         case 'inventory':
           const s = await getPharmacyStocks();
-          setData((prev: any) => ({ ...prev, stocks: s.data || [] }));
+          setData((prev: any) => ({ ...prev, stocks: s.data?.data || s.data || [] }));
           break;
         case 'suppliers':
           const sup = await getPharmacySuppliers();
-          setData((prev: any) => ({ ...prev, suppliers: sup.data || [] }));
+          setData((prev: any) => ({ ...prev, suppliers: sup.data?.data || sup.data || [] }));
           break;
         case 'purchase-orders':
           const po = await getPurchaseOrders();
-          setData((prev: any) => ({ ...prev, purchaseOrders: po.data || [] }));
+          setData((prev: any) => ({ ...prev, purchaseOrders: po.data?.data || po.data || [] }));
           break;
         case 'grn':
           const grn = await getGRNs();
-          setData((prev: any) => ({ ...prev, grns: grn.data || [] }));
+          setData((prev: any) => ({ ...prev, grns: grn.data?.data || grn.data || [] }));
           break;
         case 'insurance-claims':
           const ic = await getInsuranceClaims();
-          setData((prev: any) => ({ ...prev, insuranceClaims: ic.data || [] }));
+          setData((prev: any) => ({ ...prev, insuranceClaims: ic.data?.data || ic.data || [] }));
           break;
         case 'inter-branch':
           const st = await getStockTransfers();
-          setData((prev: any) => ({ ...prev, stockTransfers: st.data || [] }));
+          setData((prev: any) => ({ ...prev, stockTransfers: st.data?.data || st.data || [] }));
           break;
         case 'stock-adjustment':
           const sa = await getStockAdjustments();
-          setData((prev: any) => ({ ...prev, stockAdjustments: sa.data || [] }));
+          setData((prev: any) => ({ ...prev, stockAdjustments: sa.data?.data || sa.data || [] }));
           break;
         case 'rx-header':
           const pr = await getPharmacyPrescriptions();
-          setData((prev: any) => ({ ...prev, prescriptions: pr.data || [] }));
+          setData((prev: any) => ({ ...prev, prescriptions: pr.data?.data || pr.data || [] }));
           break;
       }
     } catch (error) {

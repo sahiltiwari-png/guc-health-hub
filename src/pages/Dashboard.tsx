@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Users, Stethoscope, BedDouble, DollarSign, Activity, UserPlus, FileText, 
+  Users, Stethoscope, BedDouble, DollarSign, Activity, UserPlus, FileText,
   BarChart2, AlertCircle, Pill, FlaskConical, Calendar, Clock, 
   ClipboardList, CheckCircle, XCircle, TrendingUp, Package, HeartPulse,
   Building, Truck, Scan, Microscope, Droplets, Shield, CreditCard, 
@@ -11,6 +11,10 @@ import {
   Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { 
+  getAutoAssetsMasters, getAutoUsers, getAutoClinicals, 
+  getAutoDashboardDoctor, getAutoDashboardPatient 
+} from "@/api/apiService";
 
 type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
 
@@ -79,9 +83,92 @@ const MiniTable = ({ title, headers, rows, icon: Icon }: MiniTableProps) => (
   </div>
 );
 
+import { toast } from "sonner";
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [role, setRole] = useState<UserRole>('RECEPTIONIST');
+  const [stats, setStats] = useState({
+    users: 0,
+    patients: 0,
+    assets: 0,
+    appointments: 0,
+    revenue: 0,
+    activeBeds: 0,
+    staffOnDuty: 0,
+    pendingTasks: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentRegistrations, setRecentRegistrations] = useState<any[][]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[][]>([]);
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('[Dashboard] Fetching data for role:', role);
+      
+      // Role-specific data fetching
+      if (role === 'DOCTOR' && user._id) {
+        const docRes = await getAutoDashboardDoctor(user._id);
+        if (docRes.ok && docRes.data) {
+          setStats(prev => ({
+            ...prev,
+            appointments: docRes.data.appointments?.length || 0,
+            pendingTasks: docRes.data.pendingProcedures?.length || 0
+          }));
+        } else if (!docRes.ok) {
+          toast.error("Failed to fetch doctor dashboard data");
+        }
+      }
+
+      // General data for all dashboards
+      const [u, p, a, v] = await Promise.all([
+        getAutoUsers(), 
+        getAutoClinicals(), 
+        getAutoAssetsMasters(),
+        getAutoClinicals({ status: 'Waiting' })
+      ]);
+      
+      if (!u.ok || !p.ok || !a.ok) {
+        console.warn('[Dashboard] Some API calls failed');
+      }
+
+      setStats(prev => ({
+        ...prev,
+        users: u.ok ? (u.data?.total || u.data?.length || 0) : 0,
+        patients: p.ok ? (p.data?.total || p.data?.length || 0) : 0,
+        assets: a.ok ? (a.data?.total || a.data?.length || 0) : 0,
+        appointments: role === 'SUPER_ADMIN' ? (v.ok ? (v.data?.total || v.data?.length || 0) : 0) : prev.appointments,
+      }));
+
+      if (u.ok && u.data) {
+        const users = Array.isArray(u.data) ? u.data : (u.data.data || []);
+        setRecentRegistrations(users.slice(0, 4).map((user: any) => [
+          'Samrat', 'Noida', user.name || user.username, user.role || 'USER', 'Today'
+        ]));
+      }
+
+      // Mock audit logs
+      setAuditLogs([
+        ['09:45 AM', 'admin', 'Login', '192.168.1.10'],
+        ['09:42 AM', 'dr.sharma', 'Update Patient', '192.168.1.15'],
+      ]);
+
+    } catch (e: any) { 
+      console.error('[Dashboard] Error fetching data:', e);
+      setError(e.message || "An unexpected error occurred");
+      toast.error("Failed to load dashboard data");
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  useEffect(() => { 
+    fetchDashboardData(); 
+  }, []);
 
   useEffect(() => {
     if (user?.role) {
@@ -94,14 +181,14 @@ const Dashboard = () => {
   const SuperAdminDashboard = () => (
     <div className="space-y-3">
       <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Total Hospitals" value="12" icon={Building} trend={{ value: '+1', up: true }} />
-        <StatCard label="Total Users" value="245" icon={Users} trend={{ value: '+12', up: true }} />
-        <StatCard label="Total Patients" value="12,450" icon={Users} trend={{ value: '+245', up: true }} />
-        <StatCard label="Revenue (M)" value="₹12.5L" icon={DollarSign} trend={{ value: '+8.2%', up: true }} />
-        <StatCard label="Appointments" value="1,245" icon={Calendar} trend={{ value: '+15%', up: true }} />
-        <StatCard label="Active Beds" value="42/50" icon={BedDouble} color="text-green-600" />
-        <StatCard label="Staff On Duty" value="89" icon={UserCog} color="text-blue-600" />
-        <StatCard label="Pending Tasks" value="24" icon={AlertCircle} color="text-orange-600" />
+        <StatCard label="Total Hospitals" value="1" icon={Building} trend={{ value: '+0', up: true }} />
+        <StatCard label="Total Users" value={loading ? '...' : stats.users} icon={Users} trend={{ value: '+0', up: true }} />
+        <StatCard label="Total Patients" value={loading ? '...' : stats.patients} icon={Users} trend={{ value: '+0', up: true }} />
+        <StatCard label="Total Assets" value={loading ? '...' : stats.assets} icon={Package} trend={{ value: '+0', up: true }} />
+        <StatCard label="Revenue (M)" value={`₹${stats.revenue}L`} icon={DollarSign} trend={{ value: '+0%', up: true }} />
+        <StatCard label="Appointments" value={loading ? '...' : stats.appointments} icon={Calendar} trend={{ value: '+0', up: true }} />
+        <StatCard label="Active Beds" value={`${stats.activeBeds}/50`} icon={BedDouble} color="text-green-600" />
+        <StatCard label="Staff On Duty" value={stats.staffOnDuty} icon={UserCog} color="text-blue-600" />
       </div>
 
       <div className="grid grid-cols-12 gap-2">
@@ -110,11 +197,8 @@ const Dashboard = () => {
             title="Recent Registrations" 
             icon={UserPlus}
             headers={['Hospital', 'Branch', 'User', 'Role', 'Date']}
-            rows={[
-              ['Samrat', 'Noida', 'Dr. Sharma', 'DOCTOR', 'Today'],
-              ['Samrat', 'Delhi', 'Nurse Priya', 'NURSE', 'Today'],
-              ['Apollo', 'Gurgaon', 'Rohit', 'RECEPTIONIST', 'Yesterday'],
-              ['Fortis', 'Noida', 'Amit', 'PHARMACIST', 'Yesterday'],
+            rows={recentRegistrations.length > 0 ? recentRegistrations : [
+              ['Samrat', 'Noida', 'Loading...', '...', '...'],
             ]}
           />
         </div>

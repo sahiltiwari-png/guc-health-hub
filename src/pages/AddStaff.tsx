@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Briefcase, GraduationCap, Lock, Calendar, MapPin, IndianRupee, ShieldCheck, RefreshCw } from 'lucide-react';
+import { getAutoUsers, getAutoDepartments, createRegister } from "@/api/apiService";
 
 const AddStaff = ({ onAdd, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -18,41 +19,59 @@ const AddStaff = ({ onAdd, onCancel }) => {
     managerId: '',
   });
 
-  const [departments, setDepartments] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [managers, setManagers] = useState([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [managers, setManagers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const mockDepartments = [
-      { _id: '1', name: 'General Medicine' },
-      { _id: '2', name: 'Gynecology' },
-    ];
-    const mockRoles = [
-      { _id: '1', name: 'Doctor' },
-      { _id: '2', name: 'Nurse' },
-    ];
-    const mockManagers = [
-      { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
-    ];
-    setDepartments(mockDepartments);
-    setRoles(mockRoles);
-    setManagers(mockManagers);
+    const fetchInitialData = async () => {
+      try {
+        const [deptRes, usersRes] = await Promise.all([
+          getAutoDepartments(),
+          getAutoUsers()
+        ]);
+        
+        if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
+        
+        if (usersRes.ok) {
+          const allUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data.data || []);
+          setManagers(allUsers.filter((u: any) => u.role === 'DOCTOR' || u.role === 'SUPER_ADMIN'));
+        }
+
+        // Mock roles as they are usually fixed enums
+        setRoles([
+          { _id: 'DOCTOR', name: 'Doctor' },
+          { _id: 'NURSE', name: 'Nurse' },
+          { _id: 'RECEPTIONIST', name: 'Receptionist' },
+          { _id: 'PHARMACIST', name: 'Pharmacist' },
+          { _id: 'LAB_TECHNICIAN', name: 'Lab Technician' },
+        ]);
+      } catch (err) {
+        console.error("Error fetching staff initial data:", err);
+      }
+    };
+    fetchInitialData();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
     try {
-      onAdd();
+      const res = await createRegister(formData);
+      if (res.ok) {
+        onAdd();
+      } else {
+        throw new Error(res.data?.message || "Failed to add staff");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to add staff");
     } finally {

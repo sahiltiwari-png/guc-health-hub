@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Printer, Trash2, Eye, Calendar, FileText, Image, UserSearch } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { createAutoPatientsPatientRegister, createAutoClinical, getAutoGeoCities, getAutoGeoCountries, getAutoGeoStates, getAutoUsers, getAutoClinicals, getAutoEquipmentLocations, getAutoDepartments } from "@/api/apiService";
+
+import { toast as sonnerToast } from 'sonner';
 
 const OPD = () => {
   const { toast } = useToast();
@@ -52,57 +55,76 @@ const OPD = () => {
     slot: 'Slot I'
   });
 
-  // Fetch initial data
-  useEffect(() => {
-    const mockDoctors = [
-      { _id: '1', name: 'Dr. Sharma' },
-      { _id: '2', name: 'Dr. Gupta' },
-    ];
-    const mockDepartments = [
-      { _id: '1', name: 'General Medicine' },
-      { _id: '2', name: 'Gynecology' },
-    ];
-    const mockRooms = [
-      { _id: '1', roomNumber: '101' },
-      { _id: '2', roomNumber: '102' },
-    ];
-    const mockCountries = [
-      { _id: '1', name: 'India' },
-    ];
-    const mockStates = [
-      { _id: '1', name: 'Uttar Pradesh' },
-    ];
-    const mockVisits = [
-      {
-        _id: '1',
-        receiptNo: 'OP-001',
-        patientId: { uhid: 'UH001', patientName: 'Rajesh Kumar' },
-        doctorId: { name: 'Dr. Sharma' },
-        departmentName: 'General Medicine',
-        fee: 500,
-        paymentMode: 'Cash',
-      },
-    ];
-    setDoctors(mockDoctors);
-    setDepartments(mockDepartments);
-    setRooms(mockRooms);
-    setCountries(mockCountries);
-    setStates(mockStates);
-    setVisits(mockVisits);
-    setFormData(prev => ({ ...prev, country: '1', roomId: '1' }));
-    setDataLoaded(true);
-  }, []);
+  const fetchInitialData = async () => {
+    setIsLoading(true);
+    try {
+      const [vRes, dRes, cRes, rRes, deptRes] = await Promise.all([
+        getAutoClinicals({ visitType: 'OPD' }),
+        getAutoUsers({ role: 'DOCTOR' }), 
+        getAutoGeoCountries(),
+        getAutoEquipmentLocations(),
+        getAutoDepartments()
+      ]);
+      
+      if (vRes.ok) setVisits(vRes.data?.data || vRes.data || []);
+      else sonnerToast.error("Failed to load visits");
+
+      if (dRes.ok) setDoctors(dRes.data?.data || dRes.data || []);
+      else sonnerToast.error("Failed to load doctors");
+
+      if (cRes.ok) setCountries(cRes.data?.data || cRes.data || []);
+      if (rRes.ok) setRooms(rRes.data?.data || rRes.data || []);
+      if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
+      
+    } catch (e) { 
+      console.error(e); 
+      sonnerToast.error("Error loading initial data");
+    } finally { 
+      setIsLoading(false); 
+      setDataLoaded(true); 
+    }
+  };
+
+  const handleSaveVisit = async () => {
+    if (!formData.patientName || !formData.mobile) {
+      sonnerToast.error("Patient Name and Mobile are required");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const res = await createAutoClinical(formData);
+      if (res.ok) {
+        sonnerToast.success("OPD Visit created successfully");
+        fetchInitialData();
+        // Reset form or redirect
+      } else {
+        sonnerToast.error(res.message || "Failed to create visit");
+      }
+    } catch (error) {
+      console.error(error);
+      sonnerToast.error("An error occurred while saving");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  useEffect(() => { fetchInitialData(); }, []);
 
   // Fetch cities when state changes
   useEffect(() => {
-    if (formData.stateId) {
-      const mockCities = [
-        { _id: '1', name: 'Noida' },
-      ];
-      setCities(mockCities);
-    } else {
-      setCities([]);
-    }
+    const fetchCities = async () => {
+      if (formData.stateId) {
+        try {
+          const res = await getAutoGeoCities({ stateId: formData.stateId });
+          if (res.ok) setCities(res.data || []);
+        } catch (e) {
+          console.error("Error fetching cities:", e);
+        }
+      } else {
+        setCities([]);
+      }
+    };
+    fetchCities();
   }, [formData.stateId]);
 
   // Fetch rooms when department or doctor changes
@@ -154,12 +176,13 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const mockPatient = {
-        _id: '1',
-        patientName: 'Rajesh Kumar',
-        uhid: searchUhid,
-      };
-      preFillForm(mockPatient);
+      const res = await getAutoPatients();
+      const foundPatient = res.data?.find((p: any) => p.uhid === searchUhid);
+      if (foundPatient) {
+        preFillForm(foundPatient);
+      } else {
+        toast({ title: "Not Found", description: "No patient found with this UHID", variant: "destructive" });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Search failed.", variant: "destructive" });
     }
@@ -173,12 +196,13 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const mockPatient = {
-        _id: '1',
-        patientName: 'Rajesh Kumar',
-        mobile: formData.mobile,
-      };
-      preFillForm(mockPatient);
+      const res = await getAutoPatients();
+      const foundPatient = res.data?.find((p: any) => p.mobile === formData.mobile);
+      if (foundPatient) {
+        preFillForm(foundPatient);
+      } else {
+        toast({ title: "Not Found", description: "No patient found with this mobile number", variant: "destructive" });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Search failed.", variant: "destructive" });
     }
@@ -227,25 +251,30 @@ const OPD = () => {
   const handleCreateOpd = async () => {
     setIsLoading(true);
     try {
-      toast({ title: "Success", description: "OPD visit registered successfully." });
-      
-      // Reset after success to prevent duplicates
-      setPatient(null);
-      setFormData(prev => ({
-        ...prev,
-        mobile: '',
-        patientName: '',
-        address: '',
-        email: '',
-        dob: '',
-        age: 0,
-        currentAge: '',
-        guardianName: '',
-        remark: '',
-        fee: 0,
-        discountPercent: 0
-      }));
-      setSearchUhid('');
+      const res = await createAutoPatientsPatientRegister({ ...formData, patientId: patient?._id });
+      if (res.ok) {
+        toast({ title: "Success", description: "OPD visit registered successfully." });
+        fetchInitialData();
+        // Reset after success to prevent duplicates
+        setPatient(null);
+        setFormData(prev => ({
+          ...prev,
+          mobile: '',
+          patientName: '',
+          address: '',
+          email: '',
+          dob: '',
+          age: 0,
+          currentAge: '',
+          guardianName: '',
+          remark: '',
+          fee: 0,
+          discountPercent: 0
+        }));
+        setSearchUhid('');
+      } else {
+        throw new Error(res.data?.message || "Failed to register OPD visit.");
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to register OPD visit.", variant: "destructive" });
     }

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Search, Edit, Eye, Printer, Plus, UserSearch, Bed, ClipboardList, LogOut } from 'lucide-react';
+import { createQuickAdmission, getIPDAdmissions, listCities, listDepartments, listUsers, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities } from "@/api/apiService";
 
 const IPD = () => {
   const [ipdList, setIpdList] = useState([]);
@@ -19,31 +20,21 @@ const IPD = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const mockDepartments = [
-          { _id: '1', name: 'General Medicine' },
-          { _id: '2', name: 'Cardiology' },
-          { _id: '3', name: 'Orthopedics' },
-        ];
-        const mockDoctors = [
-          { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
-          { _id: '2', name: 'Dr. Verma', role: 'Doctor' },
-        ];
-        const mockStates = [
-          { _id: '1', name: 'Uttar Pradesh' },
-          { _id: '2', name: 'Delhi' },
-        ];
-        const mockCountries = [
-          { _id: '1', name: 'India' },
-        ];
-        setDepartments(mockDepartments);
-        setDoctors(mockDoctors);
-        setStates(mockStates);
-        setCountries(mockCountries);
+        const [deptRes, docRes, countryRes] = await Promise.all([
+          listDepartments(),
+          listUsers({ role: 'Doctor' }),
+          getAutoGeoCountries()
+        ]);
         
-        // Find India and set its ID as default
-        const india = mockCountries.find((c: any) => c.name === 'India');
-        if (india) {
-          setFormData(prev => ({ ...prev, country: india._id }));
+        if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
+        if (docRes.ok) setDoctors(docRes.data?.data || docRes.data || []);
+        if (countryRes.ok) {
+          const countriesData = countryRes.data?.data || countryRes.data || [];
+          setCountries(countriesData);
+          const india = countriesData.find((c: any) => c.name === 'India');
+          if (india) {
+            setFormData(prev => ({ ...prev, country: india._id }));
+          }
         }
       } catch (error) {
         console.error("Error fetching dynamic data:", error);
@@ -57,8 +48,8 @@ const IPD = () => {
       const fetchIPDList = async () => {
         setLoading(true);
         try {
-          const data = await getIPDAdmissions();
-          setIpdList(data);
+          const res = await getIPDAdmissions();
+          setIpdList(res.data?.data || res.data || []);
         } catch (error) {
           setMessage({ type: 'error', text: 'Failed to fetch IPD list.' });
         }

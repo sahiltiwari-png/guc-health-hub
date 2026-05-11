@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw } from 'lucide-react';
-import { 
-  getInstruments, createInstrument,
-  getInstrumentBatches, createInstrumentBatch,
-  getSterilizationCycles, createSterilizationCycle, updateSterilizationCycle,
-  getIssuedInstruments, issueInstrument, returnInstrument,
-  listUsers, listDepartments, getEquipments
-} from '../api/apiService';
+import { createInstrument, createInstrumentBatch, createSterilizationCycle, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'sets' | 'batches' | 'cycles' | 'requests' | 'machines' | 'quality';
@@ -53,13 +47,13 @@ const CSSD = () => {
       ]);
 
       setData({
-        instruments: insRes || [],
-        batches: batRes || [],
-        cycles: cycRes || [],
-        issues: issRes || [],
-        users: userRes.data || [],
-        departments: depRes.data || [],
-        equipments: eqRes.data || []
+        instruments: insRes.data?.data || insRes.data || insRes || [],
+        batches: batRes.data?.data || batRes.data || batRes || [],
+        cycles: cycRes.data?.data || cycRes.data || cycRes || [],
+        issues: issRes.data?.data || issRes.data || issRes || [],
+        users: userRes.data?.data || userRes.data || [],
+        departments: depRes.data?.data || depRes.data || [],
+        equipments: eqRes.data?.data || eqRes.data || []
       });
     } catch (error) {
       console.error('Error fetching CSSD data:', error);

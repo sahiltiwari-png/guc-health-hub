@@ -6,17 +6,19 @@ import {
   ChevronRight, ArrowRight, Check, X
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+  getAutoClinicals, getAutoPatients, getAutoUsers, createAutoClinical, updateById
+} from "@/api/apiService";
 
 const statusColor = (s: string) => {
   switch (s) {
     case 'Booked': return 'bg-blue-100 text-blue-700 border-blue-200';
     case 'Confirmed': return 'bg-green-100 text-green-700 border-green-200';
     case 'CheckedIn': return 'bg-purple-100 text-purple-700 border-purple-200';
-    case 'InConsultation': return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'In-Consultation': return 'bg-amber-100 text-amber-700 border-amber-200';
     case 'Completed': return 'bg-hms-success text-hms-success-foreground border-transparent';
     case 'Cancelled': return 'bg-destructive text-destructive-foreground border-transparent';
-    case 'NoShow': return 'bg-gray-100 text-gray-700 border-gray-200';
-    case 'Rescheduled': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+    case 'No-Show': return 'bg-gray-100 text-gray-700 border-gray-200';
     default: return 'bg-muted text-muted-foreground border-transparent';
   }
 };
@@ -44,23 +46,34 @@ const Appointments = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const mockAppointments = [
-        { _id: '1', appointmentNumber: 'APT001', patientId: { _id: '1', name: 'Rajesh Kumar', phone: '9876543210' }, doctorId: { _id: '1', name: 'Dr. Sharma', role: 'Doctor' }, appointmentDate: new Date(), startTime: '09:00', endTime: '09:30', consultationType: 'OPD', status: 'Confirmed' },
-      ];
-      const mockPatients = [
-        { _id: '1', name: 'Rajesh Kumar', phone: '9876543210' },
-      ];
-      const mockDoctors = [
-        { _id: '1', name: 'Dr. Sharma', role: 'Doctor' },
-      ];
-      const mockAvailability = [
-        { _id: '1', doctorId: { name: 'Dr. Sharma', role: 'Doctor' }, dayOfWeek: 'Monday', startTime: '09:00', endTime: '17:00' },
-      ];
+      const queryParams: any = {};
+      if (tab === 'today') queryParams.date = new Date().toISOString().split('T')[0];
+      if (tab === 'completed') queryParams.status = 'Completed';
+      if (tab === 'cancelled') queryParams.status = 'Cancelled';
+      
+      const [aRes, pRes, dRes] = await Promise.all([
+        getAutoClinicals(queryParams),
+        getAutoPatients(),
+        getAutoUsers({ role: 'DOCTOR' })
+      ]);
 
-      setAppointments(mockAppointments);
-      setPatients(mockPatients);
-      setDoctors(mockDoctors);
-      setAvailability(mockAvailability);
+      if (aRes.ok) {
+        const data = aRes.data?.data || aRes.data;
+        setAppointments(Array.isArray(data) ? data : (data?.clinicalDetails || []));
+      }
+      if (pRes.ok) {
+        const data = pRes.data?.data || pRes.data;
+        setPatients(Array.isArray(data) ? data : (data?.patients || []));
+      }
+      if (dRes.ok) {
+        const data = dRes.data?.data || dRes.data;
+        setDoctors(Array.isArray(data) ? data : (data?.users || data?.data || []));
+      }
+      
+      // Mocking availability as there might not be a direct endpoint for it in clinicalDetails
+      setAvailability([
+        { _id: '1', doctorId: { name: 'Dr. Sharma', role: 'Doctor' }, dayOfWeek: 'Monday', startTime: '09:00', endTime: '17:00' },
+      ]);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({ title: 'Error', description: 'Failed to sync appointment data', variant: 'destructive' });
@@ -78,12 +91,21 @@ const Appointments = () => {
     setIsSubmitting(true);
     try {
       if (selectedItem._id) {
-        setAppointments(appointments.map(a => a._id === selectedItem._id ? selectedItem : a));
-        toast({ title: 'Success', description: 'Appointment updated successfully' });
+        const res = await updateById(selectedItem._id, selectedItem);
+        if (res.ok) {
+          toast({ title: 'Success', description: 'Appointment updated successfully' });
+          fetchData();
+        } else {
+          throw new Error(res.data?.message || 'Update failed');
+        }
       } else {
-        const newAppointment = { ...selectedItem, _id: Date.now().toString(), appointmentNumber: 'APT' + Date.now().toString().slice(-4), status: 'Booked' };
-        setAppointments([newAppointment, ...appointments]);
-        toast({ title: 'Success', description: 'Appointment booked successfully' });
+        const res = await createAutoClinical(selectedItem);
+        if (res.ok) {
+          toast({ title: 'Success', description: 'Appointment booked successfully' });
+          fetchData();
+        } else {
+          throw new Error(res.data?.message || 'Booking failed');
+        }
       }
       setShowModal(null);
     } catch (error: any) {
@@ -95,8 +117,13 @@ const Appointments = () => {
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      setAppointments(appointments.map(a => a._id === id ? { ...a, status } : a));
-      toast({ title: 'Status Updated', description: `Appointment marked as ${status}` });
+      const res = await updateById(id, { status });
+      if (res.ok) {
+        toast({ title: 'Status Updated', description: `Appointment marked as ${status}` });
+        fetchData();
+      } else {
+        throw new Error(res.data?.message || 'Update failed');
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Update failed', variant: 'destructive' });
     }
@@ -110,9 +137,14 @@ const Appointments = () => {
     }
     setIsSubmitting(true);
     try {
-      setAppointments(appointments.map(a => a._id === selectedItem._id ? { ...a, status: 'Cancelled' } : a));
-      toast({ title: 'Cancelled', description: 'Appointment has been cancelled' });
-      setShowModal(null);
+      const res = await updateById(selectedItem._id, { status: 'Cancelled', remark: selectedItem.cancellationReason });
+      if (res.ok) {
+        toast({ title: 'Cancelled', description: 'Appointment has been cancelled' });
+        fetchData();
+        setShowModal(null);
+      } else {
+        throw new Error(res.data?.message || 'Cancellation failed');
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Cancellation failed', variant: 'destructive' });
     } finally {
@@ -130,11 +162,11 @@ const Appointments = () => {
     }
   };
 
-  const filteredAppointments = appointments.filter(a => 
+  const filteredAppointments = Array.isArray(appointments) ? appointments.filter(a => 
     a.patientId?.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.appointmentNumber?.toLowerCase().includes(search.toLowerCase()) ||
     a.doctorId?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  ) : [];
 
   return (
     <div className="flex flex-col h-full space-y-3">
@@ -175,11 +207,11 @@ const Appointments = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: 'Total Today', value: appointments.filter(a => new Date(a.appointmentDate).toDateString() === new Date().toDateString()).length, color: 'text-primary', icon: CalendarDays },
-          { label: 'Confirmed', value: appointments.filter(a => a.status === 'Confirmed').length, color: 'text-hms-success', icon: CheckCircle2 },
-          { label: 'Pending', value: appointments.filter(a => a.status === 'Booked').length, color: 'text-amber-500', icon: Clock },
-          { label: 'Checked In', value: appointments.filter(a => a.status === 'CheckedIn').length, color: 'text-purple-500', icon: UserPlus },
-          { label: 'Cancelled', value: appointments.filter(a => a.status === 'Cancelled').length, color: 'text-destructive', icon: XCircle },
+          { label: 'Total Today', value: Array.isArray(appointments) ? appointments.filter(a => new Date(a.appointmentDate).toDateString() === new Date().toDateString()).length : 0, color: 'text-primary', icon: CalendarDays },
+          { label: 'Confirmed', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Confirmed').length : 0, color: 'text-hms-success', icon: CheckCircle2 },
+          { label: 'Pending', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Booked').length : 0, color: 'text-amber-500', icon: Clock },
+          { label: 'Checked In', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'CheckedIn').length : 0, color: 'text-purple-500', icon: UserPlus },
+          { label: 'Cancelled', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Cancelled').length : 0, color: 'text-destructive', icon: XCircle },
         ].map((stat, i) => (
           <div key={i} className="bg-card border border-border p-3 flex items-center gap-4 shadow-sm hover:border-primary/50 transition-colors">
             <div className={`p-2 rounded-lg bg-muted/30 ${stat.color}`}><stat.icon size={20} /></div>

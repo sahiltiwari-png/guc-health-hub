@@ -2,16 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer } from 'lucide-react';
-import { 
-  getAssets, createAsset, deleteAsset,
-  getAssetCategories, createAssetCategory, deleteAssetCategory,
-  getAssetVendors, createAssetVendor, deleteAssetVendor,
-  getAssetLocations, 
-  getAssetMaintenances, createAssetMaintenance, 
-  getAssetDepreciations, createAssetDepreciation,
-  getAssetDisposals, createAssetDisposal,
-  getAssetAudits 
-} from '../api/apiService';
+import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetsCategories, getAssetsLocations, getAutoAssetsMasters, getAssetsVendors } from "@/api/apiService";
 
 
 const tabs = ['Dashboard','Asset Register','Categories','Maintenance','Depreciation','Disposal','Vendors','Audit Trail'];
@@ -57,59 +48,58 @@ const Assets = () => {
   const [formData, setFormData] = useState<any>({});
 
   const fetchData = async (currentTab: string) => {
-      setLoading(true);
-      try {
-        switch (currentTab) {
-          case 'Asset Register':
-            const assetsRes = await getAssets();
-            setData((prev: any) => ({ ...prev, assets: assetsRes.data }));
-            break;
-          case 'Categories':
-            const categoriesRes = await getAssetCategories();
-            setData((prev: any) => ({ ...prev, categories: categoriesRes.data }));
-            break;
-          case 'Vendors':
-            const vendorsRes = await getAssetVendors();
-            setData((prev: any) => ({ ...prev, vendors: vendorsRes.data }));
-            break;
-          case 'Maintenance':
-            const maintenanceRes = await getAssetMaintenances();
-            setData((prev: any) => ({ ...prev, maintenance: maintenanceRes.data }));
-            break;
-          case 'Depreciation':
-            const depreciationRes = await getAssetDepreciations();
-            setData((prev: any) => ({ ...prev, depreciation: depreciationRes.data }));
-            break;
-          case 'Disposal':
-            const disposalsRes = await getAssetDisposals();
-            setData((prev: any) => ({ ...prev, disposals: disposalsRes.data }));
-            break;
-          case 'Audit Trail':
-            const auditsRes = await getAssetAudits();
-            setData((prev: any) => ({ ...prev, audits: auditsRes.data }));
-            break;
-          case 'Dashboard':
-            // Fetch a bit of everything for the dashboard
-            const [a, c, m] = await Promise.all([getAssets({ limit: 5 }), getAssetCategories(), getAssetMaintenances({ limit: 5 })]);
-            setData((prev: any) => ({ 
-              ...prev, 
-              assets: a.data, 
-              categories: c.data, 
-              maintenance: m.data,
-              totalAssets: a.total
-            }));
-            break;
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    try {
+      switch (currentTab) {
+        case 'Asset Register':
+          const assetsRes = await getAssets();
+          setData((prev: any) => ({ ...prev, assets: assetsRes.data?.data || assetsRes.data || [] }));
+          break;
+        case 'Categories':
+          const categoriesRes = await getAssetCategories();
+          setData((prev: any) => ({ ...prev, categories: categoriesRes.data?.data || categoriesRes.data || [] }));
+          break;
+        case 'Vendors':
+          const vendorsRes = await getAssetVendors();
+          setData((prev: any) => ({ ...prev, vendors: vendorsRes.data?.data || vendorsRes.data || [] }));
+          break;
+        case 'Maintenance':
+          const maintenanceRes = await getAssetMaintenances();
+          setData((prev: any) => ({ ...prev, maintenance: maintenanceRes.data?.data || maintenanceRes.data || [] }));
+          break;
+        case 'Depreciation':
+          const depreciationRes = await getAssetDepreciations();
+          setData((prev: any) => ({ ...prev, depreciation: depreciationRes.data?.data || depreciationRes.data || [] }));
+          break;
+        case 'Disposal':
+          const disposalsRes = await getAssetDisposals();
+          setData((prev: any) => ({ ...prev, disposals: disposalsRes.data?.data || disposalsRes.data || [] }));
+          break;
+        case 'Audit Trail':
+          const auditsRes = await getAssetAudits();
+          setData((prev: any) => ({ ...prev, audits: auditsRes.data?.data || auditsRes.data || [] }));
+          break;
+        case 'Dashboard':
+          const [a, c, m] = await Promise.all([getAssets({ limit: 5 }), getAssetCategories(), getAssetMaintenances({ limit: 5 })]);
+          setData((prev: any) => ({ 
+            ...prev, 
+            assets: a.data?.data || a.data || [], 
+            categories: c.data?.data || c.data || [], 
+            maintenance: m.data?.data || m.data || [],
+            totalAssets: a.total || a.data?.total || 0
+          }));
+          break;
       }
-    };
- 
-    useEffect(() => {
-      fetchData(tab);
-    }, [tab]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(tab);
+  }, [tab]);
  
     const formatDate = (date: any) => date ? new Date(date).toLocaleDateString() : '-';
  

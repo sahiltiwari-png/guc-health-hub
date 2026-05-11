@@ -5,12 +5,7 @@ import {
   Plus, Edit, Trash2, Settings, History, Wrench, ShieldCheck,
   MoreVertical, Eye, Printer, Download, RefreshCw, X
 } from 'lucide-react';
-import { 
-  listAmbulances, createAmbulance, updateAmbulance, deleteAmbulance,
-  listAmbulanceTrips, createAmbulanceTrip,
-  listAmbulanceMaintenances, createAmbulanceMaintenance,
-  listPatients, listUsers
-} from '../api/apiService';
+import { createAmbulance, createAmbulanceMaintenance, createAmbulanceTrip, deleteAmbulance, getAmbulanceAmbulances, getAmbulanceTrips, listAmbulanceMaintenances, listAmbulanceTrips, listAmbulances, getAutoPatients, listUsers, updateAmbulance } from "@/api/apiService";
 
 const statusColor = (s: string) => {
   if (s === 'Available' || s === 'Active' || s === 'Completed') return 'bg-hms-success text-hms-success-foreground';
@@ -47,7 +42,6 @@ const Ambulance = () => {
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null); // 'vehicle' | 'trip' | 'maintenance'
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -55,16 +49,16 @@ const Ambulance = () => {
         listAmbulances(),
         listAmbulanceTrips(),
         listAmbulanceMaintenances(),
-        listPatients({ limit: 100 }),
-        listUsers({ role: 'Driver' }) // Assuming role filter works
+        getAutoPatients({ limit: 100 }),
+        listUsers({ role: 'Driver' })
       ]);
 
       setData({
-        ambulances: ambRes || [],
-        trips: tripsRes || [],
-        maintenances: maintRes || [],
-        patients: patientsRes.data || [],
-        drivers: driversRes.data || []
+        ambulances: ambRes?.data?.data || ambRes?.data || [],
+        trips: tripsRes?.data?.data || tripsRes?.data || [],
+        maintenances: maintRes?.data?.data || maintRes?.data || [],
+        patients: patientsRes.data?.data || patientsRes.data || [],
+        drivers: driversRes.data?.data || driversRes.data || []
       });
     } catch (error) {
       console.error('Error fetching ambulance data:', error);

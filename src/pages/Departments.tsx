@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import {
+import React, { useState, useEffect } from 'react';
+import { 
   Stethoscope, Scissors, Bone, Heart, Brain, Activity, CircleDot,
   Baby, Microscope, Eye, Ear, SmilePlus, Pill, Shield, Bed,
   UtensilsCrossed, Wrench, FileText, CreditCard, SprayCan, Thermometer,
@@ -7,6 +7,7 @@ import {
   ChefHat, Truck, AlertTriangle, Clock, CheckCircle2, XCircle, Search,
   BedDouble, Utensils, ShoppingCart, Timer, CircleDollarSign, LayoutGrid
 } from 'lucide-react';
+import { getAutoDepartments } from "@/api/apiService";
 
 // ── Department Data ──
 const clinicalDepts = [
@@ -141,6 +142,27 @@ const Departments = () => {
   const [search, setSearch] = useState('');
   const [infraTab, setInfraTab] = useState<'rooms' | 'wards'>('rooms');
   const [canteenView, setCanteenView] = useState<'tables' | 'orders' | 'menu'>('tables');
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await getAutoDepartments();
+      if (res.ok) {
+        setDepartments(res.data?.data || res.data || []);
+      }
+    } catch (e) { 
+      console.error('Error fetching departments:', e); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
+
 
   return (
     <div>
@@ -169,10 +191,10 @@ const Departments = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-bold whitespace-nowrap transition-all border-b-2
                 ${active
-                  ? 'bg-card text-foreground'
-                  : 'text-primary-foreground hover:bg-primary-foreground/10'
+                  ? 'bg-card text-primary border-primary'
+                  : 'text-primary-foreground/80 border-transparent hover:bg-primary-foreground/10'
                 }`}
             >
               <Icon size={14} />

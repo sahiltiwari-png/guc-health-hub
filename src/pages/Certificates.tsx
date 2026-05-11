@@ -7,23 +7,7 @@ import {
   CheckCircle, AlertCircle, UserPlus, ChevronRight, RefreshCw,
   ArrowLeftRight
 } from 'lucide-react';
-import { 
-  listCertificateTypes, 
-  listCertificateTemplates, 
-  listGeneratedCertificates,
-  createGeneratedCertificate,
-  updateCertificateTemplate,
-  createCertificateTemplate,
-  deleteCertificateTemplate,
-  listPatients,
-  listDoctors,
-  listCertificateSignatures,
-  createCertificateSignature,
-  updateCertificateSignature,
-  deleteCertificateSignature,
-  listCertificateVerifications,
-  verifyCertificate
-} from '../api/apiService';
+import { createCertificateSignature, createCertificateTemplate, createGeneratedCertificate, deleteCertificateSignature, deleteCertificateTemplate, getCertificatesGenerated, getCertificatesTemplates, listCertificateSignatures, listCertificateTemplates, listCertificateTypes, listCertificateVerifications, listDoctors, listGeneratedCertificates, getAutoPatients, updateCertificateSignature, updateCertificateTemplate, verifyCertificate } from "@/api/apiService";
 
 const Certificates = () => {
   const [activeTab, setActiveTab] = useState('templates');
@@ -54,19 +38,19 @@ const Certificates = () => {
         listCertificateTypes(),
         listCertificateTemplates(),
         listGeneratedCertificates(),
-        listPatients({ limit: 100 }),
+        getAutoPatients({ limit: 100 }),
         listDoctors({ limit: 100 }),
         listCertificateSignatures(),
         listCertificateVerifications()
       ]);
       setData({
-        types: typesRes.data || [],
-        templates: templatesRes.data || [],
-        generated: generatedRes.data || [],
-        patients: patientsRes.data || [],
-        doctors: doctorsRes.data || [],
-        signatures: signaturesRes.data || [],
-        verifications: verificationsRes.data || []
+        types: typesRes.data?.data || typesRes.data || [],
+        templates: templatesRes.data?.data || templatesRes.data || [],
+        generated: generatedRes.data?.data || generatedRes.data || [],
+        patients: patientsRes.data?.data || patientsRes.data || [],
+        doctors: doctorsRes.data?.data || doctorsRes.data || [],
+        signatures: signaturesRes.data?.data || signaturesRes.data || [],
+        verifications: verificationsRes.data?.data || verificationsRes.data || []
       });
     } catch (error) {
       console.error('Error fetching certificate data:', error);

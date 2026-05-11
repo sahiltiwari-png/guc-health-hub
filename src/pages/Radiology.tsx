@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Monitor } from 'lucide-react';
-import { 
-  getRadiologyStudies, createRadiologyStudy, updateRadiologyStudyStatus,
-  getRadiologyReports, createRadiologyReport,
-  getRadiologyImages, listInvestigationOrders,
-  listPatients, listUsers
-} from '../api/apiService';
+import { createRadiologyReport, createRadiologyStudy, getRadiologyImages, getRadiologyReports, getRadiologyStudies, listInvestigationOrders, getAutoPatients, listUsers, updateRadiologyStudyStatus } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'orders' | 'reports' | 'equipment' | 'contrast' | 'pacs' | 'schedule' | 'dose';
@@ -37,7 +32,6 @@ const Radiology = () => {
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -46,17 +40,17 @@ const Radiology = () => {
         getRadiologyReports(),
         getRadiologyImages(),
         listInvestigationOrders(),
-        listPatients(),
+        getAutoPatients(),
         listUsers({ role: 'Doctor' })
       ]);
 
       setData({
-        studies: studyRes || [],
-        reports: reportRes || [],
-        images: imgRes || [],
-        investigationOrders: invRes.orders || [],
-        patients: patientRes.data || [],
-        users: userRes.data || []
+        studies: studyRes.data?.data || studyRes.data || studyRes || [],
+        reports: reportRes.data?.data || reportRes.data || reportRes || [],
+        images: imgRes.data?.data || imgRes.data || imgRes || [],
+        investigationOrders: invRes.data?.data || invRes.data || invRes.orders || [],
+        patients: patientRes.data?.data || patientRes.data || [],
+        users: userRes.data?.data || userRes.data || []
       });
     } catch (error) {
       console.error('Error fetching radiology data:', error);

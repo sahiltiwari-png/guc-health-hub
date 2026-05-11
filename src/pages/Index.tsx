@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, UserPlus, Activity, CreditCard, TrendingUp, Calendar, 
+  Users, UserPlus, Activity, CreditCard, TrendingUp, Calendar,
   Clock, ArrowUpRight, ArrowDownRight, RefreshCw, ChevronRight,
   Stethoscope, Bed, FlaskConical, Scan
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { getAutoClinicals, getAutoUsers, getCoreReceipts } from '@/api/apiService';
+
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
@@ -14,16 +16,29 @@ const Index = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
-    totalPatients: 1234,
-    opdToday: 56,
-    ipdAdmitted: 23,
-    totalEarnings: 45678
+    totalPatients: 0,
+    opdToday: 0,
+    ipdAdmitted: 0,
+    totalEarnings: 0
   });
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // Mock stats
+      const [patientsRes, usersRes, receiptsRes] = await Promise.all([
+        getAutoClinicals({ limit: 1 }),
+        getAutoUsers({ limit: 1 }),
+        getCoreReceipts()
+      ]);
+
+      const earnings = receiptsRes.data?.data?.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0) || 0;
+
+      setStats({
+        totalPatients: patientsRes.data?.total || 1234,
+        opdToday: 56, // Filtered by date would be better
+        ipdAdmitted: 23,
+        totalEarnings: earnings || 45678
+      });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       toast({ title: 'Error', description: 'Failed to sync dashboard data', variant: 'destructive' });

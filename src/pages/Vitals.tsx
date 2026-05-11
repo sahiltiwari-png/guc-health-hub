@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Heart, Thermometer, Wind, Droplets, Plus, X, Search, RefreshCw, Eye, History, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Trash2, Printer } from 'lucide-react';
+import { createVisitVitals, deleteVisitVitals, getGlobalVitals, getVisitVitals, getVitalIcon, getVitalsGlobal, getVitalsVisit, listDepartments, listVisits, updateVisitVitals } from "@/api/apiService";
 
 type Tab = 'current' | 'history' | 'alerts' | 'configuration';
 
@@ -29,7 +30,6 @@ const Vitals = () => {
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -40,11 +40,19 @@ const Vitals = () => {
         listDepartments()
       ]);
 
+      const getArr = (res: any, key: string) => {
+        if (!res.ok) return [];
+        const d = res.data?.data || res.data;
+        if (Array.isArray(d)) return d;
+        if (d && typeof d === 'object') return d[key] || d.data || [];
+        return [];
+      };
+
       setData({
-        globalVitals: globalRes.data || [],
-        visitVitals: visitVitalsRes.data || [],
-        visits: visitsRes.data || [],
-        departments: deptsRes.data || []
+        globalVitals: getArr(globalRes, 'vitals'),
+        visitVitals: getArr(visitVitalsRes, 'visitVitals'),
+        visits: getArr(visitsRes, 'visits'),
+        departments: getArr(deptsRes, 'departments')
       });
     } catch (error) {
       console.error('Error fetching vitals data:', error);
@@ -121,11 +129,11 @@ const Vitals = () => {
 
       <div className="grid grid-cols-6 gap-2 my-1">
         {[
-          { label: 'Today Recorded', value: data.visitVitals.length, color: 'text-primary' },
-          { label: 'Abnormal Readings', value: data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).length, color: 'text-destructive' },
-          { label: 'Active Monitors', value: data.globalVitals.length, color: 'text-hms-success' },
+          { label: 'Today Recorded', value: Array.isArray(data.visitVitals) ? data.visitVitals.length : 0, color: 'text-primary' },
+          { label: 'Abnormal Readings', value: Array.isArray(data.visitVitals) ? data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).length : 0, color: 'text-destructive' },
+          { label: 'Active Monitors', value: Array.isArray(data.globalVitals) ? data.globalVitals.length : 0, color: 'text-hms-success' },
           { label: 'Critical Alerts', value: 0, color: 'text-destructive' },
-          { label: 'Patients in Queue', value: data.visits.filter((v: any) => v.visitStatus === 'Active').length, color: 'text-hms-info' },
+          { label: 'Patients in Queue', value: Array.isArray(data.visits) ? data.visits.filter((v: any) => v.visitStatus === 'Active').length : 0, color: 'text-hms-info' },
           { label: 'Compliance Rate', value: '98%', color: 'text-primary' },
         ].map((k, i) => (
           <div key={i} className="bg-card border border-border p-3 shadow-sm text-center">
@@ -156,7 +164,7 @@ const Vitals = () => {
               <table className="hms-table">
                 <thead><tr><th>Patient</th><th>Department</th><th>Recorded At</th><th>Vitals Summary</th><th>Recorded By</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {data.visitVitals.filter((vv: any) => vv.visitId?.patientId?.patientName?.toLowerCase().includes(search.toLowerCase())).map((vv: any) => (
+                  {(Array.isArray(data.visitVitals) ? data.visitVitals : []).filter((vv: any) => vv.visitId?.patientId?.patientName?.toLowerCase().includes(search.toLowerCase())).map((vv: any) => (
                     <tr key={vv._id}>
                       <td>
                         <div className="font-bold">{vv.visitId?.patientId?.patientName}</div>
@@ -196,7 +204,7 @@ const Vitals = () => {
               <table className="hms-table">
                 <thead><tr><th>Vital Name</th><th>Unit</th><th>Data Type</th><th>Normal Range</th><th>Status</th></tr></thead>
                 <tbody>
-                  {data.globalVitals.map((gv: any) => (
+                  {(Array.isArray(data.globalVitals) ? data.globalVitals : []).map((gv: any) => (
                     <tr key={gv._id}>
                       <td className="font-bold flex items-center gap-2">
                         {getVitalIcon(gv.name)} {gv.name}
