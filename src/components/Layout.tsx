@@ -73,7 +73,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const userRole = (user?.role?.toUpperCase() || 'RECEPTIONIST') as UserRole;
+  const getRole = () => {
+    if (user?.role?.name) return user.role.name;
+    if (typeof user?.role === 'string') return user.role;
+    if (user?.roles && user.roles.length > 0) {
+      const firstRole = user.roles[0];
+      return typeof firstRole === 'string' ? firstRole : firstRole.name;
+    }
+    return 'RECEPTIONIST';
+  };
+
+  const rawRole = getRole();
+  const userRole = (typeof rawRole === 'string' ? rawRole : 'RECEPTIONIST').toUpperCase() as UserRole;
   const validRoles: UserRole[] = ['SUPER_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN'];
   const normalizedRole = validRoles.includes(userRole) ? userRole : 'RECEPTIONIST';
 

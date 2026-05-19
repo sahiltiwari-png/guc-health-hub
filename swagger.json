@@ -531,7 +531,7 @@
         ]
       }
     },
-    "/api/departments/search": {
+    "/departments/search": {
       "get": {
         "tags": [
           "Department Management"

@@ -3,7 +3,7 @@
  * Generated on: 2026-05-11T15:41:20.916Z
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const getToken = () => localStorage.getItem('hms_token');
 const getHospitalId = () => localStorage.getItem('hospital_id');
@@ -32,7 +32,21 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
   if (hospitalId) headers['X-Hospital-Id'] = hospitalId;
   if (branchId) headers['X-Branch-Id'] = branchId;
 
-  const url = API_BASE_URL + endpoint;
+  // Smarter URL construction: ensure it starts with /api
+  let path = endpoint;
+  if (!path.startsWith('/api')) {
+    // List of prefixes that should NOT have /v1
+    const noV1Prefixes = ['/departments', '/doctors', '/inventory', '/geo', '/finance', '/dashboard'];
+    const needsV1 = !noV1Prefixes.some(prefix => path.startsWith(prefix));
+    
+    if (needsV1) {
+      path = '/api/v1' + (path.startsWith('/') ? '' : '/') + path;
+    } else {
+      path = '/api' + (path.startsWith('/') ? '' : '/') + path;
+    }
+  }
+  
+  const url = API_BASE_URL + path;
   const startTime = Date.now();
 
   try {
@@ -2278,40 +2292,40 @@ export const listCertificateTemplates = async () => apiRequest('/certificates/te
 export const listGeneratedCertificates = async () => apiRequest('/certificates/generated', { method: 'GET' });
 export const listCertificateSignatures = async () => apiRequest('/certificates/signatures', { method: 'GET' });
 export const listCertificateVerifications = async () => apiRequest('/certificates/verifications', { method: 'GET' });
-export const getGlobalVitals = async () => apiRequest('/vitals/global', { method: 'GET' });
-export const getVisitVitals = async () => apiRequest('/vitals/visit', { method: 'GET' });
-export const getCoreDepartments = async () => apiRequest('/core/departments', { method: 'GET' });
-export const getCorePatients = async () => apiRequest('/core/patients', { method: 'GET' });
-export const getCoreReceipts = async () => apiRequest('/core/receipts', { method: 'GET' });
-export const getLabSamples = async () => apiRequest('/lab/samples', { method: 'GET' });
-export const getLabResults = async () => apiRequest('/lab/results', { method: 'GET' });
-export const getRadiologyStudies = async () => apiRequest('/radiology/studies', { method: 'GET' });
-export const getRadiologyReports = async () => apiRequest('/radiology/reports', { method: 'GET' });
-export const getRadiologyImages = async () => apiRequest('/radiology/images', { method: 'GET' });
-export const listInvestigationMasters = async (q?: any) => apiRequest('/investigation/masters', { method: 'GET' });
-export const listInvestigationOrders = async () => apiRequest('/investigation/orders', { method: 'GET' });
+export const getGlobalVitals = async () => apiRequest('/clinical', { method: 'GET' });
+export const getVisitVitals = async () => apiRequest('/clinical', { method: 'GET' });
+export const getCoreDepartments = async () => apiRequest('/departments', { method: 'GET' });
+export const getCorePatients = async () => apiRequest('/clinical', { method: 'GET' });
+export const getCoreReceipts = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const getLabSamples = async () => apiRequest('/diagnostics/lab/orders', { method: 'GET' });
+export const getLabResults = async () => apiRequest('/diagnostics/lab', { method: 'GET' });
+export const getRadiologyStudies = async () => apiRequest('/diagnostics/radiology', { method: 'GET' });
+export const getRadiologyReports = async () => apiRequest('/diagnostics/radiology/orders', { method: 'GET' });
+export const getRadiologyImages = async () => apiRequest('/diagnostics/radiology', { method: 'GET' });
+export const listInvestigationMasters = async (q?: any) => apiRequest('/diagnostics/lab', { method: 'GET' });
+export const listInvestigationOrders = async () => apiRequest('/diagnostics/lab/orders', { method: 'GET' });
 export const getInstruments = async () => apiRequest('/instruments', { method: 'GET' });
 export const getInstrumentBatches = async () => apiRequest('/instrument-batches', { method: 'GET' });
 export const getSterilizationCycles = async () => apiRequest('/sterilization-cycles', { method: 'GET' });
 export const getIssuedInstruments = async () => apiRequest('/issued-instruments', { method: 'GET' });
 export const getIPDAdmissions = async () => apiRequest('/ipd/admissions', { method: 'GET' });
 export const createQuickAdmission = async (data: any) => apiRequest('/ipd/quick-admission', { method: 'POST', body: JSON.stringify(data) });
-export const getPharmacyDispenses = async () => apiRequest('/pharmacy/dispenses', { method: 'GET' });
-export const getPharmacyInvoices = async () => apiRequest('/pharmacy/invoices', { method: 'GET' });
-export const getPharmacyStocks = async () => apiRequest('/pharmacy/stocks', { method: 'GET' });
-export const getPharmacySuppliers = async () => apiRequest('/pharmacy/suppliers', { method: 'GET' });
-export const getPharmacyPrescriptions = async () => apiRequest('/pharmacy/prescriptions', { method: 'GET' });
-export const getPurchaseOrders = async () => apiRequest('/pharmacy/purchase-orders', { method: 'GET' });
-export const getGRNs = async () => apiRequest('/pharmacy/grns', { method: 'GET' });
-export const getInsuranceClaims = async () => apiRequest('/pharmacy/insurance-claims', { method: 'GET' });
-export const getStockTransfers = async () => apiRequest('/pharmacy/stock-transfers', { method: 'GET' });
-export const getStockAdjustments = async () => apiRequest('/pharmacy/stock-adjustments', { method: 'GET' });
-export const listMedicines = async () => apiRequest('/pharmacy/medicines', { method: 'GET' });
-export const createMedicine = async (data: any) => apiRequest('/pharmacy/medicines', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyDispense = async (data: any) => apiRequest('/pharmacy/dispenses', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyInvoice = async (data: any) => apiRequest('/pharmacy/invoices', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyStock = async (data: any) => apiRequest('/pharmacy/stocks', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacySupplier = async (data: any) => apiRequest('/pharmacy/suppliers', { method: 'POST', body: JSON.stringify(data) });
+export const getPharmacyDispenses = async () => apiRequest('/clinical/prescription', { method: 'GET' });
+export const getPharmacyInvoices = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const getPharmacyStocks = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
+export const getPharmacySuppliers = async () => apiRequest('/assets/vendors', { method: 'GET' });
+export const getPharmacyPrescriptions = async () => apiRequest('/clinical/prescription', { method: 'GET' });
+export const getPurchaseOrders = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const getGRNs = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const getInsuranceClaims = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const getStockTransfers = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
+export const getStockAdjustments = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
+export const listMedicines = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
+export const createMedicine = async (data: any) => apiRequest('/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
+export const createPharmacyDispense = async (data: any) => apiRequest('/clinical/prescription', { method: 'POST', body: JSON.stringify(data) });
+export const createPharmacyInvoice = async (data: any) => apiRequest('/billing/invoices', { method: 'POST', body: JSON.stringify(data) });
+export const createPharmacyStock = async (data: any) => apiRequest('/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
+export const createPharmacySupplier = async (data: any) => apiRequest('/assets/vendors', { method: 'POST', body: JSON.stringify(data) });
 export const patientRegister = async (data: any) => apiRequest('/patient-register', { method: 'POST', body: JSON.stringify(data) });
 export const deleteUsersById = async (id: string) => apiRequest(`/users/${id}`, { method: 'DELETE' });
 export const getTeamUnder = async (id: string) => apiRequest(`/users/team/${id}`, { method: 'GET' });
@@ -2356,11 +2370,196 @@ export const createSterilizationCycle = async (data: any) => apiRequest('/steril
 export const updateSterilizationCycle = async (id: string, data: any) => apiRequest(`/sterilization-cycles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const issueInstrument = async (data: any) => apiRequest('/instruments/issue', { method: 'POST', body: JSON.stringify(data) });
 export const returnInstrument = async (data: any) => apiRequest('/instruments/return', { method: 'POST', body: JSON.stringify(data) });
-export const createLabSample = async (data: any) => apiRequest('/lab/samples', { method: 'POST', body: JSON.stringify(data) });
-export const updateLabSampleStatus = async (id: string, data: any) => apiRequest(`/lab/samples/${id}/status`, { method: 'PUT', body: JSON.stringify(data) });
-export const createLabResult = async (data: any) => apiRequest('/lab/results', { method: 'POST', body: JSON.stringify(data) });
-export const updateLabResultStatus = async (id: string, data: any) => apiRequest(`/lab/results/${id}/status`, { method: 'PUT', body: JSON.stringify(data) });
+export const createLabSample = async (data: any) => apiRequest('/diagnostics/lab/orders', { method: 'POST', body: JSON.stringify(data) });
+export const updateLabSampleStatus = async (id: string, data: any) => apiRequest(`/diagnostics/lab/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const createLabResult = async (data: any) => apiRequest('/diagnostics/lab', { method: 'POST', body: JSON.stringify(data) });
+export const updateLabResultStatus = async (id: string, data: any) => apiRequest(`/diagnostics/lab/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
+/** Laboratory Management **/
+export const updateLabSampleTracking = async (id: string, status: string, collectionTime: string) => 
+  apiRequest(`/diagnostics/lab/orders/${id}/sample-tracking`, { 
+    method: 'PATCH', 
+    body: JSON.stringify({ status, collectionTime }) 
+  });
+
+export const getLabTatMonitor = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/diagnostics/lab/orders/tat-monitor';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const listLabOrders = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/diagnostics/lab';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const getLabOrderDetails = async (id: string) => apiRequest(`/diagnostics/lab/${id}`, { method: 'GET' });
+export const createLabEntry = async (data: any) => apiRequest('/diagnostics/lab', { method: 'POST', body: JSON.stringify(data) });
+export const updateLabResult = async (id: string, data: any) => 
+  apiRequest(`/diagnostics/lab/orders/${id}/result`, { 
+    method: 'PATCH', 
+    body: JSON.stringify(data) 
+  });
+
+/** Radiology Management **/
+export const listRadiologyOrders = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/diagnostics/radiology';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+export const getRadiologyOrderDetails = async (id: string) => apiRequest(`/diagnostics/radiology/${id}`, { method: 'GET' });
+export const updateRadiologyReport = async (id: string, data: any) => 
+  apiRequest(`/diagnostics/radiology/orders/${id}/report`, { 
+    method: 'PATCH', 
+    body: JSON.stringify(data) 
+  });
+
+/** Pharmacy Module **/
+export const getPharmacyStockOverview = async () => apiRequest('/api/inventory/pharmacy/stock', { method: 'GET' });
+export const searchPharmacyStock = async (queryParams: Record<string, any>) => {
+  let endpoint = '/api/inventory/pharmacy/stock/search';
+  const sp = new URLSearchParams(queryParams);
+  if (sp.toString()) endpoint += '?' + sp.toString();
+  return apiRequest(endpoint, { method: 'GET' });
+};
+export const addPharmacyStock = async (data: any) => apiRequest('/api/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
+
+export const getPrescriptionOverview = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/clinical/prescription';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const getPrescriptionByPatient = async (patientId: string) => apiRequest(`/clinical/prescription?patientId=${patientId}`, { method: 'GET' });
+
+/** Invoice & Billing **/
+export const listInvoices = async () => apiRequest('/billing/invoices', { method: 'GET' });
+export const searchInvoices = async (queryParams: Record<string, any>) => {
+  let endpoint = '/billing/invoices/search';
+  const sp = new URLSearchParams(queryParams);
+  if (sp.toString()) endpoint += '?' + sp.toString();
+  return apiRequest(endpoint, { method: 'GET' });
+};
+export const getInvoiceDetails = async (id: string) => apiRequest(`/billing/${id}`, { method: 'GET' });
+
+/** Discharge Management **/
+export const getDischargedToday = async () => apiRequest('/ipd/discharged-today', { method: 'GET' });
+export const getPendingDischargeList = async () => apiRequest('/ipd/admissions/search?status=ADMITTED', { method: 'GET' });
+export const processFinalDischarge = async (admissionId: string, data: any) => apiRequest(`/ipd/discharge/${admissionId}`, { method: 'POST', body: JSON.stringify(data) });
+
+/** Registry & Postmortem **/
+export const getDeathRegistry = async () => apiRequest('/registry/deaths', { method: 'GET' });
+export const getPostmortemSchedule = async () => apiRequest('/registry/postmortem-schedule', { method: 'GET' });
+export const getMortuaryOccupancy = async () => apiRequest('/registry/mortuary', { method: 'GET' });
+
+/** Ambulance Trips & Maintenance **/
+export const listAmbulanceTransportLogs = async () => apiRequest('/ambulances/trips', { method: 'GET' });
+export const listAmbulanceMaintenanceRecords = async () => apiRequest('/ambulances/maintenances', { method: 'GET' });
+
+/* --- NEW API INTEGRATIONS (MAY 2026) --- */
+
+/** Core Fixes & Routing **/
+export const updateClinicalUndefined = async (data?: any) => apiRequest('/clinical/undefined', { method: 'PUT', body: JSON.stringify(data || {}) });
+
+/** Enhanced Filtering **/
+export const getERSearch = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/clinical/er/search';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const getOTSearch = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/clinical/ot/search';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const getIPDAdmissionSearch = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/ipd/admissions/search';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Staff Management (HR) **/
+export const getHRAttendance = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/hr/attendance';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+export const getHRLeaves = async () => apiRequest('/hr/leaves', { method: 'GET' });
+export const getHRPayroll = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/hr/payroll';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Kitchen & Diet Management **/
+export const getKitchenDashboard = async () => apiRequest('/kitchen/dashboard', { method: 'GET' });
+export const getKitchenDietPlans = async () => apiRequest('/kitchen/diet-plans', { method: 'GET' });
+export const getKitchenMealOrders = async () => apiRequest('/kitchen/meal-orders', { method: 'GET' });
+export const getKitchenSchedule = async () => apiRequest('/kitchen/schedule', { method: 'GET' });
+
+/** Helpdesk & Ticketing **/
+export const getHelpdeskDashboard = async () => apiRequest('/helpdesk/dashboard', { method: 'GET' });
+export const getHelpdeskTickets = async () => apiRequest('/helpdesk/tickets', { method: 'GET' });
+
+/** Parking Management **/
+export const getParkingDashboard = async () => apiRequest('/parking/dashboard', { method: 'GET' });
+export const getParkingEntries = async () => apiRequest('/parking/entries', { method: 'GET' });
+
+/** Registries & Compliance **/
+export const getRegistryBirths = async () => apiRequest('/registry/births', { method: 'GET' });
+export const getRegistryDeaths = async () => apiRequest('/registry/deaths', { method: 'GET' });
+export const getRegistryMortuary = async () => apiRequest('/registry/mortuary', { method: 'GET' });
+
+/** Certificate Management **/
+export const getCertificatesTemplatesList = async () => apiRequest('/certificates/templates', { method: 'GET' });
+export const getCertificatesTypes = async () => apiRequest('/certificates/types', { method: 'GET' });
+export const getCertificatesSignatures = async () => apiRequest('/certificates/signatures', { method: 'GET' });
+export const getCertificatesVerifications = async () => apiRequest('/certificates/verifications', { method: 'GET' });
+
+/** Dashboards & Compatibility Feeds **/
+export const getSuperAdminDashboard = async () => apiRequest('/api/dashboard/super-admin', { method: 'GET' });
+export const getVitalsFeed = async () => apiRequest('/clinical/vitals-feed', { method: 'GET' });
+export const getReportsFeed = async () => apiRequest('/reports', { method: 'GET' });
+export const getMISFeed = async () => apiRequest('/mis', { method: 'GET' });
+export const getClinicalList = async (queryParams?: Record<string, any>) => {
+  let endpoint = '/clinical';
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
 
 /* --- ALIASES FOR COMPATIBILITY --- */
 export const createRegister = createAutoAuthRegister;
@@ -2380,7 +2579,7 @@ export const getAssetMaintenances = getAssetsMaintenances;
 export const getAssetDepreciations = getAssetsDepreciations;
 export const getAssetDisposals = getAssetsDisposals;
 export const getAssetAudits = getAssetsAudits;
-export const getEquipments = getEquipmentEquipments;
+export const getEquipments = getAutoAssetsMasters;
 export const getAutoGeoCountries = getGeoCountries;
 export const getAutoGeoStates = getGeoStates;
 export const getAutoGeoCities = getGeoCities;
@@ -2415,21 +2614,21 @@ export const createAssetMaintenance = async (data: any) => apiRequest('/assets/m
 export const createAssetDepreciation = async (data: any) => apiRequest('/assets/depreciations', { method: 'POST', body: JSON.stringify(data) });
 export const createAssetDisposal = async (data: any) => apiRequest('/assets/disposals', { method: 'POST', body: JSON.stringify(data) });
 
-export const createEquipment = async (data: any) => apiRequest('/equipment', { method: 'POST', body: JSON.stringify(data) });
-export const deleteEquipment = async (id: string) => apiRequest(`/equipment/${id}`, { method: 'DELETE' });
-export const createEquipmentCategory = async (data: any) => apiRequest('/equipment/categories', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentMaintenanceSchedule = async (data: any) => apiRequest('/equipment/maintenance-schedules', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentBreakdown = async (data: any) => apiRequest('/equipment/breakdown-tickets', { method: 'POST', body: JSON.stringify(data) });
+export const createEquipment = async (data: any) => apiRequest('/assets/masters', { method: 'POST', body: JSON.stringify(data) });
+export const deleteEquipment = async (id: string) => apiRequest(`/assets/masters/${id}`, { method: 'DELETE' });
+export const createEquipmentCategory = async (data: any) => apiRequest('/assets/categories', { method: 'POST', body: JSON.stringify(data) });
+export const createEquipmentMaintenanceSchedule = async (data: any) => apiRequest('/assets/maintenances', { method: 'POST', body: JSON.stringify(data) });
+export const createEquipmentBreakdown = async (data: any) => apiRequest('/assets/maintenances', { method: 'POST', body: JSON.stringify(data) });
 
-export const createRadiologyReport = async (data: any) => apiRequest('/radiology/reports', { method: 'POST', body: JSON.stringify(data) });
-export const createRadiologyStudy = async (data: any) => apiRequest('/radiology/studies', { method: 'POST', body: JSON.stringify(data) });
-export const updateRadiologyStudyStatus = async (id: string, status: string) => apiRequest(`/radiology/studies/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+export const createRadiologyReport = async (data: any) => apiRequest('/diagnostics/radiology/orders', { method: 'POST', body: JSON.stringify(data) });
+export const createRadiologyStudy = async (data: any) => apiRequest('/diagnostics/radiology', { method: 'POST', body: JSON.stringify(data) });
+export const updateRadiologyStudyStatus = async (id: string, status: string) => apiRequest(`/diagnostics/radiology/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
 
 export const getVitalsGlobal = getGlobalVitals;
 export const getVitalsVisit = getVisitVitals;
-export const createVisitVitals = async (data: any) => apiRequest('/vitals/visit', { method: 'POST', body: JSON.stringify(data) });
-export const updateVisitVitals = async (id: string, data: any) => apiRequest(`/vitals/visit/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVisitVitals = async (id: string) => apiRequest(`/vitals/visit/${id}`, { method: 'DELETE' });
+export const createVisitVitals = async (data: any) => apiRequest('/clinical/vitals', { method: 'POST', body: JSON.stringify(data) });
+export const updateVisitVitals = async (id: string, data: any) => apiRequest(`/clinical/vitals/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteVisitVitals = async (id: string) => apiRequest(`/clinical/vitals/${id}`, { method: 'DELETE' });
 export const getVitalIcon = (vitalName: string) => {
   const icons: Record<string, string> = {
     'BP': 'Activity',

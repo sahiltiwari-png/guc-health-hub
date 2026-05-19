@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Monitor } from 'lucide-react';
-import { createRadiologyReport, createRadiologyStudy, getRadiologyImages, getRadiologyReports, getRadiologyStudies, listInvestigationOrders, getAutoPatients, listUsers, updateRadiologyStudyStatus } from "@/api/apiService";
+import { listRadiologyOrders, listUsers, updateRadiologyStudyStatus, createRadiologyReport } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'orders' | 'reports' | 'equipment' | 'contrast' | 'pacs' | 'schedule' | 'dose';
@@ -23,34 +23,27 @@ const Radiology = () => {
   const [data, setData] = useState({
     studies: [],
     reports: [],
-    images: [],
-    investigationOrders: [],
-    patients: [],
     users: []
   });
 
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [studyRes, reportRes, imgRes, invRes, patientRes, userRes] = await Promise.all([
-        getRadiologyStudies(),
-        getRadiologyReports(),
-        getRadiologyImages(),
-        listInvestigationOrders(),
-        getAutoPatients(),
+      const [radioRes, userRes] = await Promise.all([
+        listRadiologyOrders(),
         listUsers({ role: 'Doctor' })
       ]);
 
+      const radioContent = radioRes.data?.content || radioRes.data || [];
+
       setData({
-        studies: studyRes.data?.data || studyRes.data || studyRes || [],
-        reports: reportRes.data?.data || reportRes.data || reportRes || [],
-        images: imgRes.data?.data || imgRes.data || imgRes || [],
-        investigationOrders: invRes.data?.data || invRes.data || invRes.orders || [],
-        patients: patientRes.data?.data || patientRes.data || [],
-        users: userRes.data?.data || userRes.data || []
+        studies: radioContent.filter((item: any) => item.status !== 'COMPLETED'),
+        reports: radioContent.filter((item: any) => item.status === 'COMPLETED'),
+        users: userRes.data?.content || userRes.data || []
       });
     } catch (error) {
       console.error('Error fetching radiology data:', error);
@@ -120,12 +113,12 @@ const Radiology = () => {
 
       <div className="grid grid-cols-6 gap-2 my-1">
         {[
-          { label: 'Total Studies', value: data.studies.length, color: 'text-primary' },
-          { label: 'In Progress', value: data.studies.filter((s: any) => s.status === 'In-Progress').length, color: 'text-hms-warning' },
-          { label: 'Pending Reports', value: data.studies.filter((s: any) => s.status === 'Completed').length, color: 'text-destructive' },
-          { label: 'Completed', value: data.studies.filter((s: any) => s.status === 'Verified').length, color: 'text-hms-success' },
-          { label: 'Waitlist', value: data.investigationOrders.filter((o: any) => o.investigationId?.category === 'Radiology' && o.orderStatus === 'Ordered').length, color: 'text-muted-foreground' },
-          { label: 'Images Stored', value: data.images.length, color: 'text-primary' },
+          { label: 'Total Studies', value: data.studies.length + data.reports.length, color: 'text-primary' },
+          { label: 'In Progress', value: data.studies.filter((s: any) => s.status === 'IN_PROGRESS').length, color: 'text-hms-warning' },
+          { label: 'Pending Reports', value: data.studies.filter((s: any) => s.status === 'COMPLETED').length, color: 'text-destructive' },
+          { label: 'Completed', value: data.reports.length, color: 'text-hms-success' },
+          { label: 'Scheduled', value: data.studies.filter((s: any) => s.status === 'SCHEDULED').length, color: 'text-muted-foreground' },
+          { label: 'PACS Studies', value: data.reports.length, color: 'text-primary' },
         ].map((k, i) => (
           <div key={i} className="bg-card border border-border p-3 shadow-sm text-center">
             <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
@@ -153,32 +146,26 @@ const Radiology = () => {
           <>
             {tab === 'orders' && (
               <table className="hms-table">
-                <thead><tr><th>Patient</th><th>Investigation</th><th>Modality</th><th>Priority</th><th>Scheduled At</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Order #</th><th>Procedure</th><th>Modality</th><th>Patient</th><th>Order Time</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {data.studies.filter((s: any) => s.investigationOrderId?.patientId?.patientName?.toLowerCase().includes(search.toLowerCase())).map((s: any) => (
-                    <tr key={s._id}>
-                      <td>
-                        <div className="font-bold">{s.investigationOrderId?.patientId?.patientName}</div>
-                        <div className="text-[10px] text-muted-foreground">UHID: {s.investigationOrderId?.patientId?.uhid}</div>
-                      </td>
-                      <td>{s.investigationOrderId?.investigationId?.name}</td>
+                  {data.studies.filter((s: any) => 
+                    s.orderNumber?.toLowerCase().includes(search.toLowerCase()) || 
+                    s.procedureName?.toLowerCase().includes(search.toLowerCase())
+                  ).map((s: any) => (
+                    <tr key={s.id}>
+                      <td className="font-mono text-xs font-bold">{s.orderNumber}</td>
+                      <td>{s.procedureName}</td>
                       <td><span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-bold uppercase">{s.modality}</span></td>
-                      <td><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase ${s.investigationOrderId?.priority === 'Urgent' ? 'bg-destructive text-destructive-foreground' : 'bg-muted'}`}>{s.investigationOrderId?.priority}</span></td>
-                      <td>{s.scheduledAt ? new Date(s.scheduledAt).toLocaleString() : 'N/A'}</td>
+                      <td>{s.patient?.name || 'Walk-in'}</td>
+                      <td>{new Date(s.orderTime).toLocaleString()}</td>
                       <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(s.status)}`}>{s.status}</span></td>
                       <td>
                         <div className="flex gap-2">
-                          {s.status === 'Scheduled' && (
-                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleUpdateStatus(s._id, 'In-Progress')}>Start Scan</button>
+                          {s.status === 'SCHEDULED' && (
+                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleUpdateStatus(s.id, 'IN_PROGRESS')}>Start Scan</button>
                           )}
-                          {s.status === 'In-Progress' && (
-                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleUpdateStatus(s._id, 'Completed')}>Finish Scan</button>
-                          )}
-                          {s.status === 'Completed' && (
-                            <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => {
-                              setSelectedItem({ radiologyStudyId: s._id, findings: '', impression: '', reportStatus: 'Draft' });
-                              setShowModal('report');
-                            }}>Write Report</button>
+                          {s.status === 'IN_PROGRESS' && (
+                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleUpdateStatus(s.id, 'COMPLETED')}>Finish Scan</button>
                           )}
                         </div>
                       </td>
@@ -190,16 +177,19 @@ const Radiology = () => {
 
             {tab === 'reports' && (
               <table className="hms-table">
-                <thead><tr><th>Patient</th><th>Exam</th><th>Findings</th><th>Impression</th><th>Reported By</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Order #</th><th>Procedure</th><th>Report</th><th>Impression</th><th>Patient</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {data.reports.map((r: any) => (
-                    <tr key={r._id}>
-                      <td>{r.radiologyStudyId?.investigationOrderId?.patientId?.patientName}</td>
-                      <td>{r.radiologyStudyId?.investigationOrderId?.investigationId?.name}</td>
-                      <td className="text-[10px] max-w-xs truncate">{r.findings}</td>
-                      <td className="text-[10px] max-w-xs truncate">{r.impression}</td>
-                      <td>{r.reportedBy?.name || 'Radiologist'}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(r.reportStatus)}`}>{r.reportStatus}</span></td>
+                  {data.reports.filter((r: any) => 
+                    r.orderNumber?.toLowerCase().includes(search.toLowerCase()) || 
+                    r.procedureName?.toLowerCase().includes(search.toLowerCase())
+                  ).map((r: any) => (
+                    <tr key={r.id}>
+                      <td className="font-mono text-xs font-bold">{r.orderNumber}</td>
+                      <td>{r.procedureName}</td>
+                      <td className="text-[10px] max-w-xs truncate">{r.report}</td>
+                      <td className="text-[10px] max-w-xs truncate font-bold">{r.impression}</td>
+                      <td>{r.patient?.name || 'Walk-in'}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(r.status)}`}>{r.status}</span></td>
                       <td>
                         <div className="flex gap-2">
                           <Eye size={14} className="text-primary cursor-pointer" />
@@ -214,18 +204,18 @@ const Radiology = () => {
 
             {tab === 'pacs' && (
               <div className="p-4 grid grid-cols-4 gap-4">
-                {data.images.map((img: any) => (
-                  <div key={img._id} className="border border-border p-2 bg-muted/20 text-center">
+                {data.reports.filter(r => r.imagesUrl).map((img: any) => (
+                  <div key={img.id} className="border border-border p-2 bg-muted/20 text-center">
                     <Monitor size={32} className="mx-auto text-primary/40 mb-2" />
-                    <div className="text-[10px] font-bold truncate">{img.radiologyStudyId?.investigationOrderId?.patientId?.patientName}</div>
-                    <div className="text-[8px] text-muted-foreground uppercase">{img.imageType}</div>
+                    <div className="text-[10px] font-bold truncate">{img.patient?.name || 'Walk-in'}</div>
+                    <div className="text-[8px] text-muted-foreground uppercase">{img.modality}</div>
                     <div className="mt-2 flex justify-center gap-2">
                       <button className="p-1 hover:bg-primary/10 rounded"><Eye size={12} /></button>
                       <button className="p-1 hover:bg-primary/10 rounded"><Printer size={12} /></button>
                     </div>
                   </div>
                 ))}
-                {data.images.length === 0 && <div className="col-span-4 text-center py-10 text-muted-foreground text-xs uppercase font-bold tracking-widest">No DICOM images available in PACS</div>}
+                {data.reports.filter(r => r.imagesUrl).length === 0 && <div className="col-span-4 text-center py-10 text-muted-foreground text-xs uppercase font-bold tracking-widest">No DICOM images available in PACS</div>}
               </div>
             )}
           </>

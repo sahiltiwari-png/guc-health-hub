@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStocks, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
+import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
@@ -236,18 +236,18 @@ const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
       <thead><tr><th>Medicine</th><th>Batch</th><th>Category</th><th>Stock</th><th>Min Stock</th><th>Unit</th><th>MRP</th><th>Expiry</th><th>Status</th></tr></thead>
       <tbody>
         {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s._id} className={s.availableQuantity < 50 ? 'text-destructive font-semibold' : ''}>
-            <td className="font-bold">{s.medicineId?.name}</td>
+          <tr key={s.id} className={s.availableQuantity < 50 ? 'text-destructive font-semibold' : ''}>
+            <td className="font-bold">{s.medicineName}</td>
             <td className="font-mono text-[10px]">{s.batchNumber}</td>
-            <td>{s.medicineId?.category || 'General'}</td>
+            <td>{s.category || 'General'}</td>
             <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{s.availableQuantity}</td>
-            <td>{s.medicineId?.form || 'Units'}</td>
-            <td>₹{s.sellingPrice}</td>
-            <td>{new Date(s.expiryDate).toLocaleDateString()}</td>
+            <td>{s.unit || 'Units'}</td>
+            <td>₹{s.sellingPrice || s.mrp}</td>
+            <td>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '-'}</td>
             <td><StatusBadge status={s.status || 'Available'} /></td>
           </tr>
         )) : (
-          <tr><td colSpan={8} className="text-center py-4">No inventory data found</td></tr>
+          <tr><td colSpan={9} className="text-center py-4">No inventory data found</td></tr>
         )}
       </tbody>
     </table>
@@ -261,14 +261,14 @@ const StockPanel = ({ stocks }: { stocks: any[] }) => (
       <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th></tr></thead>
       <tbody>
         {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s._id}>
+          <tr key={s.id}>
             <td>{i + 1}</td>
-            <td className="font-semibold">{s.medicineId?.name}</td>
-            <td>{s.medicineId?.category || 'General'}</td>
-            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success'}>{s.availableQuantity}</td>
-            <td>{s.medicineId?.form || 'Units'}</td>
-            <td>₹{s.purchasePrice}</td>
-            <td>₹{s.sellingPrice}</td>
+            <td className="font-semibold">{s.medicineName}</td>
+            <td>{s.category || 'General'}</td>
+            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{s.availableQuantity}</td>
+            <td>{s.unit || 'Units'}</td>
+            <td>₹{s.purchasePrice || 0}</td>
+            <td>₹{s.sellingPrice || s.mrp || 0}</td>
             <td>₹{(s.availableQuantity * (s.purchasePrice || 0)).toLocaleString()}</td>
           </tr>
         )) : (
@@ -286,14 +286,14 @@ const StockBatchWisePanel = ({ stocks }: { stocks: any[] }) => (
       <thead><tr><th>Medicine</th><th>Batch No</th><th>Exp Date</th><th>Qty</th><th>MRP (₹)</th><th>Purchase Price (₹)</th><th>Supplier</th><th>Status</th></tr></thead>
       <tbody>
         {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s._id}>
-            <td>{s.medicineId?.name}</td>
+          <tr key={s.id}>
+            <td>{s.medicineName}</td>
             <td className="font-mono text-[10px]">{s.batchNumber}</td>
-            <td>{new Date(s.expiryDate).toLocaleDateString()}</td>
+            <td>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '-'}</td>
             <td>{s.availableQuantity}</td>
-            <td>{s.sellingPrice}</td>
+            <td>{s.sellingPrice || s.mrp}</td>
             <td>{s.purchasePrice}</td>
-            <td>{s.supplierId?.supplierName || '-'}</td>
+            <td>{s.supplierName || '-'}</td>
             <td><StatusBadge status={s.status || 'Available'} /></td>
           </tr>
         )) : (
@@ -528,6 +528,7 @@ const DoctorAnalyticsPanel = () => (
 
 const ExpiryPanel = ({ stocks }: { stocks: any[] }) => {
   const expiryAlerts = stocks.filter(s => {
+    if (!s.expiryDate) return false;
     const daysLeft = Math.ceil((new Date(s.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     return daysLeft <= 90;
   });
@@ -542,7 +543,7 @@ const ExpiryPanel = ({ stocks }: { stocks: any[] }) => {
             const daysLeft = Math.ceil((new Date(e.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
             return (
               <tr key={i} className={daysLeft <= 30 ? 'text-destructive font-bold' : ''}>
-                <td>{e.medicineId?.name}</td><td>{e.batchNumber}</td><td>{new Date(e.expiryDate).toLocaleDateString()}</td><td>{e.availableQuantity}</td><td>{daysLeft}</td>
+                <td>{e.medicineName}</td><td>{e.batchNumber}</td><td>{new Date(e.expiryDate).toLocaleDateString()}</td><td>{e.availableQuantity}</td><td>{daysLeft}</td>
               </tr>
             );
           }) : (
@@ -630,8 +631,10 @@ const Pharmacy = () => {
           break;
         case 'stock':
         case 'inventory':
-          const s = await getPharmacyStocks();
-          setData((prev: any) => ({ ...prev, stocks: s.data?.data || s.data || [] }));
+        case 'stock-batchwise':
+        case 'expiry':
+          const s = await getPharmacyStockOverview();
+          setData((prev: any) => ({ ...prev, stocks: s.data?.content || s.data || [] }));
           break;
         case 'suppliers':
           const sup = await getPharmacySuppliers();

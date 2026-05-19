@@ -31,15 +31,14 @@ const bodyReleaseLog = [
 
 type Tab = 'deaths' | 'postmortem' | 'mortuary' | 'release' | 'certificates';
 
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'deaths', label: 'Death Registry' },
-  { key: 'postmortem', label: 'Postmortem Schedule' },
-  { key: 'mortuary', label: 'Mortuary Status' },
-  { key: 'release', label: 'Body Release Log' },
-  { key: 'certificates', label: 'Death Certificates' },
-];
-
 const DeathPostmortem = () => {
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'deaths', label: 'Death Registry' },
+    { key: 'postmortem', label: 'Postmortem Schedule' },
+    { key: 'mortuary', label: 'Mortuary Status' },
+    { key: 'release', label: 'Body Release Log' },
+    { key: 'certificates', label: 'Death Certificates' },
+  ];
   const [tab, setTab] = useState<Tab>('deaths');
   const [search, setSearch] = useState('');
 
