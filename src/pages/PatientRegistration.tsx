@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Eye, Printer, Plus, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getAutoPatients, patientRegister, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities } from "@/api/apiService";
+import { getAutoPatients, patientRegister, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities, extractArray } from "@/api/apiService";
 
 const PatientRegistration = () => {
   const { toast } = useToast();
@@ -51,7 +51,7 @@ const PatientRegistration = () => {
         if (sRes.ok) setStates(sRes.data || []);
         
         if (cRes.data && cRes.data.length > 0) {
-          setFormData(prev => ({ ...prev, country: cRes.data[0]._id }));
+          setFormData(prev => ({ ...prev, country: cRes.data[0].id }));
         }
       } catch (error: any) {
         console.error("Error fetching initial data:", error);
@@ -84,7 +84,7 @@ const PatientRegistration = () => {
         try {
           const res = await getAutoPatients();
           if (res.ok) {
-            setPatients(res.data?.data || res.data || []);
+            setPatients(extractArray(res));
           }
         } catch (e) {
           console.error("Error fetching patients:", e);
@@ -127,7 +127,7 @@ const PatientRegistration = () => {
     try {
       const response = await patientRegister({ ...formData, mobile });
       if (response.ok || response.status < 300) {
-        const newPatient = response.data || { ...formData, _id: Date.now().toString(), mobile };
+        const newPatient = response.data || { ...formData, id: Date.now().toString(), mobile };
         setPatient(newPatient);
         setIsRegistered(true);
         toast({ title: "Success", description: "Patient registered successfully." });
@@ -183,7 +183,7 @@ const PatientRegistration = () => {
             </thead>
             <tbody>
               {patients.map((p, index) => (
-                <tr key={p._id}>
+                <tr key={p.id}>
                   <td>{index + 1}</td>
                   <td className="font-bold text-primary">{p.uhid}</td>
                   <td className="font-semibold">{p.patientName}</td>
@@ -318,21 +318,21 @@ const PatientRegistration = () => {
                     <label className="hms-form-label w-28">Country:</label>
                     <select name="country" value={formData.country} onChange={handleInputChange} className="hms-select flex-1">
                       <option value="">--Select--</option>
-                      {countries.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="hms-form-label w-28">State:</label>
                     <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="hms-select flex-1">
                       <option value="">--Select--</option>
-                      {states.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                      {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="hms-form-label w-28">City:</label>
                     <select name="cityId" value={formData.cityId} onChange={handleInputChange} className="hms-select flex-1">
                       <option value="">--Select--</option>
-                      {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>

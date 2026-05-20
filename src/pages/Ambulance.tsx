@@ -5,7 +5,7 @@ import {
   Plus, Edit, Trash2, Settings, History, Wrench, ShieldCheck,
   MoreVertical, Eye, Printer, Download, RefreshCw, X
 } from 'lucide-react';
-import { createAmbulance, createAmbulanceMaintenance, createAmbulanceTrip, deleteAmbulance, getAmbulanceAmbulances, getAmbulanceTrips, listAmbulanceMaintenances, listAmbulanceTrips, listAmbulances, getAutoPatients, listUsers, updateAmbulance } from "@/api/apiService";
+import { getAmbulanceFleet, createAmbulance, createAmbulanceMaintenance, createAmbulanceTrip, deleteAmbulance, getAmbulanceAmbulances, getAmbulanceTrips, listAmbulanceMaintenances, listAmbulanceTrips, listAmbulances, getAutoPatients, listUsers, updateAmbulance, extractArray } from "@/api/apiService";
 
 const statusColor = (s: string) => {
   if (s === 'Available' || s === 'Active' || s === 'Completed') return 'bg-hms-success text-hms-success-foreground';
@@ -46,7 +46,7 @@ const Ambulance = () => {
     setLoading(true);
     try {
       const [ambRes, tripsRes, maintRes, patientsRes, driversRes] = await Promise.all([
-        listAmbulances(),
+        getAmbulanceFleet(),
         listAmbulanceTrips(),
         listAmbulanceMaintenances(),
         getAutoPatients({ limit: 100 }),
@@ -54,11 +54,11 @@ const Ambulance = () => {
       ]);
 
       setData({
-        ambulances: ambRes?.data?.data || ambRes?.data || [],
-        trips: tripsRes?.data?.data || tripsRes?.data || [],
-        maintenances: maintRes?.data?.data || maintRes?.data || [],
-        patients: patientsRes.data?.data || patientsRes.data || [],
-        drivers: driversRes.data?.data || driversRes.data || []
+        ambulances: extractArray(ambRes),
+        trips: extractArray(tripsRes),
+        maintenances: extractArray(maintRes),
+        patients: extractArray(patientsRes),
+        drivers: extractArray(driversRes)
       });
     } catch (error) {
       console.error('Error fetching ambulance data:', error);
@@ -76,8 +76,8 @@ const Ambulance = () => {
   const handleSaveAmbulance = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (selectedItem._id) {
-        await updateAmbulance(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        await updateAmbulance(selectedItem.id, selectedItem);
       } else {
         await createAmbulance(selectedItem);
       }
@@ -92,10 +92,10 @@ const Ambulance = () => {
     e.preventDefault();
     try {
       // Find the ambulance to get its current driver
-      const ambulance = data.ambulances.find((a: any) => a._id === selectedItem.ambulanceId);
+      const ambulance = data.ambulances.find((a: any) => a.id === selectedItem.ambulanceId);
       const tripData = {
         ...selectedItem,
-        driverId: ambulance?.driverId?._id || ambulance?.driverId // Ensure we have a driver ID
+        driverId: ambulance?.driverId?.id || ambulance?.driverId // Ensure we have a driver ID
       };
       
       await createAmbulanceTrip(tripData);
@@ -140,7 +140,7 @@ const Ambulance = () => {
         </tr></thead>
         <tbody>
           {data.ambulances.filter((a: any) => a.vehicleNumber.toLowerCase().includes(search.toLowerCase())).map((a: any) => (
-            <tr key={a._id}>
+            <tr key={a.id}>
               <td className="font-mono font-bold text-primary">{a.vehicleNumber}</td>
               <td><span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-bold uppercase">{a.type}</span></td>
               <td className="font-semibold">{a.driverId?.name || 'Unassigned'}</td>
@@ -154,7 +154,7 @@ const Ambulance = () => {
               <td>
                 <div className="flex gap-2">
                   <button className="text-primary hover:bg-primary/10 p-1 rounded" onClick={() => { setSelectedItem(a); setShowModal('vehicle'); }}><Edit size={14} /></button>
-                  <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteAmbulance(a._id)}><Trash2 size={14} /></button>
+                  <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteAmbulance(a.id)}><Trash2 size={14} /></button>
                 </div>
               </td>
             </tr>
@@ -173,8 +173,8 @@ const Ambulance = () => {
         </tr></thead>
         <tbody>
           {data.trips.map((t: any) => (
-            <tr key={t._id}>
-              <td className="font-mono text-[10px]">{t._id.slice(-6).toUpperCase()}</td>
+            <tr key={t.id}>
+              <td className="font-mono text-[10px]">{t.id.slice(-6).toUpperCase()}</td>
               <td className="font-bold">{t.ambulanceId?.vehicleNumber}</td>
               <td className="font-semibold">{t.patientId?.patientName || t.patientId?.name || 'Unknown'}</td>
               <td className="text-[10px] max-w-[150px] truncate">{t.fromLocation}</td>
@@ -204,7 +204,7 @@ const Ambulance = () => {
         </tr></thead>
         <tbody>
           {data.maintenances.map((m: any) => (
-            <tr key={m._id}>
+            <tr key={m.id}>
               <td>{new Date(m.maintenanceDate).toLocaleDateString()}</td>
               <td className="font-bold">{m.ambulanceId?.vehicleNumber}</td>
               <td><span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(m.type)}`}>{m.type}</span></td>
@@ -227,7 +227,7 @@ const Ambulance = () => {
             <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Navigation size={14} className="text-primary" /> Live Fleet Status</h3>
             <div className="grid grid-cols-3 gap-3">
               {data.ambulances.map((a: any) => (
-                <div key={a._id} className="border border-border p-3 rounded hover:border-primary transition-colors cursor-pointer group">
+                <div key={a.id} className="border border-border p-3 rounded hover:border-primary transition-colors cursor-pointer group">
                   <div className="flex justify-between items-start mb-2">
                     <div className="bg-primary/10 p-2 rounded"><Truck size={18} className="text-primary" /></div>
                     <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(a.isActive ? 'Available' : 'Maintenance')}`}>
@@ -248,9 +248,9 @@ const Ambulance = () => {
             <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Clock size={14} className="text-hms-info" /> Active Requests</h3>
             <div className="space-y-2">
               {data.trips.filter((t: any) => t.status !== 'Completed' && t.status !== 'Cancelled').map((t: any) => (
-                <div key={t._id} className="bg-primary/5 border-l-2 border-primary p-2">
+                <div key={t.id} className="bg-primary/5 border-l-2 border-primary p-2">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-mono text-[9px] font-bold">#{t._id.slice(-4).toUpperCase()}</span>
+                    <span className="font-mono text-[9px] font-bold">#{t.id.slice(-4).toUpperCase()}</span>
                     <span className="text-[8px] bg-primary text-white px-1 py-0.5 rounded uppercase font-bold">{t.status}</span>
                   </div>
                   <p className="text-[10px] font-bold">{t.patientId?.patientName}</p>
@@ -366,7 +366,7 @@ const Ambulance = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border w-full max-w-md shadow-2xl">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Truck size={16} className="text-primary" /> {selectedItem?._id ? 'Edit Vehicle' : 'Add New Vehicle'}</h3>
+              <h3 className="text-sm font-bold flex items-center gap-2"><Truck size={16} className="text-primary" /> {selectedItem?.id ? 'Edit Vehicle' : 'Add New Vehicle'}</h3>
               <button onClick={() => setShowModal(null)}><X size={18} /></button>
             </div>
             <form onSubmit={handleSaveAmbulance} className="p-4 space-y-4">
@@ -386,9 +386,9 @@ const Ambulance = () => {
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Assign Driver</label>
-                <select className="hms-select w-full" value={selectedItem?.driverId?._id || selectedItem?.driverId} onChange={e => setSelectedItem({...selectedItem, driverId: e.target.value})}>
+                <select className="hms-select w-full" value={selectedItem?.driverId?.id || selectedItem?.driverId} onChange={e => setSelectedItem({...selectedItem, driverId: e.target.value})}>
                   <option value="">-- Select Driver --</option>
-                  {data.drivers.map((d: any) => <option key={d._id} value={d._id}>{d.name} ({d.phone})</option>)}
+                  {data.drivers.map((d: any) => <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>)}
                 </select>
               </div>
               <div>
@@ -422,7 +422,7 @@ const Ambulance = () => {
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Ambulance</label>
                   <select className="hms-select w-full" required value={selectedItem?.ambulanceId} onChange={e => setSelectedItem({...selectedItem, ambulanceId: e.target.value})}>
                     <option value="">-- Select --</option>
-                    {data.ambulances.filter((a: any) => a.isActive).map((a: any) => <option key={a._id} value={a._id}>{a.vehicleNumber} ({a.type})</option>)}
+                    {data.ambulances.filter((a: any) => a.isActive).map((a: any) => <option key={a.id} value={a.id}>{a.vehicleNumber} ({a.type})</option>)}
                   </select>
                 </div>
                 <div>
@@ -437,11 +437,11 @@ const Ambulance = () => {
               <div>
                 <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Patient</label>
                 <select className="hms-select w-full" required value={selectedItem?.patientId} onChange={e => {
-                  const patient = data.patients.find((p: any) => p._id === e.target.value);
+                  const patient = data.patients.find((p: any) => p.id === e.target.value);
                   setSelectedItem({...selectedItem, patientId: e.target.value, visitId: patient?.currentVisitId || '65f1a2b3c4d5e6f7a8b9c0d1'}); // Mock visit if not found
                 }}>
                   <option value="">-- Select Patient --</option>
-                  {data.patients.map((p: any) => <option key={p._id} value={p._id}>{p.patientName} ({p.patientID})</option>)}
+                  {data.patients.map((p: any) => <option key={p.id} value={p.id}>{p.patientName} ({p.patientID})</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -477,7 +477,7 @@ const Ambulance = () => {
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Vehicle</label>
                   <select className="hms-select w-full" required value={selectedItem?.ambulanceId} onChange={e => setSelectedItem({...selectedItem, ambulanceId: e.target.value})}>
                     <option value="">-- Select --</option>
-                    {data.ambulances.map((a: any) => <option key={a._id} value={a._id}>{a.vehicleNumber}</option>)}
+                    {data.ambulances.map((a: any) => <option key={a.id} value={a.id}>{a.vehicleNumber}</option>)}
                   </select>
                 </div>
                 <div>

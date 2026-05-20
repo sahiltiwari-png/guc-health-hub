@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Droplets, Users, Clock, CheckCircle2, AlertTriangle, ThermometerSun, Search, Printer, Eye, Plus, Edit, Trash2, RefreshCw, X } from 'lucide-react';
-import { createBloodComponent, createBloodDonation, createBloodDonor, createBloodInventory, createBloodRequest, deleteBloodDonor, deleteBloodInventory, deleteBloodRequest, getBloodDonors, getBloodInventory, getBloodRequests, issueBlood, listBloodComponents, listBloodDonations, listBloodDonors, listBloodGroups, listBloodInventory, listBloodRequests, getAutoPatients, listUsers, updateBloodDonor, updateBloodInventoryStatus, updateBloodRequest, updateBloodRequestStatus } from "@/api/apiService";
+import { createBloodComponent, createBloodDonation, createBloodDonor, createBloodInventory, createBloodRequest, deleteBloodDonor, deleteBloodInventory, deleteBloodRequest, getBloodDonors, getBloodInventory, getBloodRequests, issueBlood, listBloodComponents, listBloodDonations, listBloodDonors, listBloodGroups, listBloodInventory, listBloodRequests, getAutoPatients, listUsers, updateBloodDonor, updateBloodInventoryStatus, updateBloodRequest, updateBloodRequestStatus, extractArray } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 const statusColor = (s: string) => {
@@ -62,7 +62,7 @@ const BloodBank = () => {
     setLoading(true);
     try {
       const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes] = await Promise.all([
-        listBloodInventory(),
+        getBloodInventory(),
         listBloodRequests(),
         listBloodDonors(),
         listBloodDonations(),
@@ -73,14 +73,14 @@ const BloodBank = () => {
       ]);
 
       setData({
-        inventory: invRes.data?.data || invRes.data || [],
-        requests: reqRes.data?.data || reqRes.data || [],
-        donors: donorRes.data?.data || donorRes.data || [],
-        donations: donRes.data?.data || donRes.data || [],
-        groups: grpRes.data?.data || grpRes.data || [],
-        components: compRes.data?.data || compRes.data || [],
-        patients: patRes.data?.data || patRes.data || [],
-        doctors: docRes.data?.data || docRes.data || []
+        inventory: extractArray(invRes),
+        requests: extractArray(reqRes),
+        donors: extractArray(donorRes),
+        donations: extractArray(donRes),
+        groups: extractArray(grpRes),
+        components: extractArray(compRes),
+        patients: extractArray(patRes),
+        doctors: extractArray(docRes)
       });
     } catch (error) {
       console.error('Error fetching blood bank data:', error);
@@ -119,8 +119,8 @@ const BloodBank = () => {
   const handleRegisterDonor = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (selectedItem._id) {
-        await updateBloodDonor(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        await updateBloodDonor(selectedItem.id, selectedItem);
         toast({ title: 'Success', description: 'Donor updated successfully' });
       } else {
         await createBloodDonor(selectedItem);
@@ -195,7 +195,7 @@ const BloodBank = () => {
       const res = await createBloodComponent(selectedItem);
       // After component is created, add it to inventory
       await createBloodInventory({
-        componentId: res.data._id,
+        componentId: res.data.id,
         bloodGroup: selectedItem.bloodGroup
       });
       toast({ title: 'Success', description: 'Component created and added to inventory' });
@@ -213,7 +213,7 @@ const BloodBank = () => {
   
   // Aggregate stock by group
   const stockByGroup = data.groups.map((g: any) => {
-    const items = data.inventory.filter((i: any) => i.bloodGroup?._id === g._id && i.currentStatus === 'Available');
+    const items = data.inventory.filter((i: any) => i.bloodGroup?.id === g.id && i.currentStatus === 'Available');
     return {
       name: g.name,
       total: items.length,
@@ -316,7 +316,7 @@ const BloodBank = () => {
                     i.componentId?.componentType.toLowerCase().includes(search.toLowerCase()) ||
                     i.currentStatus.toLowerCase().includes(search.toLowerCase())
                   ).map((i: any) => (
-                    <tr key={i._id}>
+                    <tr key={i.id}>
                       <td className="font-mono text-xs font-bold">{i.componentId?.donationId?.bagNumber || 'N/A'}</td>
                       <td className="font-bold text-primary">{i.bloodGroup?.name}</td>
                       <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{i.componentId?.componentType}</span></td>
@@ -324,7 +324,7 @@ const BloodBank = () => {
                       <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.currentStatus)}`}>{i.currentStatus}</span></td>
                       <td>
                         <div className="flex gap-2">
-                          <select className="hms-select text-[10px] py-0.5" value={i.currentStatus} onChange={(e) => handleUpdateInventoryStatus(i._id, e.target.value)}>
+                          <select className="hms-select text-[10px] py-0.5" value={i.currentStatus} onChange={(e) => handleUpdateInventoryStatus(i.id, e.target.value)}>
                             <option value="Available">Available</option>
                             <option value="Reserved">Reserved</option>
                             <option value="Issued">Issued</option>
@@ -333,7 +333,7 @@ const BloodBank = () => {
                           </select>
                           <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => {
                             if (confirm('Delete this inventory record?')) {
-                              deleteBloodInventory(i._id).then(() => fetchData());
+                              deleteBloodInventory(i.id).then(() => fetchData());
                             }
                           }}><Trash2 size={14} /></button>
                         </div>
@@ -353,7 +353,7 @@ const BloodBank = () => {
                     d.bagNumber.toLowerCase().includes(search.toLowerCase()) ||
                     `${d.donorId?.firstName} ${d.donorId?.lastName}`.toLowerCase().includes(search.toLowerCase())
                   ).map((d: any) => (
-                    <tr key={d._id}>
+                    <tr key={d.id}>
                       <td className="font-mono text-xs font-bold">{d.donationNumber}</td>
                       <td>{d.donorId?.firstName} {d.donorId?.lastName}</td>
                       <td className="font-mono text-xs font-bold">{d.bagNumber}</td>
@@ -362,7 +362,7 @@ const BloodBank = () => {
                       <td>{d.quantityML} ML</td>
                       <td>
                         <button className="hms-btn-primary text-[10px] px-2 py-0.5 flex items-center gap-1" onClick={() => {
-                          setSelectedItem({ donationId: d._id, bloodGroup: d.bloodGroup?._id, componentType: 'Whole Blood', quantityML: d.quantityML, expiryDate: new Date(Date.now() + 35*24*60*60*1000).toISOString().split('T')[0] });
+                          setSelectedItem({ donationId: d.id, bloodGroup: d.bloodGroup?.id, componentType: 'Whole Blood', quantityML: d.quantityML, expiryDate: new Date(Date.now() + 35*24*60*60*1000).toISOString().split('T')[0] });
                           setShowModal('component');
                         }}><Plus size={10} /> Add Component</button>
                       </td>
@@ -377,7 +377,7 @@ const BloodBank = () => {
                 <thead><tr><th>Donor ID</th><th>Name</th><th>Sex</th><th>Group</th><th>Phone</th><th>Last Donation</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.donors.filter((d: any) => `${d.firstName} ${d.lastName}`.toLowerCase().includes(search.toLowerCase()) || d.donorId.toLowerCase().includes(search.toLowerCase())).map((d: any) => (
-                    <tr key={d._id}>
+                    <tr key={d.id}>
                       <td className="font-mono text-xs font-bold">{d.donorId}</td>
                       <td className="font-semibold">{d.firstName} {d.lastName}</td>
                       <td>{d.gender}</td>
@@ -392,9 +392,9 @@ const BloodBank = () => {
                             setSelectedItem(d);
                             setShowModal('donor');
                           }}><Edit size={14} /></button>
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteDonor(d._id)}><Trash2 size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteDonor(d.id)}><Trash2 size={14} /></button>
                           <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Record Donation" onClick={() => {
-                            setSelectedItem({ donorId: d._id, donationNumber: `DN-${Date.now().toString().slice(-4)}`, donationDate: new Date().toISOString().split('T')[0], bagNumber: '', bloodGroup: d.bloodGroup?._id });
+                            setSelectedItem({ donorId: d.id, donationNumber: `DN-${Date.now().toString().slice(-4)}`, donationDate: new Date().toISOString().split('T')[0], bagNumber: '', bloodGroup: d.bloodGroup?.id });
                             setShowModal('donation');
                           }}><Plus size={14} /></button>
                         </div>
@@ -414,8 +414,8 @@ const BloodBank = () => {
                     r.bloodGroup?.name.toLowerCase().includes(search.toLowerCase()) ||
                     r.status.toLowerCase().includes(search.toLowerCase())
                   ).map((r: any) => (
-                    <tr key={r._id}>
-                      <td className="font-mono text-[10px] font-bold">{r._id.slice(-6).toUpperCase()}</td>
+                    <tr key={r.id}>
+                      <td className="font-mono text-[10px] font-bold">{r.id.slice(-6).toUpperCase()}</td>
                       <td>
                         <div className="font-bold text-sm">{r.patientId?.patientName || r.patientId?.name || 'Unknown'}</div>
                         <div className="text-[10px] text-muted-foreground uppercase font-bold">UHID: {r.patientId?.uhid || r.patientId?.patientID || 'N/A'}</div>
@@ -430,22 +430,22 @@ const BloodBank = () => {
                         <div className="flex gap-2">
                           {r.status === 'Pending' && (
                             <>
-                              <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Approve" onClick={() => handleUpdateStatus(r._id, 'Approved')}><CheckCircle2 size={14} /></button>
-                              <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Reject" onClick={() => handleUpdateStatus(r._id, 'Rejected')}><X size={14} /></button>
+                              <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Approve" onClick={() => handleUpdateStatus(r.id, 'Approved')}><CheckCircle2 size={14} /></button>
+                              <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Reject" onClick={() => handleUpdateStatus(r.id, 'Rejected')}><X size={14} /></button>
                             </>
                           )}
                           {r.status === 'Approved' && (
                             <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
-                              const availableBags = data.inventory.filter((i: any) => i.bloodGroup?._id === r.bloodGroup?._id && i.componentId?.componentType === r.componentType && i.currentStatus === 'Available');
+                              const availableBags = data.inventory.filter((i: any) => i.bloodGroup?.id === r.bloodGroup?.id && i.componentId?.componentType === r.componentType && i.currentStatus === 'Available');
                               if (availableBags.length === 0) {
                                 toast({ title: 'Stock Error', description: 'No available units matching this request', variant: 'destructive' });
                                 return;
                               }
-                              setSelectedItem({ requestId: r._id, inventoryId: availableBags[0]._id, componentId: availableBags[0].componentId?._id, units: r.quantityUnits, bloodGroup: r.bloodGroup?._id, componentType: r.componentType });
+                              setSelectedItem({ requestId: r.id, inventoryId: availableBags[0].id, componentId: availableBags[0].componentId?.id, units: r.quantityUnits, bloodGroup: r.bloodGroup?.id, componentType: r.componentType });
                               setShowModal('issue');
                             }}>Issue Blood</button>
                           )}
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteRequest(r._id)}><Trash2 size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteRequest(r.id)}><Trash2 size={14} /></button>
                           <Printer size={14} className="text-muted-foreground cursor-pointer hover:text-primary transition-colors" />
                         </div>
                       </td>
@@ -460,7 +460,7 @@ const BloodBank = () => {
                 <thead><tr><th>Bag Number</th><th>Group</th><th>Component</th><th>Quantity</th><th>Expiry Date</th><th>Status</th></tr></thead>
                 <tbody>
                   {data.components.filter((c: any) => new Date(c.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).map((c: any) => (
-                    <tr key={c._id}>
+                    <tr key={c.id}>
                       <td className="font-mono text-xs font-bold">{c.donationId?.bagNumber || 'N/A'}</td>
                       <td className="font-bold text-primary">{c.donationId?.bloodGroup?.name || 'N/A'}</td>
                       <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{c.componentType}</span></td>
@@ -489,7 +489,7 @@ const BloodBank = () => {
                 <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Patient</label>
                 <select className="hms-select w-full" required value={selectedItem?.patientId} onChange={e => setSelectedItem({...selectedItem, patientId: e.target.value})}>
                   <option value="">-- Choose Patient --</option>
-                  {data.patients.map((p: any) => <option key={p._id} value={p._id}>{p.patientName} ({p.uhid || p.patientID})</option>)}
+                  {data.patients.map((p: any) => <option key={p.id} value={p.id}>{p.patientName} ({p.uhid || p.patientID})</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -497,7 +497,7 @@ const BloodBank = () => {
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Blood Group</label>
                   <select className="hms-select w-full" required value={selectedItem?.bloodGroup} onChange={e => setSelectedItem({...selectedItem, bloodGroup: e.target.value})}>
                     <option value="">-- Select --</option>
-                    {data.groups.map((g: any) => <option key={g._id} value={g._id}>{g.name}</option>)}
+                    {data.groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -555,7 +555,7 @@ const BloodBank = () => {
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Blood Group</label>
                   <select className="hms-select w-full" required value={selectedItem?.bloodGroup} onChange={e => setSelectedItem({...selectedItem, bloodGroup: e.target.value})}>
                     <option value="">-- Select --</option>
-                    {data.groups.map((g: any) => <option key={g._id} value={g._id}>{g.name}</option>)}
+                    {data.groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -565,7 +565,7 @@ const BloodBank = () => {
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
-                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">{selectedItem?._id ? 'Update' : 'Register'} Donor</button>
+                <button type="submit" className="hms-btn-primary flex-1 shadow-lg shadow-primary/20">{selectedItem?.id ? 'Update' : 'Register'} Donor</button>
               </div>
             </form>
           </div>
@@ -621,12 +621,12 @@ const BloodBank = () => {
               <div>
                 <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Select Inventory Bag</label>
                 <select className="hms-select w-full" required value={selectedItem?.inventoryId} onChange={e => {
-                  const inv = data.inventory.find((i: any) => i._id === e.target.value);
-                  setSelectedItem({...selectedItem, inventoryId: e.target.value, componentId: inv?.componentId?._id});
+                  const inv = data.inventory.find((i: any) => i.id === e.target.value);
+                  setSelectedItem({...selectedItem, inventoryId: e.target.value, componentId: inv?.componentId?.id});
                 }}>
                   <option value="">-- Select Available Bag --</option>
-                  {data.inventory.filter((i: any) => i.bloodGroup?._id === selectedItem?.bloodGroup && i.componentId?.componentType === selectedItem?.componentType && i.currentStatus === 'Available').map((i: any) => (
-                    <option key={i._id} value={i._id}>{i.componentId?.donationId?.bagNumber} - {i.bloodGroup?.name} ({i.componentId?.componentType})</option>
+                  {data.inventory.filter((i: any) => i.bloodGroup?.id === selectedItem?.bloodGroup && i.componentId?.componentType === selectedItem?.componentType && i.currentStatus === 'Available').map((i: any) => (
+                    <option key={i.id} value={i.id}>{i.componentId?.donationId?.bagNumber} - {i.bloodGroup?.name} ({i.componentId?.componentType})</option>
                   ))}
                 </select>
               </div>

@@ -23,10 +23,10 @@ const Leave = () => {
     setLoading(true);
     try {
       const mockLeaves = [
-        { _id: '1', leaveType: 'Sick', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date() },
+        { id: '1', leaveType: 'Sick', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date() },
       ];
       const mockRequests = [
-        { _id: '1', userId: { name: 'Nurse Jane', employee_id: 'EMP002' }, leaveType: 'Casual', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date() },
+        { id: '1', userId: { name: 'Nurse Jane', employee_id: 'EMP002' }, leaveType: 'Casual', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date() },
       ];
       if (tab === 'my-leaves') {
         setLeaves(mockLeaves);
@@ -48,7 +48,7 @@ const Leave = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const newLeave = { _id: Date.now().toString(), ...formData, status: 'Pending', totalDays: 1, createdAt: new Date() };
+      const newLeave = { id: Date.now().toString(), ...formData, status: 'Pending', totalDays: 1, createdAt: new Date() };
       setLeaves([newLeave, ...leaves]);
       toast({ title: 'Success', description: 'Leave application submitted' });
       setShowModal(null);
@@ -65,7 +65,7 @@ const Leave = () => {
     
     setLoading(true);
     try {
-      setRequests(requests.map(r => r._id === id ? { ...r, status } : r));
+      setRequests(requests.map(r => r.id === id ? { ...r, status } : r));
       toast({ title: 'Success', description: `Leave ${status.toLowerCase()} successfully` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Processing failed', variant: 'destructive' });
@@ -134,7 +134,7 @@ const Leave = () => {
             </thead>
             <tbody>
               {leaves.map((l: any) => (
-                <tr key={l._id}>
+                <tr key={l.id}>
                   <td className="font-bold text-primary">{l.leaveType}</td>
                   <td className="text-xs">{new Date(l.startDate).toLocaleDateString()}</td>
                   <td className="text-xs">{new Date(l.endDate).toLocaleDateString()}</td>
@@ -175,7 +175,7 @@ const Leave = () => {
             </thead>
             <tbody>
               {requests.map((r: any) => (
-                <tr key={r._id}>
+                <tr key={r.id}>
                   <td>
                     <div className="font-bold text-sm">{r.userId?.name}</div>
                     <div className="text-[10px] text-muted-foreground">ID: {r.userId?.employee_id}</div>
@@ -193,10 +193,10 @@ const Leave = () => {
                   <td>
                     {r.status === 'Pending' ? (
                       <div className="flex gap-1">
-                        <button className="hms-btn-success p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-hms-success text-hms-success-foreground" onClick={() => handleProcessLeave(r._id, 'Approved')}>
+                        <button className="hms-btn-success p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-hms-success text-hms-success-foreground" onClick={() => handleProcessLeave(r.id, 'Approved')}>
                           <CheckCircle size={12} /> Appr.
                         </button>
-                        <button className="hms-btn-destructive p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-destructive text-destructive-foreground" onClick={() => handleProcessLeave(r._id, 'Rejected')}>
+                        <button className="hms-btn-destructive p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-destructive text-destructive-foreground" onClick={() => handleProcessLeave(r.id, 'Rejected')}>
                           <XCircle size={12} /> Rej.
                         </button>
                       </div>

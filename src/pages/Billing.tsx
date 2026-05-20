@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCoreReceipts } from "@/api/apiService";
+import { getBillingInvoices, extractArray } from "@/api/apiService";
 import { Receipt, Search, Printer, Eye, Download, Filter, RefreshCw } from 'lucide-react';
 
 const Billing = () => {
@@ -10,9 +10,9 @@ const Billing = () => {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const res = await getCoreReceipts();
+      const res = await getBillingInvoices();
       if (res.ok) {
-        setBills(res.data?.data || res.data || []);
+        setBills(extractArray(res));
       }
     } catch (error) {
       console.error('Error fetching bills:', error);
@@ -72,7 +72,7 @@ const Billing = () => {
               <tr><td colSpan={7} className="text-center py-8">Loading receipts...</td></tr>
             ) : filteredBills.length > 0 ? (
               filteredBills.map((b) => (
-                <tr key={b._id}>
+                <tr key={b.id}>
                   <td className="font-mono text-[10px] font-bold">{b.receiptNo}</td>
                   <td>{new Date(b.createdAt).toLocaleDateString()}</td>
                   <td className="font-semibold">{b.patientId?.patientName || 'Walk-in'}</td>

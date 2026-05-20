@@ -13,7 +13,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { 
   getAutoAssetsMasters, getAutoUsers, getAutoClinicals, 
-  getAutoDashboardDoctor, getAutoDashboardPatient 
+  getAutoDashboardDoctor, getAutoDashboardPatient,
+  getAutoAdminBranches, getAutoIpdBeds, getAutoBillingInvoicesSearch,
+  getAutoAdminUsersSearch, getAutoAdminUsers, extractArray, apiRequest,
+  getDashboardStats
 } from "@/api/apiService";
 
 type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
@@ -89,6 +92,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [role, setRole] = useState<UserRole>('RECEPTIONIST');
   const [stats, setStats] = useState({
+    hospitals: 0,
     users: 0,
     patients: 0,
     assets: 0,
@@ -111,51 +115,65 @@ const Dashboard = () => {
       console.log('[Dashboard] Fetching data for role:', role);
       
       // Role-specific data fetching
-      if (role === 'DOCTOR' && user._id) {
-        const docRes = await getAutoDashboardDoctor(user._id);
+      if (role === 'DOCTOR' && user.id) {
+        const docRes = await getAutoDashboardDoctor(user.id);
         if (docRes.ok && docRes.data) {
           setStats(prev => ({
             ...prev,
             appointments: docRes.data.appointments?.length || 0,
             pendingTasks: docRes.data.pendingProcedures?.length || 0
           }));
-        } else if (!docRes.ok) {
-          toast.error("Failed to fetch doctor dashboard data");
         }
       }
 
-      // General data for all dashboards
-      const [u, p, a, v] = await Promise.all([
-        getAutoUsers(), 
-        getAutoClinicals(), 
-        getAutoAssetsMasters(),
-        getAutoClinicals({ status: 'Waiting' })
-      ]);
-      
-      if (!u.ok || !p.ok || !a.ok) {
-        console.warn('[Dashboard] Some API calls failed');
+      // Super Admin specific data fetching
+      if (role === 'SUPER_ADMIN') {
+        const saRes = await getDashboardStats();
+        if (saRes.ok && saRes.data) {
+          const saData = saRes.data;
+          setStats(prev => ({
+            ...prev,
+            hospitals: saData.stats?.totalHospitals || 0,
+            users: saData.stats?.totalUsers || 0,
+            patients: saData.stats?.totalPatients || 0,
+            assets: saData.stats?.totalAssets || 0,
+            revenue: parseFloat((saData.stats?.revenue || '₹0L').replace('₹', '').replace('L', '')) || 0,
+            appointments: saData.stats?.appointments || 0,
+            activeBeds: parseInt((saData.stats?.activeBeds || '0/0').split('/')[0]) || 0,
+            staffOnDuty: saData.stats?.staffOnDuty || 0,
+          }));
+        }
       }
 
+      // General fallback data
+      const results = await Promise.allSettled([
+        getAutoAdminUsers(), 
+        getAutoClinicals(), 
+        getAutoAssetsMasters(),
+        getAutoAdminBranches(),
+        getAutoIpdBeds(),
+        getAutoBillingInvoicesSearch({ status: 'PAID' }),
+      ]);
+      
+      const [u, p, a, b, beds, billing] = results.map(r => 
+        r.status === 'fulfilled' ? r.value : { ok: false, data: null }
+      );
+
+      // Only update stats if they weren't already updated by the specific dashboard call
       setStats(prev => ({
         ...prev,
-        users: u.ok ? (u.data?.total || u.data?.length || 0) : 0,
-        patients: p.ok ? (p.data?.total || p.data?.length || 0) : 0,
-        assets: a.ok ? (a.data?.total || a.data?.length || 0) : 0,
-        appointments: role === 'SUPER_ADMIN' ? (v.ok ? (v.data?.total || v.data?.length || 0) : 0) : prev.appointments,
+        users: role !== 'SUPER_ADMIN' && u.ok ? (u.data?.totalElements || u.data?.total || u.data?.length || 0) : prev.users,
+        patients: role !== 'SUPER_ADMIN' && p.ok ? (p.data?.totalElements || p.data?.total || p.data?.length || 0) : prev.patients,
+        hospitals: role !== 'SUPER_ADMIN' && b.ok ? (b.data?.totalElements || b.data?.total || b.data?.length || 0) : prev.hospitals,
       }));
 
       if (u.ok && u.data) {
-        const users = Array.isArray(u.data) ? u.data : (u.data.data || []);
+        const users = extractArray(u);
         setRecentRegistrations(users.slice(0, 4).map((user: any) => [
-          'Samrat', 'Noida', user.name || user.username, user.role || 'USER', 'Today'
+          'Samrat', user.branch?.name || 'Noida', user.name || user.username || 'N/A', user.role || 'USER', 
+          user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Today'
         ]));
       }
-
-      // Mock audit logs
-      setAuditLogs([
-        ['09:45 AM', 'admin', 'Login', '192.168.1.10'],
-        ['09:42 AM', 'dr.sharma', 'Update Patient', '192.168.1.15'],
-      ]);
 
     } catch (e: any) { 
       console.error('[Dashboard] Error fetching data:', e);
@@ -181,7 +199,7 @@ const Dashboard = () => {
   const SuperAdminDashboard = () => (
     <div className="space-y-3">
       <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Total Hospitals" value="1" icon={Building} trend={{ value: '+0', up: true }} />
+        <StatCard label="Total Hospitals" value={loading ? '...' : stats.hospitals} icon={Building} trend={{ value: '+0', up: true }} />
         <StatCard label="Total Users" value={loading ? '...' : stats.users} icon={Users} trend={{ value: '+0', up: true }} />
         <StatCard label="Total Patients" value={loading ? '...' : stats.patients} icon={Users} trend={{ value: '+0', up: true }} />
         <StatCard label="Total Assets" value={loading ? '...' : stats.assets} icon={Package} trend={{ value: '+0', up: true }} />

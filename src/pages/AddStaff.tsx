@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Briefcase, GraduationCap, Lock, Calendar, MapPin, IndianRupee, ShieldCheck, RefreshCw } from 'lucide-react';
-import { getAutoUsers, getAutoDepartments, createRegister } from "@/api/apiService";
+import { getAutoUsers, getAutoDepartments, createRegister, extractArray } from "@/api/apiService";
 
 const AddStaff = ({ onAdd, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -33,7 +33,7 @@ const AddStaff = ({ onAdd, onCancel }) => {
           getAutoUsers()
         ]);
         
-        if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
+        if (deptRes.ok) setDepartments(extractArray(deptRes));
         
         if (usersRes.ok) {
           const allUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data.data || []);
@@ -42,11 +42,11 @@ const AddStaff = ({ onAdd, onCancel }) => {
 
         // Mock roles as they are usually fixed enums
         setRoles([
-          { _id: 'DOCTOR', name: 'Doctor' },
-          { _id: 'NURSE', name: 'Nurse' },
-          { _id: 'RECEPTIONIST', name: 'Receptionist' },
-          { _id: 'PHARMACIST', name: 'Pharmacist' },
-          { _id: 'LAB_TECHNICIAN', name: 'Lab Technician' },
+          { id: 'DOCTOR', name: 'Doctor' },
+          { id: 'NURSE', name: 'Nurse' },
+          { id: 'RECEPTIONIST', name: 'Receptionist' },
+          { id: 'PHARMACIST', name: 'Pharmacist' },
+          { id: 'LAB_TECHNICIAN', name: 'Lab Technician' },
         ]);
       } catch (err) {
         console.error("Error fetching staff initial data:", err);
@@ -130,21 +130,21 @@ const AddStaff = ({ onAdd, onCancel }) => {
                    <Briefcase size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                    <select name="role" value={formData.role} onChange={handleChange} className="hms-select pl-9 w-full" required>
                       <option value="">Select Role</option>
-                      {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                    </select>
                 </div>
                 <div className="relative">
                    <Briefcase size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                    <select name="department_id" value={formData.department_id} onChange={handleChange} className="hms-select pl-9 w-full" required>
                       <option value="">Select Department</option>
-                      {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                    </select>
                 </div>
                 <div className="relative">
                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                    <select name="managerId" value={formData.managerId} onChange={handleChange} className="hms-select pl-9 w-full">
                       <option value="">Reports To (Manager)</option>
-                      {managers.map(m => <option key={m._id} value={m._id}>{m.name} ({typeof m.role === 'object' ? m.role?.name : m.role})</option>)}
+                      {managers.map(m => <option key={m.id} value={m.id}>{m.name} ({typeof m.role === 'object' ? m.role?.name : m.role})</option>)}
                    </select>
                 </div>
                 <div className="relative">

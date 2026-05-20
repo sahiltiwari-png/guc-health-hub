@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, MapPin, Smartphone, RefreshCw, CheckCircle, XCircle, AlertCircle, Play, Square } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { getHRAttendance, extractArray } from "@/api/apiService";
 
 const Attendance = () => {
   const { toast } = useToast();
@@ -12,16 +13,20 @@ const Attendance = () => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const mockHistory = [
-        { _id: '1', date: new Date(), clockIn: { time: new Date(Date.now() - 3600000 * 8), device: 'Chrome' }, status: 'Present', workHours: 8 },
-        { _id: '2', date: new Date(Date.now() - 86400000), clockIn: { time: new Date(Date.now() - 3600000 * 32), device: 'Firefox' }, clockOut: { time: new Date(Date.now() - 3600000 * 24) }, status: 'Present', workHours: 8 },
-      ];
-      setHistory(mockHistory);
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayRec = mockHistory.find((r: any) => new Date(r.date).getTime() === today.getTime());
-      setTodayRecord(todayRec);
+      const res = await getHRAttendance();
+      if (res.ok) {
+        const data = extractArray(res);
+        setHistory(data);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayRec = data.find((r: any) => {
+          const rDate = new Date(r.date);
+          rDate.setHours(0, 0, 0, 0);
+          return rDate.getTime() === today.getTime();
+        });
+        setTodayRecord(todayRec);
+      }
     } catch (error) {
       console.error('Error fetching attendance:', error);
     } finally {
@@ -38,7 +43,7 @@ const Attendance = () => {
   const handleClockIn = async () => {
     setLoading(true);
     try {
-      const newRecord = { _id: Date.now().toString(), date: new Date(), clockIn: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, status: 'Present' };
+      const newRecord = { id: Date.now().toString(), date: new Date(), clockIn: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, status: 'Present' };
       setHistory([newRecord, ...history]);
       setTodayRecord(newRecord);
       toast({ title: 'Success', description: 'Clocked in successfully' });
@@ -53,7 +58,7 @@ const Attendance = () => {
     setLoading(true);
     try {
       const updatedRecord = { ...todayRecord, clockOut: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, workHours: 8 };
-      setHistory(history.map(h => h._id === updatedRecord._id ? updatedRecord : h));
+      setHistory(history.map(h => h.id === updatedRecord.id ? updatedRecord : h));
       setTodayRecord(updatedRecord);
       toast({ title: 'Success', description: 'Clocked out successfully' });
     } catch (error: any) {
@@ -169,7 +174,7 @@ const Attendance = () => {
           </thead>
           <tbody>
             {history.map((h: any) => (
-              <tr key={h._id}>
+              <tr key={h.id}>
                 <td className="font-bold">{new Date(h.date).toLocaleDateString()}</td>
                 <td className="font-mono text-xs">{h.clockIn?.time ? new Date(h.clockIn.time).toLocaleTimeString() : '-'}</td>
                 <td className="font-mono text-xs">{h.clockOut?.time ? new Date(h.clockOut.time).toLocaleTimeString() : '-'}</td>

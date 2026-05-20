@@ -69,8 +69,8 @@ const Vitals = () => {
   const handleCreateVitals = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (selectedItem._id) {
-        await updateVisitVitals(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        await updateVisitVitals(selectedItem.id, selectedItem);
         toast({ title: 'Success', description: 'Vitals updated' });
       } else {
         await createVisitVitals(selectedItem);
@@ -165,7 +165,7 @@ const Vitals = () => {
                 <thead><tr><th>Patient</th><th>Department</th><th>Recorded At</th><th>Vitals Summary</th><th>Recorded By</th><th>Actions</th></tr></thead>
                 <tbody>
                   {(Array.isArray(data.visitVitals) ? data.visitVitals : []).filter((vv: any) => vv.visitId?.patientId?.patientName?.toLowerCase().includes(search.toLowerCase())).map((vv: any) => (
-                    <tr key={vv._id}>
+                    <tr key={vv.id}>
                       <td>
                         <div className="font-bold">{vv.visitId?.patientId?.patientName}</div>
                         <div className="text-[10px] text-muted-foreground">UHID: {vv.visitId?.patientId?.uhid}</div>
@@ -189,7 +189,7 @@ const Vitals = () => {
                             setSelectedItem(vv);
                             setShowModal('vitals');
                           }}><Eye size={14} /></button>
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteVitals(vv._id)}><Trash2 size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteVitals(vv.id)}><Trash2 size={14} /></button>
                           <button className="text-muted-foreground hover:bg-muted p-1 rounded" onClick={() => window.print()}><Printer size={14} /></button>
                           <button className="text-muted-foreground hover:bg-muted p-1 rounded"><History size={14} /></button>
                         </div>
@@ -205,7 +205,7 @@ const Vitals = () => {
                 <thead><tr><th>Vital Name</th><th>Unit</th><th>Data Type</th><th>Normal Range</th><th>Status</th></tr></thead>
                 <tbody>
                   {(Array.isArray(data.globalVitals) ? data.globalVitals : []).map((gv: any) => (
-                    <tr key={gv._id}>
+                    <tr key={gv.id}>
                       <td className="font-bold flex items-center gap-2">
                         {getVitalIcon(gv.name)} {gv.name}
                       </td>
@@ -222,7 +222,7 @@ const Vitals = () => {
             {tab === 'alerts' && (
               <div className="p-4 space-y-4">
                 {data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).map((vv: any) => (
-                  <div key={vv._id} className="border border-destructive/20 bg-destructive/5 p-3 rounded flex items-center justify-between">
+                  <div key={vv.id} className="border border-destructive/20 bg-destructive/5 p-3 rounded flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="text-destructive" size={20} />
                       <div>
@@ -252,32 +252,32 @@ const Vitals = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-card border border-border w-full max-w-2xl shadow-2xl rounded-sm">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Activity size={16} className="text-primary" /> {selectedItem?._id ? 'Update' : 'Record'} Patient Vitals</h3>
+              <h3 className="text-sm font-bold flex items-center gap-2"><Activity size={16} className="text-primary" /> {selectedItem?.id ? 'Update' : 'Record'} Patient Vitals</h3>
               <button onClick={() => setShowModal(null)}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreateVitals} className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Patient Visit</label>
-                  <select className="hms-select w-full" required value={selectedItem?.visitId?._id || selectedItem?.visitId} onChange={e => setSelectedItem({...selectedItem, visitId: e.target.value})} disabled={!!selectedItem?._id}>
+                  <select className="hms-select w-full" required value={selectedItem?.visitId?.id || selectedItem?.visitId} onChange={e => setSelectedItem({...selectedItem, visitId: e.target.value})} disabled={!!selectedItem?.id}>
                     <option value="">-- Select Patient Visit --</option>
                     {data.visits.map((v: any) => (
-                      <option key={v._id} value={v._id}>{v.patientId?.patientName} (UHID: {v.patientId?.uhid}) - {new Date(v.visitDate).toLocaleDateString()}</option>
+                      <option key={v.id} value={v.id}>{v.patientId?.patientName} (UHID: {v.patientId?.uhid}) - {new Date(v.visitDate).toLocaleDateString()}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Department</label>
-                  <select className="hms-select w-full" required value={selectedItem?.departmentId?._id || selectedItem?.departmentId} onChange={e => setSelectedItem({...selectedItem, departmentId: e.target.value})} disabled={!!selectedItem?._id}>
+                  <select className="hms-select w-full" required value={selectedItem?.departmentId?.id || selectedItem?.departmentId} onChange={e => setSelectedItem({...selectedItem, departmentId: e.target.value})} disabled={!!selectedItem?.id}>
                     <option value="">-- Select Department --</option>
-                    {data.departments.map((d: any) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                    {data.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-x-6 gap-y-4 bg-muted/10 p-4 rounded border border-border">
                 {data.globalVitals.map((gv: any) => (
-                  <div key={gv._id}>
+                  <div key={gv.id}>
                     <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 flex items-center justify-between">
                       <span>{gv.name} ({gv.unit})</span>
                       {selectedItem?.vitals?.[gv.name] && isAbnormal(gv.name, selectedItem.vitals[gv.name]) && (

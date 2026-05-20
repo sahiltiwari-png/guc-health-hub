@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Users, RefreshCw, UserPlus, Play, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { getAutoClinicals, getAutoDepartments, getAutoUsers, extractArray, updateById } from "@/api/apiService";
 
 const Queue = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [tokens, setTokens] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [doctors, setDoctors] = useState([]);
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
   const [filters, setFilters] = useState({
     roomId: '',
     status: '',
@@ -17,19 +18,19 @@ const Queue = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const mockTokens = [
-        { _id: '1', tokenNumber: 1, patientId: { patientName: 'Rajesh Kumar', uhid: 'UH001' }, doctorId: { name: 'Dr. Sharma' }, priority: 'Normal', tokenDate: new Date(), status: 'Issued' },
-        { _id: '2', tokenNumber: 2, patientId: { patientName: 'Priya Singh', uhid: 'UH002' }, doctorId: { name: 'Dr. Gupta' }, priority: 'Urgent', tokenDate: new Date(), status: 'Called' },
-      ];
-      const mockDepartments = [
-        { _id: '1', name: 'General Medicine' },
-      ];
-      const mockDoctors = [
-        { _id: '1', name: 'Dr. Sharma' },
-      ];
-      setTokens(mockTokens);
-      setDepartments(mockDepartments);
-      setDoctors(mockDoctors);
+      const queryParams: any = { status: filters.status || undefined };
+      if (filters.doctorId) queryParams.doctorId = filters.doctorId;
+
+      const [cRes, dRes, docRes] = await Promise.all([
+        getAutoClinicals(queryParams),
+        getAutoDepartments(),
+        getAutoUsers({ role: 'DOCTOR' })
+      ]);
+
+      if (cRes.ok) setTokens(extractArray(cRes));
+      if (dRes.ok) setDepartments(extractArray(dRes));
+      if (docRes.ok) setDoctors(extractArray(docRes));
+
     } catch (error) {
       console.error('Error fetching queue data:', error);
       toast({ title: 'Error', description: 'Failed to sync queue data', variant: 'destructive' });
@@ -44,8 +45,11 @@ const Queue = () => {
 
   const handleCall = async (id: string) => {
     try {
-      setTokens(tokens.map(t => t._id === id ? { ...t, status: 'Called' } : t));
-      toast({ title: 'Success', description: 'Patient called' });
+      const res = await updateById(id, { status: 'Called' });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Patient called' });
+        fetchData();
+      }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to call patient', variant: 'destructive' });
     }
@@ -53,8 +57,11 @@ const Queue = () => {
 
   const handleComplete = async (id: string) => {
     try {
-      setTokens(tokens.map(t => t._id === id ? { ...t, status: 'Completed' } : t));
-      toast({ title: 'Success', description: 'Visit completed' });
+      const res = await updateById(id, { status: 'Completed' });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Visit completed' });
+        fetchData();
+      }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to complete visit', variant: 'destructive' });
     }
@@ -79,14 +86,14 @@ const Queue = () => {
           <label className="text-[10px] font-bold uppercase text-muted-foreground">Department:</label>
           <select className="hms-select min-w-[150px]">
             <option value="">All Departments</option>
-            {departments.map((d: any) => <option key={d._id} value={d._id}>{d.name}</option>)}
+            {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
           <label className="text-[10px] font-bold uppercase text-muted-foreground">Doctor:</label>
           <select className="hms-select min-w-[150px]" value={filters.doctorId} onChange={e => setFilters({...filters, doctorId: e.target.value})}>
             <option value="">All Doctors</option>
-            {doctors.map((d: any) => <option key={d._id} value={d._id}>{d.name}</option>)}
+            {doctors.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -125,7 +132,7 @@ const Queue = () => {
           </thead>
           <tbody>
             {tokens.map((t: any) => (
-              <tr key={t._id}>
+              <tr key={t.id}>
                 <td className="font-mono font-bold text-primary">#{t.tokenNumber}</td>
                 <td className="font-semibold">{t.patientId?.patientName}</td>
                 <td className="text-xs">{t.patientId?.uhid}</td>
@@ -144,12 +151,12 @@ const Queue = () => {
                 <td>
                   <div className="flex gap-2">
                     {t.status === 'Issued' && (
-                      <button className="hms-btn-primary flex items-center gap-1 text-[10px] px-2 py-1" onClick={() => handleCall(t._id)}>
+                      <button className="hms-btn-primary flex items-center gap-1 text-[10px] px-2 py-1" onClick={() => handleCall(t.id)}>
                         <Play size={10} /> Call
                       </button>
                     )}
                     {t.status === 'Called' && (
-                      <button className="hms-btn-success flex items-center gap-1 text-[10px] px-2 py-1 bg-hms-success text-hms-success-foreground" onClick={() => handleComplete(t._id)}>
+                      <button className="hms-btn-success flex items-center gap-1 text-[10px] px-2 py-1 bg-hms-success text-hms-success-foreground" onClick={() => handleComplete(t.id)}>
                         <CheckCircle size={10} /> Complete
                       </button>
                     )}

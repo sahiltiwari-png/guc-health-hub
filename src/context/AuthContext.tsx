@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface User {
-  _id: string;
+  id: string;
   username?: string;
   email?: string;
   role: string;
+  roles?: string[];
   name: string;
   branch?: string;
   hospitalId?: string;
@@ -31,7 +32,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const login = (userData: User, token: string, hospitalId?: string, branchId?: string) => {
-    const fullUser = { ...userData, branch: currentBranch, hospitalId, branchId };
+    // Determine a single primary role string
+    let primaryRole = 'RECEPTIONIST';
+    if (userData.role && typeof userData.role === 'string') {
+      primaryRole = userData.role;
+    } else if (userData.role && (userData.role as any).name) {
+      primaryRole = (userData.role as any).name;
+    } else if (userData.roles && userData.roles.length > 0) {
+      const r = userData.roles[0];
+      primaryRole = typeof r === 'string' ? r : (r as any).name;
+    }
+
+    const fullUser = { ...userData, role: primaryRole, branch: currentBranch, hospitalId, branchId };
     setUser(fullUser);
     localStorage.setItem('hms_token', token);
     localStorage.setItem('hms_user', JSON.stringify(fullUser));

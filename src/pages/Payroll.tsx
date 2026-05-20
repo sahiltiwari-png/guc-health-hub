@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Download, RefreshCw, CheckCircle, Clock, AlertTriangle, FileText, TrendingUp, Search, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getMonthName } from "@/api/apiService";
+import { getHRPayroll, extractArray } from "@/api/apiService";
 
 type Tab = 'my-payrolls' | 'history';
 
@@ -20,16 +20,14 @@ const Payroll = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const mockPayrolls = [
-        { _id: '1', month: 4, year: 2026, totalEarnings: 50000, totalDeductions: 5000, netSalary: 45000, paymentStatus: 'Paid', paymentDate: new Date() },
-      ];
-      const mockHistory = [
-        { _id: '1', userId: { name: 'Dr. Sharma', employee_id: 'EMP001' }, month: 4, year: 2026, totalEarnings: 80000, totalDeductions: 8000, netSalary: 72000, paymentStatus: 'Processed' },
-      ];
-      if (tab === 'my-payrolls') {
-        setPayrolls(mockPayrolls);
-      } else {
-        setHistory(mockHistory);
+      const res = await getHRPayroll({ month: filters.month, year: filters.year });
+      if (res.ok) {
+        const data = res.data?.data || res.data;
+        if (tab === 'my-payrolls') {
+          setPayrolls(extractArray({ ...res, data: data?.payslips }));
+        } else {
+          setHistory(extractArray({ ...res, data: data?.history }));
+        }
       }
     } catch (error) {
       console.error('Error fetching payrolls:', error);
@@ -145,7 +143,7 @@ const Payroll = () => {
           </thead>
           <tbody>
             {(tab === 'my-payrolls' ? payrolls : history).map((p: any) => (
-              <tr key={p._id}>
+              <tr key={p.id}>
                 {tab === 'history' && (
                   <td>
                     <div className="font-bold text-sm">{p.userId?.name}</div>

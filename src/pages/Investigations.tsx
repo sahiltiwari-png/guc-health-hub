@@ -1,30 +1,33 @@
-import React, { useState } from 'react';
-import { Search, Trash2 } from 'lucide-react';
-
-const testList = [
-  { name: 'COMPLETE BLOOD COUNT (CBC)', rate: 300 },
-  { name: 'LIVER FUNCTION TEST (LFT)', rate: 700 },
-  { name: 'X RAY CHEST PA VIEW', rate: 400 },
-  { name: 'USG TVS', rate: 1200 },
-  { name: 'CT-40 CECT + HRCT CHEST / THORAX', rate: 8000 },
-  { name: 'CT-69 CECT CHEST + WHOLE ABDOMEN', rate: 10200 },
-  { name: 'KIDNEY FUNCTION TEST (KFT)', rate: 500 },
-  { name: 'THYROID PROFILE', rate: 600 },
-  { name: 'LIPID PROFILE', rate: 450 },
-  { name: 'HBA1C', rate: 400 },
-  { name: 'URINE ROUTINE', rate: 150 },
-  { name: 'ECG', rate: 200 },
-];
+import React, { useState, useEffect } from 'react';
+import { Search, Trash2, RefreshCw } from 'lucide-react';
+import { listLabOrders, getAutoPatients, getAutoUsers, extractArray, createLabEntry } from "@/api/apiService";
+import { useToast } from '@/components/ui/use-toast';
 
 const Investigations = () => {
-  const [searchUhid, setSearchUhid] = useState('7');
-  const [selectedTests, setSelectedTests] = useState([
-    { name: 'COMPLETE BLOOD COUNT (CBC)', rate: 300, unit: 1, amount: 300 },
-    { name: 'LIVER FUNCTION TEST (LFT)', rate: 700, unit: 1, amount: 700 },
-    { name: 'X RAY CHEST PA VIEW', rate: 400, unit: 1, amount: 400 },
-    { name: 'USG TVS', rate: 1200, unit: 1, amount: 1200 },
-  ]);
+  const { toast } = useToast();
+  const [searchUhid, setSearchUhid] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [patient, setPatient] = useState<any>(null);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [selectedTests, setSelectedTests] = useState<any[]>([]);
   const [testSearch, setTestSearch] = useState('');
+
+  const fetchInitial = async () => {
+    const dRes = await getAutoUsers({ role: 'DOCTOR' });
+    if (dRes.ok) setDoctors(extractArray(dRes));
+  };
+
+  useEffect(() => { fetchInitial(); }, []);
+
+  const handleSearch = async () => {
+    if (!searchUhid) return;
+    setLoading(true);
+    const res = await getAutoPatients({ uhid: searchUhid });
+    const pts = extractArray(res);
+    if (pts.length > 0) setPatient(pts[0]);
+    else toast({ title: "Not Found", description: "Patient not found", variant: "destructive" });
+    setLoading(false);
+  };
 
   const total = selectedTests.reduce((s, t) => s + t.amount, 0);
   const filteredTests = testList.filter(t => t.name.toLowerCase().includes(testSearch.toLowerCase()));

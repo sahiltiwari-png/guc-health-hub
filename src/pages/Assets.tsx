@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer } from 'lucide-react';
-import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetsCategories, getAssetsLocations, getAutoAssetsMasters, getAssetsVendors } from "@/api/apiService";
+import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetsCategories, getAssetsLocations, getAutoAssetsMasters, getAssetsVendors, extractArray } from "@/api/apiService";
 
 
 const tabs = ['Dashboard','Asset Register','Categories','Maintenance','Depreciation','Disposal','Vendors','Audit Trail'];
@@ -53,39 +53,39 @@ const Assets = () => {
       switch (currentTab) {
         case 'Asset Register':
           const assetsRes = await getAssets();
-          setData((prev: any) => ({ ...prev, assets: assetsRes.data?.data || assetsRes.data || [] }));
+          setData((prev: any) => ({ ...prev, assets: extractArray(assetsRes) }));
           break;
         case 'Categories':
           const categoriesRes = await getAssetCategories();
-          setData((prev: any) => ({ ...prev, categories: categoriesRes.data?.data || categoriesRes.data || [] }));
+          setData((prev: any) => ({ ...prev, categories: extractArray(categoriesRes) }));
           break;
         case 'Vendors':
           const vendorsRes = await getAssetVendors();
-          setData((prev: any) => ({ ...prev, vendors: vendorsRes.data?.data || vendorsRes.data || [] }));
+          setData((prev: any) => ({ ...prev, vendors: extractArray(vendorsRes) }));
           break;
         case 'Maintenance':
           const maintenanceRes = await getAssetMaintenances();
-          setData((prev: any) => ({ ...prev, maintenance: maintenanceRes.data?.data || maintenanceRes.data || [] }));
+          setData((prev: any) => ({ ...prev, maintenance: extractArray(maintenanceRes) }));
           break;
         case 'Depreciation':
           const depreciationRes = await getAssetDepreciations();
-          setData((prev: any) => ({ ...prev, depreciation: depreciationRes.data?.data || depreciationRes.data || [] }));
+          setData((prev: any) => ({ ...prev, depreciation: extractArray(depreciationRes) }));
           break;
         case 'Disposal':
           const disposalsRes = await getAssetDisposals();
-          setData((prev: any) => ({ ...prev, disposals: disposalsRes.data?.data || disposalsRes.data || [] }));
+          setData((prev: any) => ({ ...prev, disposals: extractArray(disposalsRes) }));
           break;
         case 'Audit Trail':
           const auditsRes = await getAssetAudits();
-          setData((prev: any) => ({ ...prev, audits: auditsRes.data?.data || auditsRes.data || [] }));
+          setData((prev: any) => ({ ...prev, audits: extractArray(auditsRes) }));
           break;
         case 'Dashboard':
           const [a, c, m] = await Promise.all([getAssets({ limit: 5 }), getAssetCategories(), getAssetMaintenances({ limit: 5 })]);
           setData((prev: any) => ({ 
             ...prev, 
-            assets: a.data?.data || a.data || [], 
-            categories: c.data?.data || c.data || [], 
-            maintenance: m.data?.data || m.data || [],
+            assets: extractArray(a), 
+            categories: extractArray(c), 
+            maintenance: extractArray(m),
             totalAssets: a.total || a.data?.total || 0
           }));
           break;
@@ -170,7 +170,7 @@ const Assets = () => {
                   <input className="hms-input w-full" placeholder="Asset Code" required onChange={e => setFormData({ ...formData, asset_code: e.target.value })} />
                   <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
                     <option value="">Select Category</option>
-                    {data.categories.map((c: any) => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    {data.categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   <input type="date" className="hms-input w-full" onChange={e => setFormData({ ...formData, purchase_date: e.target.value })} />
                   <input type="number" className="hms-input w-full" placeholder="Purchase Cost" onChange={e => setFormData({ ...formData, purchase_cost: e.target.value })} />
@@ -194,7 +194,7 @@ const Assets = () => {
                   <>
                     <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, asset_id: e.target.value })}>
                       <option value="">Select Asset</option>
-                      {data.assets.map((a: any) => <option key={a._id} value={a._id}>{a.asset_name}</option>)}
+                      {data.assets.map((a: any) => <option key={a.id} value={a.id}>{a.asset_name}</option>)}
                     </select>
                     <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, maintenance_type: e.target.value })}>
                       <option value="">Select Type</option>
@@ -211,7 +211,7 @@ const Assets = () => {
                   <>
                     <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, asset_id: e.target.value })}>
                       <option value="">Select Asset</option>
-                      {data.assets.map((a: any) => <option key={a._id} value={a._id}>{a.asset_name}</option>)}
+                      {data.assets.map((a: any) => <option key={a.id} value={a.id}>{a.asset_name}</option>)}
                     </select>
                     <input type="number" className="hms-input w-full" placeholder="Depreciation Amount" onChange={e => setFormData({ ...formData, depreciation_amount: e.target.value })} />
                     <input type="date" className="hms-input w-full" onChange={e => setFormData({ ...formData, depreciation_date: e.target.value })} />
@@ -222,7 +222,7 @@ const Assets = () => {
                   <>
                     <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, asset_id: e.target.value })}>
                       <option value="">Select Asset</option>
-                      {data.assets.map((a: any) => <option key={a._id} value={a._id}>{a.asset_name}</option>)}
+                      {data.assets.map((a: any) => <option key={a.id} value={a.id}>{a.asset_name}</option>)}
                     </select>
                     <select className="hms-select w-full" required onChange={e => setFormData({ ...formData, disposal_type: e.target.value })}>
                       <option value="">Select Type</option>
@@ -292,13 +292,13 @@ const Assets = () => {
         <div>
           <div className="flex gap-2 mb-2">
             <input className="hms-input w-48" placeholder="Search Asset ID/Name..." />
-            <select className="hms-select"><option>All Categories</option>{data.categories.map((c: any) => <option key={c._id}>{c.name}</option>)}</select>
+            <select className="hms-select"><option>All Categories</option>{data.categories.map((c: any) => <option key={c.id}>{c.name}</option>)}</select>
             <select className="hms-select"><option>All Status</option><option>Available</option><option>Maintenance</option><option>Disposed</option></select>
             <button className="hms-btn-primary ml-auto" onClick={() => handleAdd('Asset')}>+ Add Asset</button>
             <button className="hms-btn-secondary flex items-center gap-1"><Printer size={10} />Export</button>
           </div>
           <table className="hms-table"><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Location</th><th>Purchase</th><th>Cost</th><th>Brand/Model</th><th>Serial No</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{data.assets.map((a: any) => <tr key={a._id}><td className="font-mono text-[10px]">{a.asset_code}</td><td>{a.asset_name}</td><td>{a.category_id?.name}</td><td>{a.location_id?.description}</td><td>{formatDate(a.purchase_date)}</td><td>₹{a.purchase_cost?.toLocaleString()}</td><td>{a.brand} {a.model}</td><td>{a.serial_number}</td><td><StatusBadge status={a.status} /></td><td className="flex gap-1"><Eye size={12} className="text-primary cursor-pointer" /><Edit size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(a._id, 'Asset')} /><Wrench size={12} className="text-muted-foreground cursor-pointer" /></td></tr>)}</tbody>
+            <tbody>{data.assets.map((a: any) => <tr key={a.id}><td className="font-mono text-[10px]">{a.asset_code}</td><td>{a.asset_name}</td><td>{a.category_id?.name}</td><td>{a.location_id?.description}</td><td>{formatDate(a.purchase_date)}</td><td>₹{a.purchase_cost?.toLocaleString()}</td><td>{a.brand} {a.model}</td><td>{a.serial_number}</td><td><StatusBadge status={a.status} /></td><td className="flex gap-1"><Eye size={12} className="text-primary cursor-pointer" /><Edit size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(a.id, 'Asset')} /><Wrench size={12} className="text-muted-foreground cursor-pointer" /></td></tr>)}</tbody>
           </table>
         </div>
       )}
@@ -307,7 +307,7 @@ const Assets = () => {
         <div>
           <div className="flex mb-2"><button className="hms-btn-primary ml-auto" onClick={() => handleAdd('Category')}>+ Add Category</button></div>
           <table className="hms-table"><thead><tr><th>S.No</th><th>Category Name</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{data.categories.map((c: any, i: number) => <tr key={i}><td>{i + 1}</td><td>{c.name}</td><td>{c.description}</td><td>{c.is_active ? 'Active' : 'Inactive'}</td><td><div className="flex gap-1"><Edit size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(c._id, 'Category')} /></div></td></tr>)}</tbody>
+            <tbody>{data.categories.map((c: any, i: number) => <tr key={i}><td>{i + 1}</td><td>{c.name}</td><td>{c.description}</td><td>{c.is_active ? 'Active' : 'Inactive'}</td><td><div className="flex gap-1"><Edit size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(c.id, 'Category')} /></div></td></tr>)}</tbody>
           </table>
         </div>
       )}
@@ -320,7 +320,7 @@ const Assets = () => {
             <button className="hms-btn-primary ml-auto" onClick={() => handleAdd('Maintenance')}>+ Schedule Maintenance</button>
           </div>
           <table className="hms-table"><thead><tr><th>ID</th><th>Asset</th><th>Type</th><th>Scheduled</th><th>Cost</th><th>Technician/Vendor</th><th>Next Due</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{data.maintenance.map((m: any) => <tr key={m._id}><td className="font-mono text-[10px]">{m._id.substring(0, 8)}</td><td>{m.asset_id?.asset_name}</td><td>{m.maintenance_type}</td><td>{formatDate(m.maintenance_date)}</td><td>₹{m.cost?.toLocaleString()}</td><td>{m.technician_name || m.vendor_id?.name}</td><td>{formatDate(m.next_maintenance_date)}</td><td><StatusBadge status={m.status} /></td><td><Eye size={12} className="text-primary cursor-pointer" /></td></tr>)}</tbody>
+            <tbody>{data.maintenance.map((m: any) => <tr key={m.id}><td className="font-mono text-[10px]">{m.id.substring(0, 8)}</td><td>{m.asset_id?.asset_name}</td><td>{m.maintenance_type}</td><td>{formatDate(m.maintenance_date)}</td><td>₹{m.cost?.toLocaleString()}</td><td>{m.technician_name || m.vendor_id?.name}</td><td>{formatDate(m.next_maintenance_date)}</td><td><StatusBadge status={m.status} /></td><td><Eye size={12} className="text-primary cursor-pointer" /></td></tr>)}</tbody>
           </table>
         </div>
       )}
@@ -352,7 +352,7 @@ const Assets = () => {
           <div className="flex mb-2"><button className="hms-btn-primary ml-auto" onClick={() => handleAdd('Vendor')}>+ Add Vendor</button></div>
           <table className="hms-table"><thead><tr><th>Vendor Name</th><th>Contact</th><th>Phone</th><th>Email</th><th>GST No</th><th>Action</th></tr></thead>
             <tbody>
-              {data.vendors.map((v: any, i: number) => <tr key={i}><td>{v.name}</td><td>{v.contact_person}</td><td>{v.phone}</td><td>{v.email}</td><td>{v.gst_number}</td><td><div className="flex gap-1"><Eye size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(v._id, 'Vendor')} /></div></td></tr>)}
+              {data.vendors.map((v: any, i: number) => <tr key={i}><td>{v.name}</td><td>{v.contact_person}</td><td>{v.phone}</td><td>{v.email}</td><td>{v.gst_number}</td><td><div className="flex gap-1"><Eye size={12} className="text-primary cursor-pointer" /><Trash2 size={12} className="text-red-500 cursor-pointer" onClick={() => handleDelete(v.id, 'Vendor')} /></div></td></tr>)}
             </tbody>
           </table>
         </div>

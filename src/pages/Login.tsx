@@ -24,9 +24,9 @@ const Login = () => {
         throw new Error('Invalid username or password');
       }
 
-      const { user, token, hospitalId, branchId } = response.data;
+      const { user, token, hospitalId, branchId, roles } = response.data;
       
-      login(user, token, hospitalId, branchId);
+      login({ ...user, roles }, token, hospitalId, branchId);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

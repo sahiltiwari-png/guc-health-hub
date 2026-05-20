@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw } from 'lucide-react';
-import { createInstrument, createInstrumentBatch, createSterilizationCycle, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle } from "@/api/apiService";
+import { createInstrument, createInstrumentBatch, createSterilizationCycle, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle, extractArray } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'sets' | 'batches' | 'cycles' | 'requests' | 'machines' | 'quality';
@@ -51,9 +51,9 @@ const CSSD = () => {
         batches: batRes.data?.data || batRes.data || batRes || [],
         cycles: cycRes.data?.data || cycRes.data || cycRes || [],
         issues: issRes.data?.data || issRes.data || issRes || [],
-        users: userRes.data?.data || userRes.data || [],
-        departments: depRes.data?.data || depRes.data || [],
-        equipments: eqRes.data?.data || eqRes.data || []
+        users: extractArray(userRes),
+        departments: extractArray(depRes),
+        equipments: extractArray(eqRes)
       });
     } catch (error) {
       console.error('Error fetching CSSD data:', error);
@@ -212,7 +212,7 @@ const CSSD = () => {
                 <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Created At</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.instruments.filter((i: any) => i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())).map((i: any) => (
-                    <tr key={i._id}>
+                    <tr key={i.id}>
                       <td className="font-mono text-xs font-bold">{i.code}</td>
                       <td className="font-semibold">{i.name}</td>
                       <td>{i.category}</td>
@@ -232,7 +232,7 @@ const CSSD = () => {
                 <thead><tr><th>Batch #</th><th>Instruments</th><th>Sterilized Date</th><th>Expiry Date</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.batches.filter((b: any) => b.batchNumber.toLowerCase().includes(search.toLowerCase())).map((b: any) => (
-                    <tr key={b._id}>
+                    <tr key={b.id}>
                       <td className="font-mono text-xs font-bold">{b.batchNumber}</td>
                       <td>
                         <div className="text-[10px]">
@@ -247,11 +247,11 @@ const CSSD = () => {
                       <td>
                         <div className="flex gap-2">
                           <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
-                            setSelectedItem({ batchId: b._id, cycleNumber: Math.floor(Math.random()*10000), machineUsed: '', startTime: new Date().toISOString().slice(0, 16) });
+                            setSelectedItem({ batchId: b.id, cycleNumber: Math.floor(Math.random()*10000), machineUsed: '', startTime: new Date().toISOString().slice(0, 16) });
                             setShowModal('cycle');
                           }}>Start Cycle</button>
                           <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => {
-                            setSelectedItem({ batchId: b._id, issuedTo: '', issuedFor: 'Surgery', issuedQuantity: 1 });
+                            setSelectedItem({ batchId: b.id, issuedTo: '', issuedFor: 'Surgery', issuedQuantity: 1 });
                             setShowModal('issue');
                           }}>Issue</button>
                         </div>
@@ -267,7 +267,7 @@ const CSSD = () => {
                 <thead><tr><th>Cycle #</th><th>Batch #</th><th>Machine</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.cycles.map((c: any) => (
-                    <tr key={c._id}>
+                    <tr key={c.id}>
                       <td className="font-bold">{c.cycleNumber}</td>
                       <td className="font-mono text-xs">{c.batchId?.batchNumber}</td>
                       <td>{c.machineUsed}</td>
@@ -276,7 +276,7 @@ const CSSD = () => {
                       <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(c.status)}`}>{c.status}</span></td>
                       <td>
                         {c.status === 'Pending' && (
-                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleCompleteCycle(c._id)}>Complete</button>
+                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleCompleteCycle(c.id)}>Complete</button>
                         )}
                       </td>
                     </tr>
@@ -290,7 +290,7 @@ const CSSD = () => {
                 <thead><tr><th>Issued To</th><th>Batch #</th><th>For</th><th>Qty</th><th>Issued At</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.issues.map((i: any) => (
-                    <tr key={i._id}>
+                    <tr key={i.id}>
                       <td className="font-semibold">{i.issuedTo?.name || 'Staff'}</td>
                       <td className="font-mono text-xs">{i.batchId?.batchNumber}</td>
                       <td>{i.issuedFor}</td>
@@ -299,7 +299,7 @@ const CSSD = () => {
                       <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
                       <td>
                         {i.status === 'Issued' && (
-                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => handleReturn(i._id)}>Return</button>
+                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => handleReturn(i.id)}>Return</button>
                         )}
                       </td>
                     </tr>
@@ -313,7 +313,7 @@ const CSSD = () => {
                 <thead><tr><th>Machine</th><th>Brand/Model</th><th>Uptime</th><th>Today Exams</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {(data as any).equipments?.map((e: any) => (
-                    <tr key={e._id}>
+                    <tr key={e.id}>
                       <td className="font-bold">{e.name}</td>
                       <td>{e.brand} {e.model}</td>
                       <td>99.5%</td>
@@ -381,14 +381,14 @@ const CSSD = () => {
                 <div className="flex gap-2">
                   <select className="hms-select flex-1" id="inst-select">
                     <option value="">-- Choose Instrument --</option>
-                    {data.instruments.map((i: any) => <option key={i._id} value={i._id}>{i.name} ({i.code})</option>)}
+                    {data.instruments.map((i: any) => <option key={i.id} value={i.id}>{i.name} ({i.code})</option>)}
                   </select>
                   <input type="number" className="hms-input w-16" defaultValue="1" id="inst-qty" />
                   <button type="button" className="hms-btn-secondary p-2" onClick={() => {
                     const id = (document.getElementById('inst-select') as HTMLSelectElement).value;
                     const qty = parseInt((document.getElementById('inst-qty') as HTMLInputElement).value);
                     if (!id) return;
-                    const inst = data.instruments.find((i: any) => i._id === id);
+                    const inst = data.instruments.find((i: any) => i.id === id);
                     setSelectedItem({
                       ...selectedItem,
                       instruments: [...(selectedItem.instruments || []), { instrumentId: id, quantity: qty, name: (inst as any).name }]
@@ -466,7 +466,7 @@ const CSSD = () => {
                 <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Issue To (Doctor/Staff)</label>
                 <select className="hms-select w-full" required value={selectedItem?.issuedTo} onChange={e => setSelectedItem({...selectedItem, issuedTo: e.target.value})}>
                   <option value="">-- Select Person --</option>
-                  {data.users.map((u: any) => <option key={u._id} value={u._id}>{u.name}</option>)}
+                  {data.users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">

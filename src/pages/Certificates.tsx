@@ -7,7 +7,7 @@ import {
   CheckCircle, AlertCircle, UserPlus, ChevronRight, RefreshCw,
   ArrowLeftRight
 } from 'lucide-react';
-import { createCertificateSignature, createCertificateTemplate, createGeneratedCertificate, deleteCertificateSignature, deleteCertificateTemplate, getCertificatesGenerated, getCertificatesTemplates, listCertificateSignatures, listCertificateTemplates, listCertificateTypes, listCertificateVerifications, listDoctors, listGeneratedCertificates, getAutoPatients, updateCertificateSignature, updateCertificateTemplate, verifyCertificate } from "@/api/apiService";
+import { createCertificateSignature, createCertificateTemplate, createGeneratedCertificate, deleteCertificateSignature, deleteCertificateTemplate, getCertificatesGenerated, getCertificatesTemplates, listCertificateSignatures, listCertificateTemplates, listCertificateTypes, listCertificateVerifications, listDoctors, listGeneratedCertificates, getAutoPatients, updateCertificateSignature, updateCertificateTemplate, verifyCertificate, extractArray } from "@/api/apiService";
 
 const Certificates = () => {
   const [activeTab, setActiveTab] = useState('templates');
@@ -44,13 +44,13 @@ const Certificates = () => {
         listCertificateVerifications()
       ]);
       setData({
-        types: typesRes.data?.data || typesRes.data || [],
-        templates: templatesRes.data?.data || templatesRes.data || [],
-        generated: generatedRes.data?.data || generatedRes.data || [],
-        patients: patientsRes.data?.data || patientsRes.data || [],
-        doctors: doctorsRes.data?.data || doctorsRes.data || [],
-        signatures: signaturesRes.data?.data || signaturesRes.data || [],
-        verifications: verificationsRes.data?.data || verificationsRes.data || []
+        types: extractArray(typesRes),
+        templates: extractArray(templatesRes),
+        generated: extractArray(generatedRes),
+        patients: extractArray(patientsRes),
+        doctors: extractArray(doctorsRes),
+        signatures: extractArray(signaturesRes),
+        verifications: extractArray(verificationsRes)
       });
     } catch (error) {
       console.error('Error fetching certificate data:', error);
@@ -65,7 +65,7 @@ const Certificates = () => {
 
   const placeholders = useMemo(() => {
     if (activeTab === 'issue-new' && issueData.templateId) {
-      const template = data.templates.find((t: any) => t._id === issueData.templateId);
+      const template = data.templates.find((t: any) => t.id === issueData.templateId);
       if (template) {
         const matches = (template as any).layoutHtml.match(/{{(.*?)}}/g);
         if (matches) {
@@ -95,8 +95,8 @@ const Certificates = () => {
 
   const handleSaveTemplate = async () => {
     try {
-      if (selectedItem._id) {
-        await updateCertificateTemplate(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        await updateCertificateTemplate(selectedItem.id, selectedItem);
         alert('Template updated successfully');
       } else {
         await createCertificateTemplate(selectedItem);
@@ -121,8 +121,8 @@ const Certificates = () => {
 
   const handleSaveSignature = async () => {
     try {
-      if (selectedItem._id) {
-        await updateCertificateSignature(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        await updateCertificateSignature(selectedItem.id, selectedItem);
         alert('Signature updated successfully');
       } else {
         await createCertificateSignature(selectedItem);
@@ -167,8 +167,8 @@ const Certificates = () => {
         return;
       }
       
-      const patient: any = data.patients.find((p: any) => p._id === issueData.patientId);
-      const doctor: any = data.doctors.find((d: any) => d._id === issueData.doctorId);
+      const patient: any = data.patients.find((p: any) => p.id === issueData.patientId);
+      const doctor: any = data.doctors.find((d: any) => d.id === issueData.doctorId);
       
       const finalFilledData = {
         ...issueData.filledData,
@@ -202,14 +202,14 @@ const Certificates = () => {
   const renderTemplates = () => (
     <div className="grid grid-cols-3 gap-3">
       {data.templates.map((template: any) => (
-        <div key={template._id} className="bg-card border border-border p-4 hover:shadow-md transition-shadow cursor-pointer group" onClick={() => { setSelectedItem(template); setActiveTab('preview'); }}>
+        <div key={template.id} className="bg-card border border-border p-4 hover:shadow-md transition-shadow cursor-pointer group" onClick={() => { setSelectedItem(template); setActiveTab('preview'); }}>
           <div className="flex justify-between items-start mb-2">
             <div className="bg-primary/10 p-2 rounded">
               <FileText className="text-primary" size={20} />
             </div>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button className="p-1 hover:bg-muted rounded text-primary" onClick={(e) => { e.stopPropagation(); setSelectedItem(template); setActiveTab('editor'); }}><Edit size={14} /></button>
-              <button className="p-1 hover:bg-muted rounded text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(template._id); }}><Trash2 size={14} /></button>
+              <button className="p-1 hover:bg-muted rounded text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(template.id); }}><Trash2 size={14} /></button>
             </div>
           </div>
           <h3 className="text-sm font-bold truncate">{template.templateName}</h3>
@@ -257,7 +257,7 @@ const Certificates = () => {
           </thead>
           <tbody>
             {data.generated.map((cert: any) => (
-              <tr key={cert._id}>
+              <tr key={cert.id}>
                 <td className="font-mono font-bold text-primary">{cert.certificateNumber}</td>
                 <td>{cert.certificateTypeId?.name || cert.templateId?.templateName}</td>
                 <td className="font-semibold">{cert.patientId?.patientName}</td>
@@ -302,10 +302,10 @@ const Certificates = () => {
       </div>
       <div className="grid grid-cols-4 gap-4">
         {data.signatures.map((sig: any) => (
-          <div key={sig._id} className="bg-card border border-border p-4 flex flex-col items-center group relative">
+          <div key={sig.id} className="bg-card border border-border p-4 flex flex-col items-center group relative">
             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button className="p-1 hover:bg-muted rounded text-primary" onClick={() => { setSelectedItem(sig); setActiveTab('signature-editor'); }}><Edit size={12} /></button>
-              <button className="p-1 hover:bg-muted rounded text-destructive" onClick={() => handleDeleteSignature(sig._id)}><Trash2 size={12} /></button>
+              <button className="p-1 hover:bg-muted rounded text-destructive" onClick={() => handleDeleteSignature(sig.id)}><Trash2 size={12} /></button>
             </div>
             <div className="w-24 h-16 bg-muted/30 border border-border flex items-center justify-center mb-3 overflow-hidden rounded">
               {sig.signatureImage ? (
@@ -326,7 +326,7 @@ const Certificates = () => {
   const renderSignatureEditor = () => (
     <div className="bg-card border border-border max-w-lg mx-auto p-6 shadow-sm">
       <h3 className="text-sm font-bold mb-4 flex items-center gap-2 border-b border-border pb-2">
-        <UserCheck size={16} className="text-primary" /> {selectedItem?._id ? 'Edit Signature' : 'New Signature'}
+        <UserCheck size={16} className="text-primary" /> {selectedItem?.id ? 'Edit Signature' : 'New Signature'}
       </h3>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -464,7 +464,7 @@ const Certificates = () => {
           </thead>
           <tbody>
             {data.verifications.map((v: any) => (
-              <tr key={v._id}>
+              <tr key={v.id}>
                 <td className="text-[10px]">{new Date(v.verificationTimestamp).toLocaleString()}</td>
                 <td className="font-mono text-[10px]">{v.ipAddress || '127.0.0.1'}</td>
                 <td className="font-bold text-primary">{v.certificateNumber}</td>
@@ -489,7 +489,7 @@ const Certificates = () => {
       <div className="p-3 border-b border-border flex justify-between items-center bg-muted/30">
         <div className="flex items-center gap-2">
           <Layout size={16} className="text-primary" />
-          <h3 className="text-sm font-bold">{selectedItem?._id ? 'Edit Template' : 'New Template'}</h3>
+          <h3 className="text-sm font-bold">{selectedItem?.id ? 'Edit Template' : 'New Template'}</h3>
         </div>
         <div className="flex gap-2">
           <button className="hms-btn-secondary flex items-center gap-1" onClick={() => setActiveTab('templates')}><X size={12} /> Cancel</button>
@@ -590,21 +590,21 @@ const Certificates = () => {
             <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">1. Select Template</label>
             <select className="hms-select w-full" value={issueData.templateId} onChange={(e) => setIssueData({...issueData, templateId: e.target.value})}>
               <option value="">-- Choose Template --</option>
-              {data.templates.map((t: any) => <option key={t._id} value={t._id}>{t.templateName}</option>)}
+              {data.templates.map((t: any) => <option key={t.id} value={t.id}>{t.templateName}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">2. Select Patient</label>
             <select className="hms-select w-full" value={issueData.patientId} onChange={(e) => setIssueData({...issueData, patientId: e.target.value})}>
               <option value="">-- Choose Patient --</option>
-              {data.patients.map((p: any) => <option key={p._id} value={p._id}>{p.patientName} ({p.uhid})</option>)}
+              {data.patients.map((p: any) => <option key={p.id} value={p.id}>{p.patientName} ({p.uhid})</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">3. Assigning Doctor</label>
             <select className="hms-select w-full" value={issueData.doctorId} onChange={(e) => setIssueData({...issueData, doctorId: e.target.value})}>
               <option value="">-- Choose Doctor --</option>
-              {data.doctors.map((d: any) => <option key={d._id} value={d._id}>{d.name}</option>)}
+              {data.doctors.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           
@@ -655,7 +655,7 @@ const Certificates = () => {
                <p className="text-[10px] font-bold text-primary mb-2">Live Preview Snippet</p>
                <div className="bg-white p-4 border border-border text-[11px] h-32 overflow-y-auto"
                     dangerouslySetInnerHTML={{ 
-                      __html: (data.templates.find((t: any) => t._id === issueData.templateId) as any)?.layoutHtml
+                      __html: (data.templates.find((t: any) => t.id === issueData.templateId) as any)?.layoutHtml
                         ?.replace(/{{(.*?)}}/g, (match: string, p1: string) => {
                           return issueData.filledData[p1] || `<span style="color:red">[${p1}]</span>`;
                         })

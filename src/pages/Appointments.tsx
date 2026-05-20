@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { 
-  getAutoClinicals, getAutoPatients, getAutoUsers, createAutoClinical, updateById
+  getAppointments, searchPatients, getAutoUsers, createAutoClinical, updateById, extractArray, updateAppointmentStatus
 } from "@/api/apiService";
 
 const statusColor = (s: string) => {
@@ -52,27 +52,24 @@ const Appointments = () => {
       if (tab === 'cancelled') queryParams.status = 'Cancelled';
       
       const [aRes, pRes, dRes] = await Promise.all([
-        getAutoClinicals(queryParams),
-        getAutoPatients(),
+        getAppointments(queryParams),
+        searchPatients(),
         getAutoUsers({ role: 'DOCTOR' })
       ]);
 
       if (aRes.ok) {
-        const data = aRes.data?.data || aRes.data;
-        setAppointments(Array.isArray(data) ? data : (data?.clinicalDetails || []));
+        setAppointments(extractArray(aRes));
       }
       if (pRes.ok) {
-        const data = pRes.data?.data || pRes.data;
-        setPatients(Array.isArray(data) ? data : (data?.patients || []));
+        setPatients(extractArray(pRes));
       }
       if (dRes.ok) {
-        const data = dRes.data?.data || dRes.data;
-        setDoctors(Array.isArray(data) ? data : (data?.users || data?.data || []));
+        setDoctors(extractArray(dRes));
       }
       
       // Mocking availability as there might not be a direct endpoint for it in clinicalDetails
       setAvailability([
-        { _id: '1', doctorId: { name: 'Dr. Sharma', role: 'Doctor' }, dayOfWeek: 'Monday', startTime: '09:00', endTime: '17:00' },
+        { id: '1', doctorId: { name: 'Dr. Sharma', role: 'Doctor' }, dayOfWeek: 'Monday', startTime: '09:00', endTime: '17:00' },
       ]);
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -90,8 +87,8 @@ const Appointments = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      if (selectedItem._id) {
-        const res = await updateById(selectedItem._id, selectedItem);
+      if (selectedItem.id) {
+        const res = await updateById(selectedItem.id, selectedItem);
         if (res.ok) {
           toast({ title: 'Success', description: 'Appointment updated successfully' });
           fetchData();
@@ -117,7 +114,7 @@ const Appointments = () => {
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      const res = await updateById(id, { status });
+      const res = await updateAppointmentStatus(id, status);
       if (res.ok) {
         toast({ title: 'Status Updated', description: `Appointment marked as ${status}` });
         fetchData();
@@ -137,7 +134,7 @@ const Appointments = () => {
     }
     setIsSubmitting(true);
     try {
-      const res = await updateById(selectedItem._id, { status: 'Cancelled', remark: selectedItem.cancellationReason });
+      const res = await updateAppointmentStatus(selectedItem.id, 'Cancelled');
       if (res.ok) {
         toast({ title: 'Cancelled', description: 'Appointment has been cancelled' });
         fetchData();
@@ -155,7 +152,7 @@ const Appointments = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this appointment record?')) return;
     try {
-      setAppointments(appointments.filter(a => a._id !== id));
+      setAppointments(appointments.filter(a => a.id !== id));
       toast({ title: 'Deleted', description: 'Appointment record removed' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Delete failed', variant: 'destructive' });
@@ -247,7 +244,7 @@ const Appointments = () => {
           <div className="p-4">
             <div className="grid grid-cols-3 gap-4">
               {availability.map((avail: any) => (
-                <div key={avail._id} className="border border-border p-4 rounded-lg bg-muted/5 hover:border-primary transition-all group">
+                <div key={avail.id} className="border border-border p-4 rounded-lg bg-muted/5 hover:border-primary transition-all group">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
@@ -294,11 +291,11 @@ const Appointments = () => {
             </thead>
             <tbody>
               {filteredAppointments.map((apt, i) => (
-                <tr key={apt._id} className="group hover:bg-muted/30 transition-colors">
+                <tr key={apt.id} className="group hover:bg-muted/30 transition-colors">
                   <td className="text-center text-muted-foreground font-mono">{i + 1}</td>
                   <td>
                     <div className="font-bold text-primary font-mono text-[11px]">{apt.appointmentNumber}</div>
-                    <div className="text-[9px] text-muted-foreground uppercase font-bold">Ref: {apt._id.slice(-6).toUpperCase()}</div>
+                    <div className="text-[9px] text-muted-foreground uppercase font-bold">Ref: {apt.id.slice(-6).toUpperCase()}</div>
                   </td>
                   <td>
                     <div className="flex items-center gap-3">
@@ -335,7 +332,7 @@ const Appointments = () => {
                         <button 
                           className="p-1.5 text-hms-success hover:bg-hms-success/10 rounded" 
                           title="Confirm"
-                          onClick={() => handleStatusUpdate(apt._id, 'Confirmed')}
+                          onClick={() => handleStatusUpdate(apt.id, 'Confirmed')}
                         >
                           <CheckCircle2 size={14} />
                         </button>
@@ -344,7 +341,7 @@ const Appointments = () => {
                         <button 
                           className="p-1.5 text-purple-600 hover:bg-purple-50 rounded" 
                           title="Check In"
-                          onClick={() => handleStatusUpdate(apt._id, 'CheckedIn')}
+                          onClick={() => handleStatusUpdate(apt.id, 'CheckedIn')}
                         >
                           <UserPlus size={14} />
                         </button>
@@ -387,7 +384,7 @@ const Appointments = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-card border border-border w-full max-w-lg shadow-2xl rounded-sm">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Calendar size={16} className="text-primary" /> {selectedItem?._id ? 'Reschedule Appointment' : 'Book New Appointment'}</h3>
+              <h3 className="text-sm font-bold flex items-center gap-2"><Calendar size={16} className="text-primary" /> {selectedItem?.id ? 'Reschedule Appointment' : 'Book New Appointment'}</h3>
               <button onClick={() => setShowModal(null)} className="hover:text-destructive transition-colors"><X size={18} /></button>
             </div>
             <form onSubmit={handleSaveAppointment} className="p-6 space-y-4">
@@ -397,12 +394,12 @@ const Appointments = () => {
                   <select 
                     className="hms-select w-full font-semibold" 
                     required 
-                    value={selectedItem?.patientId?._id || selectedItem?.patientId} 
+                    value={selectedItem?.patientId?.id || selectedItem?.patientId} 
                     onChange={e => setSelectedItem({...selectedItem, patientId: e.target.value})}
-                    disabled={!!selectedItem?._id}
+                    disabled={!!selectedItem?.id}
                   >
                     <option value="">-- Choose Patient --</option>
-                    {patients.map(p => <option key={p._id} value={p._id}>{p.name} ({p.phone})</option>)}
+                    {patients.map(p => <option key={p.id} value={p.id}>{p.name} ({p.phone})</option>)}
                   </select>
                 </div>
                 <div>
@@ -410,11 +407,11 @@ const Appointments = () => {
                   <select 
                     className="hms-select w-full font-semibold" 
                     required 
-                    value={selectedItem?.doctorId?._id || selectedItem?.doctorId} 
+                    value={selectedItem?.doctorId?.id || selectedItem?.doctorId} 
                     onChange={e => setSelectedItem({...selectedItem, doctorId: e.target.value})}
                   >
                     <option value="">-- Choose Doctor --</option>
-                    {doctors.map(d => <option key={d._id} value={d._id}>{d.name} ({d.role || 'Doctor'})</option>)}
+                    {doctors.map(d => <option key={d.id} value={d.id}>{d.name} ({d.role || 'Doctor'})</option>)}
                   </select>
                 </div>
                 <div>
@@ -467,7 +464,7 @@ const Appointments = () => {
                   className="hms-btn-primary flex-1 py-2.5 shadow-lg shadow-primary/20"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Processing...' : selectedItem?._id ? 'Update Appointment' : 'Confirm Booking'}
+                  {isSubmitting ? 'Processing...' : selectedItem?.id ? 'Update Appointment' : 'Confirm Booking'}
                 </button>
               </div>
             </form>

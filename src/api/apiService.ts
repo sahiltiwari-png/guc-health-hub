@@ -1,6 +1,6 @@
 /**
  * AUTO-GENERATED API SERVICE
- * Generated on: 2026-05-11T15:41:20.916Z
+ * Generated on: 2026-05-19T16:02:15.483Z
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -18,27 +18,21 @@ export interface ApiResponse<T = any> {
   error?: any;
 }
 
-const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
+export const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
   const token = getToken();
   const hospitalId = getHospitalId();
   const branchId = getBranchId();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  
-  if (options.headers) {
-    Object.assign(headers, options.headers);
-  }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...options.headers };
   
   if (token) headers['Authorization'] = "Bearer " + token;
   if (hospitalId) headers['X-Hospital-Id'] = hospitalId;
   if (branchId) headers['X-Branch-Id'] = branchId;
 
-  // Smarter URL construction: ensure it starts with /api
+  // Smarter URL construction
   let path = endpoint;
   if (!path.startsWith('/api')) {
-    // List of prefixes that should NOT have /v1
-    const noV1Prefixes = ['/departments', '/doctors', '/inventory', '/geo', '/finance', '/dashboard'];
+    const noV1Prefixes = ['/departments', '/doctors', '/inventory', '/geo', '/finance', '/dashboard', '/admin'];
     const needsV1 = !noV1Prefixes.some(prefix => path.startsWith(prefix));
-    
     if (needsV1) {
       path = '/api/v1' + (path.startsWith('/') ? '' : '/') + path;
     } else {
@@ -47,25 +41,12 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
   }
   
   const url = API_BASE_URL + path;
-  const startTime = Date.now();
 
   try {
     const response = await fetch(url, { ...options, headers });
-    const duration = Date.now() - startTime;
-    
     let data;
-    try { 
-      data = await response.json(); 
-    } catch (e) { 
-      data = null; 
-    }
+    try { data = await response.json(); } catch (e) { data = null; }
     
-    if (!response.ok) {
-      console.error(`[API Error] ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`, data);
-    } else {
-      console.log(`[API Success] ${options.method || 'GET'} ${endpoint} - ${duration}ms`);
-    }
-
     return { 
       data: data?.data || data, 
       success: data?.success || response.ok,
@@ -74,17 +55,32 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
       ok: response.ok 
     };
   } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`[API Network Error] ${options.method || 'GET'} ${endpoint} - ${duration}ms`, error);
     return { data: null as any, success: false, status: 0, ok: false, error, message: 'Network error occurred' };
   }
+};
+
+/** Helper to extract array from API response (handles Spring Data Page) */
+export const extractArray = (res: ApiResponse): any[] => {
+  if (!res.ok) return [];
+  const data = res.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.content)) return data.content;
+  if (data && data.data && Array.isArray(data.data)) return data.data;
+  return [];
+};
+
+/** Helper to extract single object from API response */
+export const extractObject = (res: ApiResponse): any => {
+  if (!res.ok) return null;
+  return res.data;
 };
 
 /* --- TYPES --- */
 export interface BaseResponse { success?: boolean; message?: string; error?: string; data?: any; }
 
 
-export const getAutoApiError401 = async (queryParams?: Record<string, any>) => {
+/** Unauthorized */
+export const getAutoApierror401 = async (queryParams?: Record<string, any>) => {
   let endpoint = `/api-error/401`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -95,7 +91,8 @@ export const getAutoApiError401 = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoApiError403 = async (queryParams?: Record<string, any>) => {
+/** Forbidden */
+export const getAutoApierror403 = async (queryParams?: Record<string, any>) => {
   let endpoint = `/api-error/403`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -106,7 +103,294 @@ export const getAutoApiError403 = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoHomeController = async (queryParams?: Record<string, any>) => {
+/** OPD - List all visits */
+export const getOPDVisits = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/opd`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** OPD - Walk-in Registration */
+export const createOPDWalkIn = async (data: any) => {
+  return apiRequest('/opd/walk-in', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** OPD - Record Vitals */
+export const recordOPDVitals = async (opdVisitId: string, data: any) => {
+  return apiRequest(`/opd/vitals/${opdVisitId}`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** IPD - List Admissions */
+export const getIPDAdmissions = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/ipd`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** IPD - Admit Patient */
+export const admitPatient = async (data: any) => {
+  return apiRequest('/ipd/admit', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** IPD - Discharge Patient */
+export const dischargePatient = async (id: string) => {
+  return apiRequest(`/ipd/discharge/${id}`, {
+    method: 'POST'
+  });
+};
+
+/** IPD - List Wards */
+export const getWards = async () => {
+  return apiRequest('/ipd/wards', { method: 'GET' });
+};
+
+/** IPD - List All Beds */
+export const getBeds = async () => {
+  return apiRequest('/ipd/beds', { method: 'GET' });
+};
+
+/** IPD - Available Beds */
+export const getAvailableBeds = async () => {
+  return apiRequest('/ipd/beds/available', { method: 'GET' });
+};
+
+/** Appointments - List Appointments */
+export const getAppointments = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/appointments`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Appointments - Update Status */
+export const updateAppointmentStatus = async (id: string, status: string) => {
+  return apiRequest(`/appointments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status })
+  });
+};
+
+/** Diagnostics - Lab Orders */
+export const getLabOrders = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/diagnostics/lab`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Diagnostics - Radiology Scans */
+export const getRadiologyScans = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/diagnostics/radiology`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Inventory - Pharmacy Stock */
+export const getPharmacyStock = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/inventory/pharmacy/stock`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Blood Bank - Inventory */
+export const getBloodInventory = async () => {
+  return apiRequest('/blood-bank/inventory', { method: 'GET' });
+};
+
+/** Registry - Births */
+export const getBirths = async () => {
+  return apiRequest('/registry/births', { method: 'GET' });
+};
+
+/** Registry - Deaths */
+export const getDeaths = async () => {
+  return apiRequest('/registry/deaths', { method: 'GET' });
+};
+
+/** Ambulances - List Fleet */
+export const getAmbulanceFleet = async () => {
+  return apiRequest('/ambulances', { method: 'GET' });
+};
+
+/** Dashboard - Global Stats */
+export const getDashboardStats = async () => {
+  return apiRequest('/dashboard/super-admin', { method: 'GET' });
+};
+
+/** MIS - Feed */
+export const getMISFeed = async () => {
+  return apiRequest('/mis', { method: 'GET' });
+};
+
+/** Patients - Search */
+export const searchPatients = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/patients/search`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Patients - Register */
+export const registerPatient = async (data: any) => {
+  return apiRequest('/patients/register', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** Certificates - Templates */
+export const getCertificateTemplates = async () => {
+  return apiRequest('/certificates/templates', { method: 'GET' });
+};
+
+/** Clinical - ER Visits */
+export const getERVisits = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/clinical/er-visits`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Clinical - OT Bookings */
+export const getOTBookings = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/clinical/ot-bookings`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Clinical - Record ER Case */
+export const createERVisit = async (data: any) => {
+  return apiRequest('/clinical/er-visits', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** Clinical - OT Status Update */
+export const updateOTStatus = async (id: string, status: string) => {
+  return apiRequest(`/clinical/ot-bookings/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status })
+  });
+};
+
+/** Inventory - List Stock */
+export const getInventoryStock = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/inventory/pharmacy/stock`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Kitchen - Diet Dashboard */
+export const getKitchenDashboard = async () => {
+  return apiRequest('/kitchen/dashboard', { method: 'GET' });
+};
+
+/** Helpdesk - Tickets */
+export const getHelpdeskTickets = async () => {
+  return apiRequest('/helpdesk/tickets', { method: 'GET' });
+};
+
+/** Parking - Logs */
+export const getParkingLogs = async () => {
+  return apiRequest('/parking', { method: 'GET' });
+};
+
+/** Assets - Master List */
+export const getAssets = async () => {
+  return apiRequest('/assets/masters', { method: 'GET' });
+};
+
+/** Assets - Instruments (CSSD) */
+export const getInstruments = async () => {
+  return apiRequest('/assets/instruments', { method: 'GET' });
+};
+
+/** Billing - List Invoices */
+export const getBillingInvoices = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/billing/invoices`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** HR - Attendance */
+export const getHRAttendance = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/hr/attendance`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** HR - Leaves */
+export const getHRLeaves = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/hr/leaves`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** HR - Payroll */
+export const getHRPayroll = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/hr/payroll`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/** Login user */
+export const createLogin = async (data: any) => {
+  return apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/** Home */
+export const getAuto = async (queryParams?: Record<string, any>) => {
   let endpoint = `/`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -117,8 +401,9 @@ export const getAutoHomeController = async (queryParams?: Record<string, any>) =
   });
 };
 
+/** Auto-generated */
 export const getAutoAdminUsers = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/admin/users`;
+  let endpoint = `/admin/users`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -128,8 +413,9 @@ export const getAutoAdminUsers = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Auto-generated */
 export const getAutoAdminUsersSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/admin/users/search`;
+  let endpoint = `/admin/users/search`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -139,8 +425,9 @@ export const getAutoAdminUsersSearch = async (queryParams?: Record<string, any>)
   });
 };
 
+/** Auto-generated */
 export const getAutoAdminRoles = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/admin/roles`;
+  let endpoint = `/admin/roles`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -150,8 +437,9 @@ export const getAutoAdminRoles = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Auto-generated */
 export const getAutoAdminBranches = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/admin/branches`;
+  let endpoint = `/admin/branches`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -161,6 +449,7 @@ export const getAutoAdminBranches = async (queryParams?: Record<string, any>) =>
   });
 };
 
+/** Register user */
 export const createAutoAuthRegister = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/auth/register`;
   if (queryParams) {
@@ -173,14 +462,20 @@ export const createAutoAuthRegister = async (data?: any, queryParams?: Record<st
   });
 };
 
-export const getAutoAuthLogin = async (data: any) => {
-  return apiRequest('/auth/login', { 
-    method: 'POST', 
-    body: JSON.stringify(data)
+/** Auto-generated */
+export const getAutoAuthLogin = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/auth/login`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { 
+    method: 'GET', 
   });
 };
 
-export const getAutoUsers = async (queryParams?: Record<string, any>) => {
+/** Auto-generated */
+export const getAutoAuthUsers = async (queryParams?: Record<string, any>) => {
   let endpoint = `/auth/users`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -191,8 +486,9 @@ export const getAutoUsers = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Create department */
 export const createAutoDepartments = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments`;
+  let endpoint = `/departments`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -203,8 +499,9 @@ export const createAutoDepartments = async (data?: any, queryParams?: Record<str
   });
 };
 
+/** Get Department By Id */
 export const getAutoDepartments = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments`;
+  let endpoint = `/departments`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -214,8 +511,9 @@ export const getAutoDepartments = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoDepartmentsListAll = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/list-all`;
+/** List all departments (no pagination) */
+export const getAutoDepartmentsListall = async (queryParams?: Record<string, any>) => {
+  let endpoint = `/departments/list-all`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -225,8 +523,9 @@ export const getAutoDepartmentsListAll = async (queryParams?: Record<string, any
   });
 };
 
+/** List all departments (no pagination) */
 export const getAutoDepartmentsActive = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/active`;
+  let endpoint = `/departments/active`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -236,8 +535,9 @@ export const getAutoDepartmentsActive = async (queryParams?: Record<string, any>
   });
 };
 
-export const getAutoDepartments1 = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/${id}`;
+/** Get Department By Id */
+export const getAutoDepartmentsByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/departments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -247,8 +547,9 @@ export const getAutoDepartments1 = async (id: string, queryParams?: Record<strin
   });
 };
 
-export const updateAutoDepartments = async (id: string, data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/${id}`;
+/** Update department */
+export const updateAutoDepartmentsByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+  let endpoint = `/departments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -259,8 +560,9 @@ export const updateAutoDepartments = async (id: string, data?: any, queryParams?
   });
 };
 
-export const deleteAutoDepartments = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/${id}`;
+/** Update department */
+export const deleteAutoDepartmentsByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/departments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -270,8 +572,9 @@ export const deleteAutoDepartments = async (id: string, queryParams?: Record<str
   });
 };
 
-export const getAutoDepartmentsCode = async (code: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/code/${code}`;
+/** Get Department By Code */
+export const getAutoDepartmentsCodeBycode = async (code: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/departments/code/${code}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -281,8 +584,9 @@ export const getAutoDepartmentsCode = async (code: string, queryParams?: Record<
   });
 };
 
+/** Update Department */
 export const getAutoDepartmentsSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/departments/search`;
+  let endpoint = `/departments/search`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -292,6 +596,7 @@ export const getAutoDepartmentsSearch = async (queryParams?: Record<string, any>
   });
 };
 
+/** Create Appointment V1 */
 export const getAutoAppointments = async (queryParams?: Record<string, any>) => {
   let endpoint = `/appointments`;
   if (queryParams) {
@@ -303,6 +608,7 @@ export const getAutoAppointments = async (queryParams?: Record<string, any>) => 
   });
 };
 
+/** Create a new appointment */
 export const createAutoAppointments = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/appointments`;
   if (queryParams) {
@@ -315,7 +621,8 @@ export const createAutoAppointments = async (data?: any, queryParams?: Record<st
   });
 };
 
-export const getAutoAppointments1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Appointment By Id */
+export const getAutoAppointmentsByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -326,7 +633,8 @@ export const getAutoAppointments1 = async (id: string, queryParams?: Record<stri
   });
 };
 
-export const updateAutoAppointments = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Appointment V1 */
+export const updateAutoAppointmentsByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -338,7 +646,8 @@ export const updateAutoAppointments = async (id: string, data?: any, queryParams
   });
 };
 
-export const deleteAutoAppointments = async (id: string, queryParams?: Record<string, any>) => {
+/** Update appointment */
+export const deleteAutoAppointmentsByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -349,6 +658,7 @@ export const deleteAutoAppointments = async (id: string, queryParams?: Record<st
   });
 };
 
+/** Auto-generated */
 export const getAutoAppointmentsDaily = async (queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/daily`;
   if (queryParams) {
@@ -360,7 +670,8 @@ export const getAutoAppointmentsDaily = async (queryParams?: Record<string, any>
   });
 };
 
-export const getAutoAppointmentsPatient = async (queryParams?: Record<string, any>) => {
+/** Auto-generated */
+export const getAutoAppointmentsPatientBypatientId = async (queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/patient/{patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -371,7 +682,8 @@ export const getAutoAppointmentsPatient = async (queryParams?: Record<string, an
   });
 };
 
-export const getAutoAppointmentsDoctor = async (queryParams?: Record<string, any>) => {
+/** Auto-generated */
+export const getAutoAppointmentsDoctorBydoctorId = async (queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/doctor/{doctorId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -382,6 +694,7 @@ export const getAutoAppointmentsDoctor = async (queryParams?: Record<string, any
   });
 };
 
+/** Auto-generated */
 export const getAutoAppointmentsSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/appointments/search`;
   if (queryParams) {
@@ -393,6 +706,7 @@ export const getAutoAppointmentsSearch = async (queryParams?: Record<string, any
   });
 };
 
+/** List Assets - Masters */
 export const getAutoAssetsMasters = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/masters`;
   if (queryParams) {
@@ -404,6 +718,7 @@ export const getAutoAssetsMasters = async (queryParams?: Record<string, any>) =>
   });
 };
 
+/** List Assets - Masters */
 export const createAutoAssetsMasters = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/masters`;
   if (queryParams) {
@@ -416,7 +731,8 @@ export const createAutoAssetsMasters = async (data?: any, queryParams?: Record<s
   });
 };
 
-export const getAutoAssetsMasters1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Create Assets - Masters */
+export const getAutoAssetsMastersByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/masters/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -427,7 +743,8 @@ export const getAutoAssetsMasters1 = async (id: string, queryParams?: Record<str
   });
 };
 
-export const updateAutoAssetsMasters = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Asset Master */
+export const updateAutoAssetsMastersByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/masters/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -439,7 +756,8 @@ export const updateAutoAssetsMasters = async (id: string, data?: any, queryParam
   });
 };
 
-export const deleteAutoAssetsMasters = async (id: string, queryParams?: Record<string, any>) => {
+/** Update Assets - Masters */
+export const deleteAutoAssetsMastersByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/masters/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -450,6 +768,7 @@ export const deleteAutoAssetsMasters = async (id: string, queryParams?: Record<s
   });
 };
 
+/** Create Asset Category */
 export const getAutoAssetsCategories = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/categories`;
   if (queryParams) {
@@ -461,6 +780,7 @@ export const getAutoAssetsCategories = async (queryParams?: Record<string, any>)
   });
 };
 
+/** List Assets - Categories */
 export const createAutoAssetsCategories = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/categories`;
   if (queryParams) {
@@ -473,7 +793,8 @@ export const createAutoAssetsCategories = async (data?: any, queryParams?: Recor
   });
 };
 
-export const getAutoAssetsSubCategories = async (queryParams?: Record<string, any>) => {
+/** Create Assets - Categories */
+export const getAutoAssetsSubcategories = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/sub-categories`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -484,7 +805,8 @@ export const getAutoAssetsSubCategories = async (queryParams?: Record<string, an
   });
 };
 
-export const createAutoAssetsSubCategories = async (data?: any, queryParams?: Record<string, any>) => {
+/** List Assets - Sub categories */
+export const createAutoAssetsSubcategories = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/sub-categories`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -496,6 +818,7 @@ export const createAutoAssetsSubCategories = async (data?: any, queryParams?: Re
   });
 };
 
+/** Create Assets - Sub categories */
 export const getAutoAssetsVendors = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/vendors`;
   if (queryParams) {
@@ -507,6 +830,7 @@ export const getAutoAssetsVendors = async (queryParams?: Record<string, any>) =>
   });
 };
 
+/** List Assets - Vendors */
 export const createAutoAssetsVendors = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/vendors`;
   if (queryParams) {
@@ -519,6 +843,7 @@ export const createAutoAssetsVendors = async (data?: any, queryParams?: Record<s
   });
 };
 
+/** Create Assets - Vendors */
 export const getAutoAssetsLocations = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/locations`;
   if (queryParams) {
@@ -530,6 +855,7 @@ export const getAutoAssetsLocations = async (queryParams?: Record<string, any>) 
   });
 };
 
+/** List Assets - Locations */
 export const createAutoAssetsLocations = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/locations`;
   if (queryParams) {
@@ -542,6 +868,7 @@ export const createAutoAssetsLocations = async (data?: any, queryParams?: Record
   });
 };
 
+/** Create Assets - Locations */
 export const getAutoAssetsAssignments = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/assignments`;
   if (queryParams) {
@@ -553,6 +880,7 @@ export const getAutoAssetsAssignments = async (queryParams?: Record<string, any>
   });
 };
 
+/** List Assets - Assignments */
 export const createAutoAssetsAssignments = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/assignments`;
   if (queryParams) {
@@ -565,6 +893,7 @@ export const createAutoAssetsAssignments = async (data?: any, queryParams?: Reco
   });
 };
 
+/** Create Assets - Assignments */
 export const getAutoAssetsMaintenances = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/maintenances`;
   if (queryParams) {
@@ -576,6 +905,7 @@ export const getAutoAssetsMaintenances = async (queryParams?: Record<string, any
   });
 };
 
+/** List Assets - Maintenances */
 export const createAutoAssetsMaintenances = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/assets/maintenances`;
   if (queryParams) {
@@ -588,6 +918,7 @@ export const createAutoAssetsMaintenances = async (data?: any, queryParams?: Rec
   });
 };
 
+/** Create Assets - Maintenances */
 export const getAutoAssetsAudits = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/audits`;
   if (queryParams) {
@@ -599,6 +930,7 @@ export const getAutoAssetsAudits = async (queryParams?: Record<string, any>) => 
   });
 };
 
+/** List Assets - Audits */
 export const getAutoAssetsDocuments = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/documents`;
   if (queryParams) {
@@ -610,7 +942,8 @@ export const getAutoAssetsDocuments = async (queryParams?: Record<string, any>) 
   });
 };
 
-export const getAutoAssetsUsageLogs = async (queryParams?: Record<string, any>) => {
+/** List Assets - Documents */
+export const getAutoAssetsUsagelogs = async (queryParams?: Record<string, any>) => {
   let endpoint = `/assets/usage-logs`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -621,6 +954,7 @@ export const getAutoAssetsUsageLogs = async (queryParams?: Record<string, any>) 
   });
 };
 
+/** Get Billing By Id V1 */
 export const getAutoBilling = async (queryParams?: Record<string, any>) => {
   let endpoint = `/billing`;
   if (queryParams) {
@@ -632,7 +966,8 @@ export const getAutoBilling = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoBilling1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Billing By Id V1 */
+export const getAutoBillingByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -643,7 +978,8 @@ export const getAutoBilling1 = async (id: string, queryParams?: Record<string, a
   });
 };
 
-export const updateAutoBilling = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Billing V1 */
+export const updateAutoBillingByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -655,7 +991,8 @@ export const updateAutoBilling = async (id: string, data?: any, queryParams?: Re
   });
 };
 
-export const deleteAutoBilling = async (id: string, queryParams?: Record<string, any>) => {
+/** Update invoice */
+export const deleteAutoBillingByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -666,7 +1003,8 @@ export const deleteAutoBilling = async (id: string, queryParams?: Record<string,
   });
 };
 
-export const createAutoBillingServiceCharges = async (data?: any, queryParams?: Record<string, any>) => {
+/** Create Service Charge */
+export const createAutoBillingServicecharges = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/service-charges`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -678,7 +1016,8 @@ export const createAutoBillingServiceCharges = async (data?: any, queryParams?: 
   });
 };
 
-export const getAutoBillingServiceCharges = async (queryParams?: Record<string, any>) => {
+/** Create service charge */
+export const getAutoBillingServicecharges = async (queryParams?: Record<string, any>) => {
   let endpoint = `/billing/service-charges`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -689,6 +1028,7 @@ export const getAutoBillingServiceCharges = async (queryParams?: Record<string, 
   });
 };
 
+/** Create Invoice */
 export const createAutoBillingInvoices = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/invoices`;
   if (queryParams) {
@@ -701,6 +1041,7 @@ export const createAutoBillingInvoices = async (data?: any, queryParams?: Record
   });
 };
 
+/** Search invoices */
 export const getAutoBillingInvoicesSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/billing/invoices/search`;
   if (queryParams) {
@@ -712,7 +1053,8 @@ export const getAutoBillingInvoicesSearch = async (queryParams?: Record<string, 
   });
 };
 
-export const deleteAutoBillingInvoices = async (id: string, queryParams?: Record<string, any>) => {
+/** Update invoice payment */
+export const deleteAutoBillingInvoicesByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/billing/invoices/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -723,7 +1065,8 @@ export const deleteAutoBillingInvoices = async (id: string, queryParams?: Record
   });
 };
 
-export const getAutoClinicals = async (queryParams?: Record<string, any>) => {
+/** List V1 - clinicalDetailsRoute */
+export const getAutoClinical = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -734,7 +1077,8 @@ export const getAutoClinicals = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoClinicals1 = async (data?: any, queryParams?: Record<string, any>) => {
+/** Create V1 - clinicalDetailsRoute */
+export const getAutoClinical1 = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -746,7 +1090,8 @@ export const getAutoClinicals1 = async (data?: any, queryParams?: Record<string,
   });
 };
 
-export const getAutoClinical = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Clinical Detail By Id */
+export const getAutoClinicalByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -757,7 +1102,8 @@ export const getAutoClinical = async (id: string, queryParams?: Record<string, a
   });
 };
 
-export const updateAutoClinical = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Clinical Detail */
+export const updateAutoClinicalByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -769,7 +1115,8 @@ export const updateAutoClinical = async (id: string, data?: any, queryParams?: R
   });
 };
 
-export const deleteAutoClinical = async (id: string, queryParams?: Record<string, any>) => {
+/** Update V1 - clinicalDetailsRoute */
+export const deleteAutoClinicalByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -780,6 +1127,7 @@ export const deleteAutoClinical = async (id: string, queryParams?: Record<string
   });
 };
 
+/** Add Addiction */
 export const createAutoClinicalAddiction = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/addiction`;
   if (queryParams) {
@@ -792,7 +1140,8 @@ export const createAutoClinicalAddiction = async (data?: any, queryParams?: Reco
   });
 };
 
-export const getAutoClinicalAddiction = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Addiction */
+export const getAutoClinicalAddictionBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/addiction/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -803,7 +1152,8 @@ export const getAutoClinicalAddiction = async (patientId: string, queryParams?: 
   });
 };
 
-export const updateAutoClinicalAddiction = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Addiction/:patientId */
+export const updateAutoClinicalAddictionByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/addiction/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -815,7 +1165,8 @@ export const updateAutoClinicalAddiction = async (id: string, data?: any, queryP
   });
 };
 
-export const deleteAutoClinicalAddiction = async (id: string, queryParams?: Record<string, any>) => {
+/** Addiction/:id */
+export const deleteAutoClinicalAddictionByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/addiction/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -826,7 +1177,8 @@ export const deleteAutoClinicalAddiction = async (id: string, queryParams?: Reco
   });
 };
 
-export const getAutoClinicalAllClinicalDetails = async (queryParams?: Record<string, any>) => {
+/** Addiction/:id */
+export const getAutoClinicalAllclinicaldetails = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/all-clinical-details/`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -837,6 +1189,7 @@ export const getAutoClinicalAllClinicalDetails = async (queryParams?: Record<str
   });
 };
 
+/** All-clinical-details/ */
 export const createAutoClinicalSurgical = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/surgical`;
   if (queryParams) {
@@ -849,7 +1202,8 @@ export const createAutoClinicalSurgical = async (data?: any, queryParams?: Recor
   });
 };
 
-export const getAutoClinicalSurgical = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Surgical */
+export const getAutoClinicalSurgicalBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/surgical/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -860,7 +1214,8 @@ export const getAutoClinicalSurgical = async (patientId: string, queryParams?: R
   });
 };
 
-export const updateAutoClinicalSurgical = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Surgical/:patientId */
+export const updateAutoClinicalSurgicalByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/surgical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -872,6 +1227,7 @@ export const updateAutoClinicalSurgical = async (id: string, data?: any, queryPa
   });
 };
 
+/** Surgical/:id */
 export const createAutoClinicalMedical = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical`;
   if (queryParams) {
@@ -884,7 +1240,8 @@ export const createAutoClinicalMedical = async (data?: any, queryParams?: Record
   });
 };
 
-export const getAutoClinicalMedical = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Medical */
+export const getAutoClinicalMedicalBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -895,7 +1252,8 @@ export const getAutoClinicalMedical = async (patientId: string, queryParams?: Re
   });
 };
 
-export const updateAutoClinicalMedical = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Medical/:patientId */
+export const updateAutoClinicalMedicalByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -907,7 +1265,8 @@ export const updateAutoClinicalMedical = async (id: string, data?: any, queryPar
   });
 };
 
-export const deleteAutoClinicalMedical = async (id: string, queryParams?: Record<string, any>) => {
+/** Medical/:id */
+export const deleteAutoClinicalMedicalByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -918,6 +1277,7 @@ export const deleteAutoClinicalMedical = async (id: string, queryParams?: Record
   });
 };
 
+/** Medical/:id */
 export const createAutoClinicalPersonalhistory = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/personalhistory`;
   if (queryParams) {
@@ -930,7 +1290,8 @@ export const createAutoClinicalPersonalhistory = async (data?: any, queryParams?
   });
 };
 
-export const getAutoClinicalPersonalhistory = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Personalhistory */
+export const getAutoClinicalPersonalhistoryBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/personalhistory/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -941,7 +1302,8 @@ export const getAutoClinicalPersonalhistory = async (patientId: string, queryPar
   });
 };
 
-export const updateAutoClinicalPersonalhistory = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Personalhistory/:patientId */
+export const updateAutoClinicalPersonalhistoryByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/personalhistory/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -953,6 +1315,7 @@ export const updateAutoClinicalPersonalhistory = async (id: string, data?: any, 
   });
 };
 
+/** Personalhistory/:id */
 export const createAutoClinicalCreatediagnosis = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/creatediagnosis`;
   if (queryParams) {
@@ -965,7 +1328,8 @@ export const createAutoClinicalCreatediagnosis = async (data?: any, queryParams?
   });
 };
 
-export const updateAutoClinicalUpdatediagnosis = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Creatediagnosis */
+export const updateAutoClinicalUpdatediagnosisByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/updatediagnosis/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -977,7 +1341,8 @@ export const updateAutoClinicalUpdatediagnosis = async (id: string, data?: any, 
   });
 };
 
-export const getAutoClinicalGetdiagnosis = async (id: string, queryParams?: Record<string, any>) => {
+/** Updatediagnosis/:id */
+export const getAutoClinicalGetdiagnosisByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/getdiagnosis/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -988,7 +1353,8 @@ export const getAutoClinicalGetdiagnosis = async (id: string, queryParams?: Reco
   });
 };
 
-export const getAutoClinicalDiagnosispatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Getdiagnosis/:id */
+export const getAutoClinicalDiagnosispatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/diagnosispatient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -999,7 +1365,8 @@ export const getAutoClinicalDiagnosispatient = async (patientId: string, queryPa
   });
 };
 
-export const getAutoClinicalVisitdiagnosis = async (visitId: string, queryParams?: Record<string, any>) => {
+/** Diagnosispatient/:patientId */
+export const getAutoClinicalVisitdiagnosisByvisitId = async (visitId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/visitdiagnosis/${visitId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1010,6 +1377,7 @@ export const getAutoClinicalVisitdiagnosis = async (visitId: string, queryParams
   });
 };
 
+/** Visitdiagnosis/:visitId */
 export const createAutoClinicalCreatedoctornotes = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/createdoctornotes`;
   if (queryParams) {
@@ -1022,7 +1390,8 @@ export const createAutoClinicalCreatedoctornotes = async (data?: any, queryParam
   });
 };
 
-export const updateAutoClinicalUpdatedoctornotes = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Createdoctornotes */
+export const updateAutoClinicalUpdatedoctornotesByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/updatedoctornotes/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1034,7 +1403,8 @@ export const updateAutoClinicalUpdatedoctornotes = async (id: string, data?: any
   });
 };
 
-export const getAutoClinicalUpdatedoctornotes = async (id: string, queryParams?: Record<string, any>) => {
+/** Updatedoctornotes/:id */
+export const getAutoClinicalUpdatedoctornotesByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/updatedoctornotes/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1045,7 +1415,8 @@ export const getAutoClinicalUpdatedoctornotes = async (id: string, queryParams?:
   });
 };
 
-export const deleteAutoClinicalDeletedoctornotes = async (id: string, queryParams?: Record<string, any>) => {
+/** Updatedoctornotes/:id */
+export const deleteAutoClinicalDeletedoctornotesByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/deletedoctornotes/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1056,7 +1427,8 @@ export const deleteAutoClinicalDeletedoctornotes = async (id: string, queryParam
   });
 };
 
-export const createAutoClinicalCreatePrescription = async (visitId: string, data?: any, queryParams?: Record<string, any>) => {
+/** Deletedoctornotes/:id */
+export const createAutoClinicalCreatePrescriptionByvisitId = async (visitId: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/createPrescription/${visitId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1068,7 +1440,8 @@ export const createAutoClinicalCreatePrescription = async (visitId: string, data
   });
 };
 
-export const updateAutoClinicalUpdatePrescription = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** CreatePrescription/:visitId */
+export const updateAutoClinicalUpdatePrescriptionByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/updatePrescription/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1080,7 +1453,8 @@ export const updateAutoClinicalUpdatePrescription = async (id: string, data?: an
   });
 };
 
-export const getAutoClinicalGetPrescription = async (id: string, queryParams?: Record<string, any>) => {
+/** UpdatePrescription/:id */
+export const getAutoClinicalGetPrescriptionByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/getPrescription/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1091,7 +1465,8 @@ export const getAutoClinicalGetPrescription = async (id: string, queryParams?: R
   });
 };
 
-export const deleteAutoClinicalDeletePrescription = async (id: string, queryParams?: Record<string, any>) => {
+/** GetPrescription/:id */
+export const deleteAutoClinicalDeletePrescriptionByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/deletePrescription/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1102,6 +1477,7 @@ export const deleteAutoClinicalDeletePrescription = async (id: string, queryPara
   });
 };
 
+/** DeletePrescription/:id */
 export const createAutoClinicalEmr = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/emr`;
   if (queryParams) {
@@ -1114,6 +1490,7 @@ export const createAutoClinicalEmr = async (data?: any, queryParams?: Record<str
   });
 };
 
+/** Search EMR records */
 export const getAutoClinicalEmrSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/emr/search`;
   if (queryParams) {
@@ -1125,7 +1502,8 @@ export const getAutoClinicalEmrSearch = async (queryParams?: Record<string, any>
   });
 };
 
-export const getAutoClinicalEmr = async (id: string, queryParams?: Record<string, any>) => {
+/** Get E M R By Id */
+export const getAutoClinicalEmrByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/emr/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1136,7 +1514,8 @@ export const getAutoClinicalEmr = async (id: string, queryParams?: Record<string
   });
 };
 
-export const updateAutoClinicalEmr = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update E M R */
+export const updateAutoClinicalEmrByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/emr/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1148,7 +1527,8 @@ export const updateAutoClinicalEmr = async (id: string, data?: any, queryParams?
   });
 };
 
-export const createAutoClinicalNursingNote = async (data?: any, queryParams?: Record<string, any>) => {
+/** Update EMR record */
+export const createAutoClinicalNursingnote = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/nursing-note`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1160,7 +1540,8 @@ export const createAutoClinicalNursingNote = async (data?: any, queryParams?: Re
   });
 };
 
-export const getAutoClinicalNursingNoteAdmission = async (admissionId: string, queryParams?: Record<string, any>) => {
+/** Add nursing note */
+export const getAutoClinicalNursingnoteAdmissionByadmissionId = async (admissionId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/nursing-note/admission/${admissionId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1171,7 +1552,8 @@ export const getAutoClinicalNursingNoteAdmission = async (admissionId: string, q
   });
 };
 
-export const createAutoClinicalDischargeSummary = async (data?: any, queryParams?: Record<string, any>) => {
+/** Create discharge summary */
+export const createAutoClinicalDischargesummary = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/discharge-summary`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1183,7 +1565,8 @@ export const createAutoClinicalDischargeSummary = async (data?: any, queryParams
   });
 };
 
-export const getAutoClinicalDischargeSummaryAdmission = async (admissionId: string, queryParams?: Record<string, any>) => {
+/** Get Discharge Summary */
+export const getAutoClinicalDischargesummaryAdmissionByadmissionId = async (admissionId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/discharge-summary/admission/${admissionId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1194,6 +1577,7 @@ export const getAutoClinicalDischargeSummaryAdmission = async (admissionId: stri
   });
 };
 
+/** Register E R Visit */
 export const createAutoClinicalErVisit = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/er/visit`;
   if (queryParams) {
@@ -1206,6 +1590,7 @@ export const createAutoClinicalErVisit = async (data?: any, queryParams?: Record
   });
 };
 
+/** Search ER visits */
 export const getAutoClinicalErSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/er/search`;
   if (queryParams) {
@@ -1217,6 +1602,7 @@ export const getAutoClinicalErSearch = async (queryParams?: Record<string, any>)
   });
 };
 
+/** Schedule OT procedure */
 export const createAutoClinicalOtBooking = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/ot/booking`;
   if (queryParams) {
@@ -1229,6 +1615,7 @@ export const createAutoClinicalOtBooking = async (data?: any, queryParams?: Reco
   });
 };
 
+/** Search OT bookings */
 export const getAutoClinicalOtSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/ot/search`;
   if (queryParams) {
@@ -1240,7 +1627,8 @@ export const getAutoClinicalOtSearch = async (queryParams?: Record<string, any>)
   });
 };
 
-export const createAutoClinicalSurgicalHistory = async (data?: any, queryParams?: Record<string, any>) => {
+/** Add surgical history */
+export const createAutoClinicalSurgicalhistory = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/surgical-history`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1252,7 +1640,8 @@ export const createAutoClinicalSurgicalHistory = async (data?: any, queryParams?
   });
 };
 
-export const getAutoClinicalSurgicalHistoryPatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Add surgical history */
+export const getAutoClinicalSurgicalhistoryPatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/surgical-history/patient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1263,7 +1652,8 @@ export const getAutoClinicalSurgicalHistoryPatient = async (patientId: string, q
   });
 };
 
-export const createAutoClinicalMedicalHistory = async (data?: any, queryParams?: Record<string, any>) => {
+/** Add Medical History */
+export const createAutoClinicalMedicalhistory = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical-history`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1275,7 +1665,8 @@ export const createAutoClinicalMedicalHistory = async (data?: any, queryParams?:
   });
 };
 
-export const getAutoClinicalMedicalHistoryPatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Add medical history */
+export const getAutoClinicalMedicalhistoryPatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/medical-history/patient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1286,7 +1677,8 @@ export const getAutoClinicalMedicalHistoryPatient = async (patientId: string, qu
   });
 };
 
-export const createAutoClinicalPersonalHistory = async (data?: any, queryParams?: Record<string, any>) => {
+/** Add Personal History */
+export const createAutoClinicalPersonalhistory1 = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/personal-history`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1298,7 +1690,8 @@ export const createAutoClinicalPersonalHistory = async (data?: any, queryParams?
   });
 };
 
-export const getAutoClinicalPersonalHistoryPatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Add personal history */
+export const getAutoClinicalPersonalhistoryPatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/personal-history/patient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1309,6 +1702,7 @@ export const getAutoClinicalPersonalHistoryPatient = async (patientId: string, q
   });
 };
 
+/** Add Diagnosis */
 export const createAutoClinicalDiagnosis = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/diagnosis`;
   if (queryParams) {
@@ -1321,7 +1715,8 @@ export const createAutoClinicalDiagnosis = async (data?: any, queryParams?: Reco
   });
 };
 
-export const getAutoClinicalDiagnosisPatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Add clinical diagnosis */
+export const getAutoClinicalDiagnosisPatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/diagnosis/patient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1332,7 +1727,8 @@ export const getAutoClinicalDiagnosisPatient = async (patientId: string, queryPa
   });
 };
 
-export const createAutoClinicalDoctorNote = async (data?: any, queryParams?: Record<string, any>) => {
+/** Add Doctor Note */
+export const createAutoClinicalDoctornote = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/doctor-note`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1344,7 +1740,8 @@ export const createAutoClinicalDoctorNote = async (data?: any, queryParams?: Rec
   });
 };
 
-export const getAutoClinicalDoctorNotePatient = async (patientId: string, queryParams?: Record<string, any>) => {
+/** Add doctor note */
+export const getAutoClinicalDoctornotePatientBypatientId = async (patientId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/doctor-note/patient/${patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1355,6 +1752,7 @@ export const getAutoClinicalDoctorNotePatient = async (patientId: string, queryP
   });
 };
 
+/** Add Prescription */
 export const createAutoClinicalPrescription = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/prescription`;
   if (queryParams) {
@@ -1367,7 +1765,8 @@ export const createAutoClinicalPrescription = async (data?: any, queryParams?: R
   });
 };
 
-export const getAutoClinicalPrescriptionPatient = async (queryParams?: Record<string, any>) => {
+/** Auto-generated */
+export const getAutoClinicalPrescriptionPatientBypatientId = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/prescription/patient/{patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1378,6 +1777,7 @@ export const getAutoClinicalPrescriptionPatient = async (queryParams?: Record<st
   });
 };
 
+/** Record patient vitals */
 export const createAutoClinicalVitals = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/vitals`;
   if (queryParams) {
@@ -1390,7 +1790,8 @@ export const createAutoClinicalVitals = async (data?: any, queryParams?: Record<
   });
 };
 
-export const getAutoClinicalVitalsHistory = async (queryParams?: Record<string, any>) => {
+/** Auto-generated */
+export const getAutoClinicalVitalsHistoryBypatientId = async (queryParams?: Record<string, any>) => {
   let endpoint = `/clinical/vitals/history/{patientId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1401,8 +1802,9 @@ export const getAutoClinicalVitalsHistory = async (queryParams?: Record<string, 
   });
 };
 
+/** Get Doctor Dashboard */
 export const getAutoDashboardDoctor = async (doctorId: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/dashboard/doctor/${doctorId}`;
+  let endpoint = `/dashboard/doctor/${doctorId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1412,8 +1814,9 @@ export const getAutoDashboardDoctor = async (doctorId: string, queryParams?: Rec
   });
 };
 
+/** Get Patient Portal */
 export const getAutoDashboardPatient = async (uhid: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/dashboard/patient/${uhid}`;
+  let endpoint = `/dashboard/patient/${uhid}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1423,6 +1826,7 @@ export const getAutoDashboardPatient = async (uhid: string, queryParams?: Record
   });
 };
 
+/** List V1 - labRoute */
 export const getAutoDiagnosticsLab = async (queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab`;
   if (queryParams) {
@@ -1434,6 +1838,7 @@ export const getAutoDiagnosticsLab = async (queryParams?: Record<string, any>) =
   });
 };
 
+/** List V1 - labRoute */
 export const createAutoDiagnosticsLab = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab`;
   if (queryParams) {
@@ -1446,7 +1851,8 @@ export const createAutoDiagnosticsLab = async (data?: any, queryParams?: Record<
   });
 };
 
-export const getAutoDiagnosticsLab1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Lab By Id V1 */
+export const getAutoDiagnosticsLabByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1457,7 +1863,8 @@ export const getAutoDiagnosticsLab1 = async (id: string, queryParams?: Record<st
   });
 };
 
-export const updateAutoDiagnosticsLab = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Lab V1 */
+export const updateAutoDiagnosticsLabByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1469,7 +1876,8 @@ export const updateAutoDiagnosticsLab = async (id: string, data?: any, queryPara
   });
 };
 
-export const deleteAutoDiagnosticsLab = async (id: string, queryParams?: Record<string, any>) => {
+/** Update V1 - labRoute */
+export const deleteAutoDiagnosticsLabByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1480,6 +1888,7 @@ export const deleteAutoDiagnosticsLab = async (id: string, queryParams?: Record<
   });
 };
 
+/** Create Radiology V1 */
 export const getAutoDiagnosticsRadiology = async (queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology`;
   if (queryParams) {
@@ -1491,6 +1900,7 @@ export const getAutoDiagnosticsRadiology = async (queryParams?: Record<string, a
   });
 };
 
+/** List V1 - radiologyRoute */
 export const createAutoDiagnosticsRadiology = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology`;
   if (queryParams) {
@@ -1503,7 +1913,8 @@ export const createAutoDiagnosticsRadiology = async (data?: any, queryParams?: R
   });
 };
 
-export const getAutoDiagnosticsRadiology1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Radiology By Id V1 */
+export const getAutoDiagnosticsRadiologyByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1514,7 +1925,8 @@ export const getAutoDiagnosticsRadiology1 = async (id: string, queryParams?: Rec
   });
 };
 
-export const updateAutoDiagnosticsRadiology = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Radiology V1 */
+export const updateAutoDiagnosticsRadiologyByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1526,7 +1938,8 @@ export const updateAutoDiagnosticsRadiology = async (id: string, data?: any, que
   });
 };
 
-export const deleteAutoDiagnosticsRadiology = async (id: string, queryParams?: Record<string, any>) => {
+/** Update V1 - radiologyRoute */
+export const deleteAutoDiagnosticsRadiologyByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1537,6 +1950,7 @@ export const deleteAutoDiagnosticsRadiology = async (id: string, queryParams?: R
   });
 };
 
+/** Create Lab Order */
 export const createAutoDiagnosticsLabOrders = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab/orders`;
   if (queryParams) {
@@ -1549,6 +1963,7 @@ export const createAutoDiagnosticsLabOrders = async (data?: any, queryParams?: R
   });
 };
 
+/** Search lab orders */
 export const getAutoDiagnosticsLabOrdersSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/lab/orders/search`;
   if (queryParams) {
@@ -1560,6 +1975,7 @@ export const getAutoDiagnosticsLabOrdersSearch = async (queryParams?: Record<str
   });
 };
 
+/** Create radiology order */
 export const createAutoDiagnosticsRadiologyOrders = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology/orders`;
   if (queryParams) {
@@ -1572,6 +1988,7 @@ export const createAutoDiagnosticsRadiologyOrders = async (data?: any, queryPara
   });
 };
 
+/** Search radiology orders */
 export const getAutoDiagnosticsRadiologyOrdersSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/diagnostics/radiology/orders/search`;
   if (queryParams) {
@@ -1583,8 +2000,9 @@ export const getAutoDiagnosticsRadiologyOrdersSearch = async (queryParams?: Reco
   });
 };
 
+/** Register new doctor */
 export const createAutoDoctors = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors`;
+  let endpoint = `/doctors`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1595,8 +2013,9 @@ export const createAutoDoctors = async (data?: any, queryParams?: Record<string,
   });
 };
 
+/** Register new doctor */
 export const getAutoDoctors = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors`;
+  let endpoint = `/doctors`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1606,8 +2025,9 @@ export const getAutoDoctors = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoDoctors1 = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/${id}`;
+/** Get Doctor By Id */
+export const getAutoDoctorsByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/doctors/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1617,8 +2037,9 @@ export const getAutoDoctors1 = async (id: string, queryParams?: Record<string, a
   });
 };
 
-export const updateAutoDoctors = async (id: string, data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/${id}`;
+/** Update Doctor */
+export const updateAutoDoctorsByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+  let endpoint = `/doctors/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1629,8 +2050,9 @@ export const updateAutoDoctors = async (id: string, data?: any, queryParams?: Re
   });
 };
 
-export const deleteAutoDoctors = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/${id}`;
+/** Delete Doctor */
+export const deleteAutoDoctorsByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/doctors/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1640,8 +2062,9 @@ export const deleteAutoDoctors = async (id: string, queryParams?: Record<string,
   });
 };
 
+/** Update doctor */
 export const getAutoDoctorsAvailable = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/available`;
+  let endpoint = `/doctors/available`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1651,8 +2074,9 @@ export const getAutoDoctorsAvailable = async (queryParams?: Record<string, any>)
   });
 };
 
+/** Delete Doctor */
 export const getAutoDoctorsSpecialization = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/specialization`;
+  let endpoint = `/doctors/specialization`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1662,8 +2086,9 @@ export const getAutoDoctorsSpecialization = async (queryParams?: Record<string, 
   });
 };
 
-export const getAutoDoctorsDepartment = async (departmentId: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/department/${departmentId}`;
+/** Delete Doctor */
+export const getAutoDoctorsDepartmentBydepartmentId = async (departmentId: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/doctors/department/${departmentId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1673,8 +2098,9 @@ export const getAutoDoctorsDepartment = async (departmentId: string, queryParams
   });
 };
 
+/** Delete Doctor */
 export const getAutoDoctorsSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/doctors/search`;
+  let endpoint = `/doctors/search`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1684,8 +2110,9 @@ export const getAutoDoctorsSearch = async (queryParams?: Record<string, any>) =>
   });
 };
 
+/** Record financial transaction */
 export const createAutoFinanceTransaction = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/finance/transaction`;
+  let endpoint = `/finance/transaction`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1696,8 +2123,9 @@ export const createAutoFinanceTransaction = async (data?: any, queryParams?: Rec
   });
 };
 
+/** Auto-generated */
 export const getAutoFinanceTransactions = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/finance/transactions`;
+  let endpoint = `/finance/transactions`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1707,8 +2135,9 @@ export const getAutoFinanceTransactions = async (queryParams?: Record<string, an
   });
 };
 
+/** Add pharmacy stock */
 export const createAutoInventoryPharmacyStock = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/inventory/pharmacy/stock`;
+  let endpoint = `/inventory/pharmacy/stock`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1719,8 +2148,9 @@ export const createAutoInventoryPharmacyStock = async (data?: any, queryParams?:
   });
 };
 
+/** Add pharmacy stock */
 export const getAutoInventoryPharmacyStock = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/inventory/pharmacy/stock`;
+  let endpoint = `/inventory/pharmacy/stock`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1730,8 +2160,9 @@ export const getAutoInventoryPharmacyStock = async (queryParams?: Record<string,
   });
 };
 
+/** Search pharmacy stock */
 export const getAutoInventoryPharmacyStockSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/inventory/pharmacy/stock/search`;
+  let endpoint = `/inventory/pharmacy/stock/search`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1741,8 +2172,9 @@ export const getAutoInventoryPharmacyStockSearch = async (queryParams?: Record<s
   });
 };
 
-export const updateAutoInventoryPharmacyStock = async (id: string, data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/inventory/pharmacy/stock/${id}`;
+/** Update pharmacy stock */
+export const updateAutoInventoryPharmacyStockByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+  let endpoint = `/inventory/pharmacy/stock/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1753,8 +2185,9 @@ export const updateAutoInventoryPharmacyStock = async (id: string, data?: any, q
   });
 };
 
-export const deleteAutoInventoryPharmacyStock = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/inventory/pharmacy/stock/${id}`;
+/** Update pharmacy stock */
+export const deleteAutoInventoryPharmacyStockByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/inventory/pharmacy/stock/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1764,6 +2197,7 @@ export const deleteAutoInventoryPharmacyStock = async (id: string, queryParams?:
   });
 };
 
+/** Get Ipd By Id V1 */
 export const getAutoIpd = async (queryParams?: Record<string, any>) => {
   let endpoint = `/ipd`;
   if (queryParams) {
@@ -1775,7 +2209,8 @@ export const getAutoIpd = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoIpd1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Ipd By Id V1 */
+export const getAutoIpdByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1786,7 +2221,8 @@ export const getAutoIpd1 = async (id: string, queryParams?: Record<string, any>)
   });
 };
 
-export const updateAutoIpd = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Ipd V1 */
+export const updateAutoIpdByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1798,7 +2234,8 @@ export const updateAutoIpd = async (id: string, data?: any, queryParams?: Record
   });
 };
 
-export const deleteAutoIpd = async (id: string, queryParams?: Record<string, any>) => {
+/** Update admission */
+export const deleteAutoIpdByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1809,6 +2246,7 @@ export const deleteAutoIpd = async (id: string, queryParams?: Record<string, any
   });
 };
 
+/** Create Ward */
 export const createAutoIpdWards = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/wards`;
   if (queryParams) {
@@ -1821,6 +2259,7 @@ export const createAutoIpdWards = async (data?: any, queryParams?: Record<string
   });
 };
 
+/** Create ward */
 export const getAutoIpdWards = async (queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/wards`;
   if (queryParams) {
@@ -1832,6 +2271,7 @@ export const getAutoIpdWards = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Create Bed */
 export const createAutoIpdBeds = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/beds`;
   if (queryParams) {
@@ -1844,6 +2284,7 @@ export const createAutoIpdBeds = async (data?: any, queryParams?: Record<string,
   });
 };
 
+/** Create bed */
 export const getAutoIpdBeds = async (queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/beds`;
   if (queryParams) {
@@ -1855,6 +2296,7 @@ export const getAutoIpdBeds = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Get Bed By Id */
 export const getAutoIpdBedsAvailable = async (queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/beds/available`;
   if (queryParams) {
@@ -1866,7 +2308,8 @@ export const getAutoIpdBedsAvailable = async (queryParams?: Record<string, any>)
   });
 };
 
-export const getAutoIpdBeds1 = async (bedId: string, queryParams?: Record<string, any>) => {
+/** Get Bed By Id */
+export const getAutoIpdBedsBybedId = async (bedId: string, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/beds/${bedId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1877,6 +2320,7 @@ export const getAutoIpdBeds1 = async (bedId: string, queryParams?: Record<string
   });
 };
 
+/** Admit Patient */
 export const createAutoIpdAdmit = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/admit`;
   if (queryParams) {
@@ -1889,6 +2333,7 @@ export const createAutoIpdAdmit = async (data?: any, queryParams?: Record<string
   });
 };
 
+/** Admit patient */
 export const getAutoIpdAdmissionsSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/admissions/search`;
   if (queryParams) {
@@ -1900,7 +2345,8 @@ export const getAutoIpdAdmissionsSearch = async (queryParams?: Record<string, an
   });
 };
 
-export const createAutoIpdDischarge = async (admissionId: string, data?: any, queryParams?: Record<string, any>) => {
+/** Discharge patient */
+export const createAutoIpdDischargeByadmissionId = async (admissionId: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/discharge/${admissionId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1912,7 +2358,8 @@ export const createAutoIpdDischarge = async (admissionId: string, data?: any, qu
   });
 };
 
-export const createAutoIpdTransferBed = async (admissionId: string, data?: any, queryParams?: Record<string, any>) => {
+/** Discharge patient */
+export const createAutoIpdTransferbedByadmissionId = async (admissionId: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/ipd/transfer-bed/${admissionId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1924,8 +2371,9 @@ export const createAutoIpdTransferBed = async (admissionId: string, data?: any, 
   });
 };
 
+/** Get Nurse By Id */
 export const getAutoNursesAvailable = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/nurses/available`;
+  let endpoint = `/nurses/available`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1935,8 +2383,9 @@ export const getAutoNursesAvailable = async (queryParams?: Record<string, any>) 
   });
 };
 
-export const getAutoNursesDepartment = async (departmentId: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/nurses/department/${departmentId}`;
+/** Get Nurse By Id */
+export const getAutoNursesDepartmentBydepartmentId = async (departmentId: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/nurses/department/${departmentId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1946,8 +2395,9 @@ export const getAutoNursesDepartment = async (departmentId: string, queryParams?
   });
 };
 
-export const getAutoNurses = async (id: string, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/nurses/${id}`;
+/** Get Nurse By Id */
+export const getAutoNursesByid = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/nurses/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -1957,7 +2407,8 @@ export const getAutoNurses = async (id: string, queryParams?: Record<string, any
   });
 };
 
-export const createAutoOpdCheckIn = async (appointmentId: string, data?: any, queryParams?: Record<string, any>) => {
+/** Check-in patient from appointment */
+export const createAutoOpdCheckinByappointmentId = async (appointmentId: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/opd/check-in/${appointmentId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1969,7 +2420,8 @@ export const createAutoOpdCheckIn = async (appointmentId: string, data?: any, qu
   });
 };
 
-export const createAutoOpdWalkIn = async (data?: any, queryParams?: Record<string, any>) => {
+/** Check-in patient from appointment */
+export const createAutoOpdWalkin = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/opd/walk-in`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -1981,6 +2433,7 @@ export const createAutoOpdWalkIn = async (data?: any, queryParams?: Record<strin
   });
 };
 
+/** Get Visit By Id */
 export const getAutoOpd = async (queryParams?: Record<string, any>) => {
   let endpoint = `/opd`;
   if (queryParams) {
@@ -1992,6 +2445,7 @@ export const getAutoOpd = async (queryParams?: Record<string, any>) => {
   });
 };
 
+/** Search OPD visits */
 export const getAutoOpdSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/opd/search`;
   if (queryParams) {
@@ -2003,7 +2457,8 @@ export const getAutoOpdSearch = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoOpd1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Visit By Id */
+export const getAutoOpdByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/opd/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2014,7 +2469,8 @@ export const getAutoOpd1 = async (id: string, queryParams?: Record<string, any>)
   });
 };
 
-export const deleteAutoOpd = async (id: string, queryParams?: Record<string, any>) => {
+/** Delete Visit */
+export const deleteAutoOpdByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/opd/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2025,7 +2481,8 @@ export const deleteAutoOpd = async (id: string, queryParams?: Record<string, any
   });
 };
 
-export const createAutoOpdVitals = async (opdVisitId: string, data?: any, queryParams?: Record<string, any>) => {
+/** Record Vitals */
+export const createAutoOpdVitalsByopdVisitId = async (opdVisitId: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/opd/vitals/${opdVisitId}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2037,6 +2494,7 @@ export const createAutoOpdVitals = async (opdVisitId: string, data?: any, queryP
   });
 };
 
+/** Patient Register V1 */
 export const createAutoPatientsPatientRegister = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/patient-register`;
   if (queryParams) {
@@ -2049,6 +2507,7 @@ export const createAutoPatientsPatientRegister = async (data?: any, queryParams?
   });
 };
 
+/** Register new patient */
 export const createAutoPatientsRegister = async (data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/register`;
   if (queryParams) {
@@ -2061,6 +2520,7 @@ export const createAutoPatientsRegister = async (data?: any, queryParams?: Recor
   });
 };
 
+/** Get Patient By Id */
 export const getAutoPatients = async (queryParams?: Record<string, any>) => {
   let endpoint = `/patients`;
   if (queryParams) {
@@ -2072,7 +2532,8 @@ export const getAutoPatients = async (queryParams?: Record<string, any>) => {
   });
 };
 
-export const getAutoPatients1 = async (id: string, queryParams?: Record<string, any>) => {
+/** Get Patient By Id */
+export const getAutoPatientsByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2083,7 +2544,8 @@ export const getAutoPatients1 = async (id: string, queryParams?: Record<string, 
   });
 };
 
-export const updateAutoPatients = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+/** Update Patient */
+export const updateAutoPatientsByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2095,7 +2557,8 @@ export const updateAutoPatients = async (id: string, data?: any, queryParams?: R
   });
 };
 
-export const deleteAutoPatients = async (id: string, queryParams?: Record<string, any>) => {
+/** Delete Patient */
+export const deleteAutoPatientsByid = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2106,7 +2569,8 @@ export const deleteAutoPatients = async (id: string, queryParams?: Record<string
   });
 };
 
-export const getAutoPatientsSearchByPhone = async (queryParams?: Record<string, any>) => {
+/** Update patient */
+export const getAutoPatientsSearchbyphone = async (queryParams?: Record<string, any>) => {
   let endpoint = `/patients/search-by-phone`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2117,7 +2581,8 @@ export const getAutoPatientsSearchByPhone = async (queryParams?: Record<string, 
   });
 };
 
-export const getAutoPatientsUhid = async (uhid: string, queryParams?: Record<string, any>) => {
+/** Search patient by phone */
+export const getAutoPatientsUhidByuhid = async (uhid: string, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/uhid/${uhid}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2128,7 +2593,8 @@ export const getAutoPatientsUhid = async (uhid: string, queryParams?: Record<str
   });
 };
 
-export const getAutoPatientsFamily = async (id: string, queryParams?: Record<string, any>) => {
+/** Delete Patient */
+export const getAutoPatientsByidFamily = async (id: string, queryParams?: Record<string, any>) => {
   let endpoint = `/patients/${id}/family`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
@@ -2139,6 +2605,7 @@ export const getAutoPatientsFamily = async (id: string, queryParams?: Record<str
   });
 };
 
+/** Delete Patient */
 export const getAutoPatientsSearch = async (queryParams?: Record<string, any>) => {
   let endpoint = `/patients/search`;
   if (queryParams) {
@@ -2150,8 +2617,9 @@ export const getAutoPatientsSearch = async (queryParams?: Record<string, any>) =
   });
 };
 
+/** Log visitor entry */
 export const createAutoReceptionVisitorEntry = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/reception/visitor/entry`;
+  let endpoint = `/reception/visitor/entry`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2162,8 +2630,9 @@ export const createAutoReceptionVisitorEntry = async (data?: any, queryParams?: 
   });
 };
 
-export const updateAutoReceptionVisitorExit = async (id: string, data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/reception/visitor/exit/${id}`;
+/** Log visitor entry */
+export const updateAutoReceptionVisitorExitByid = async (id: string, data?: any, queryParams?: Record<string, any>) => {
+  let endpoint = `/reception/visitor/exit/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2174,8 +2643,9 @@ export const updateAutoReceptionVisitorExit = async (id: string, data?: any, que
   });
 };
 
+/** Auto-generated */
 export const getAutoReceptionVisitorsActive = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/reception/visitors/active`;
+  let endpoint = `/reception/visitors/active`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2185,8 +2655,9 @@ export const getAutoReceptionVisitorsActive = async (queryParams?: Record<string
   });
 };
 
+/** Generate system report */
 export const createAutoReportingGenerate = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/reporting/generate`;
+  let endpoint = `/reporting/generate`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2197,8 +2668,9 @@ export const createAutoReportingGenerate = async (data?: any, queryParams?: Reco
   });
 };
 
+/** Auto-generated */
 export const getAutoReportingList = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/reporting/list`;
+  let endpoint = `/reporting/list`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2208,8 +2680,9 @@ export const getAutoReportingList = async (queryParams?: Record<string, any>) =>
   });
 };
 
+/** Hire employee */
 export const createAutoSupportEmployee = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/support/employee`;
+  let endpoint = `/support/employee`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2220,8 +2693,9 @@ export const createAutoSupportEmployee = async (data?: any, queryParams?: Record
   });
 };
 
+/** Auto-generated */
 export const getAutoSupportEmployees = async (queryParams?: Record<string, any>) => {
-  let endpoint = `/api/support/employees`;
+  let endpoint = `/support/employees`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2231,8 +2705,9 @@ export const getAutoSupportEmployees = async (queryParams?: Record<string, any>)
   });
 };
 
+/** Initiate video call */
 export const createAutoTelemedicineInitiate = async (data?: any, queryParams?: Record<string, any>) => {
-  let endpoint = `/api/telemedicine/initiate`;
+  let endpoint = `/telemedicine/initiate`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
@@ -2243,399 +2718,60 @@ export const createAutoTelemedicineInitiate = async (data?: any, queryParams?: R
   });
 };
 
-
-
-
-/* --- MANUAL EXTENSIONS --- */
-export const getGeoCountries = async (queryParams?: any) => apiRequest('/geo/countries', { method: 'GET' });
-export const getGeoStates = async (queryParams?: any) => apiRequest('/geo/states', { method: 'GET' });
-export const getGeoCities = async (queryParams?: any) => apiRequest('/geo/cities', { method: 'GET' });
-export const getclinicalDetailsById = async (id: string) => apiRequest(`/clinical-details/${id}`, { method: 'GET' });
-export const updateclinicalDetails = async (id: string, data: any) => apiRequest(`/clinical-details/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteclinicalDetails = async (id: string) => apiRequest(`/clinical-details/${id}`, { method: 'DELETE' });
-export const createAddiction = async (data: any) => apiRequest('/addiction', { method: 'POST', body: JSON.stringify(data) });
-export const deleteAddiction = async (data: any) => apiRequest('/addiction', { method: 'DELETE', body: JSON.stringify(data) });
-export const updateAddiction = async (id: string, data: any) => apiRequest(`/addiction/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteAddictionById = async (id: string) => apiRequest(`/addiction/${id}`, { method: 'DELETE' });
-export const getAddictionByPatientId = async (patientId: string) => apiRequest(`/addiction/${patientId}`, { method: 'GET' });
-export const createDiagnosis = async (data: any) => apiRequest('/creatediagnosis', { method: 'POST', body: JSON.stringify(data) });
-export const updateDiagnosis = async (id: string, data: any) => apiRequest(`/updatediagnosis/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const getDiagnosisById = async (id: string) => apiRequest(`/getdiagnosis/${id}`, { method: 'GET' });
-export const getDiagnosisByPatientId = async (patientId: string) => apiRequest(`/diagnosispatient/${patientId}`, { method: 'GET' });
-export const getDiagnosisByVisitId = async (visitId: string) => apiRequest(`/visitdiagnosis/${visitId}`, { method: 'GET' });
-export const createPrescription = async (visitId: string, data: any) => apiRequest(`/createPrescription/${visitId}`, { method: 'POST', body: JSON.stringify(data) });
-export const updatePrescription = async (id: string, data: any) => apiRequest(`/updatePrescription/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const getPrescriptionById = async (id: string) => apiRequest(`/getPrescription/${id}`, { method: 'GET' });
-export const deletePrescription = async (id: string) => apiRequest(`/deletePrescription/${id}`, { method: 'DELETE' });
-export const getAssetsCategories = async () => apiRequest('/assets/categories', { method: 'GET' });
-export const createAssetsCategories = async (data: any) => apiRequest('/assets/categories', { method: 'POST', body: JSON.stringify(data) });
-export const getAssetsVendors = async () => apiRequest('/assets/vendors', { method: 'GET' });
-export const getAssetsLocations = async () => apiRequest('/assets/locations', { method: 'GET' });
-export const getAssetsMaintenances = async () => apiRequest('/assets/maintenances', { method: 'GET' });
-export const getAssetsAudits = async () => apiRequest('/assets/audits', { method: 'GET' });
-export const getAssetsDepreciations = async () => apiRequest('/assets/depreciations', { method: 'GET' });
-export const getAssetsDisposals = async () => apiRequest('/assets/disposals', { method: 'GET' });
-export const getEquipmentEquipments = async () => apiRequest('/equipment/equipments', { method: 'GET' });
-export const getEquipmentCategories = async () => apiRequest('/equipment/categories', { method: 'GET' });
-export const getEquipmentVendors = async () => apiRequest('/equipment/vendors', { method: 'GET' });
-export const getEquipmentLocations = async () => apiRequest('/equipment/locations', { method: 'GET' });
-export const getEquipmentMaintenanceSchedules = async () => apiRequest('/equipment/maintenance-schedules', { method: 'GET' });
-export const getEquipmentMaintenanceLogs = async () => apiRequest('/equipment/maintenance-logs', { method: 'GET' });
-export const getEquipmentCalibrationRecords = async () => apiRequest('/equipment/calibration-records', { method: 'GET' });
-export const getEquipmentBreakdowns = async () => apiRequest('/equipment/breakdown-tickets', { method: 'GET' });
-export const getEquipmentSpareParts = async () => apiRequest('/equipment/spare-parts', { method: 'GET' });
-export const getEquipmentTransfers = async () => apiRequest('/equipment/transfers', { method: 'GET' });
-export const getEquipmentUsageLogs = async () => apiRequest('/equipment/usage-logs', { method: 'GET' });
-export const getEquipmentDocuments = async () => apiRequest('/equipment/documents', { method: 'GET' });
-export const listCertificateTypes = async () => apiRequest('/certificates/types', { method: 'GET' });
-export const listCertificateTemplates = async () => apiRequest('/certificates/templates', { method: 'GET' });
-export const listGeneratedCertificates = async () => apiRequest('/certificates/generated', { method: 'GET' });
-export const listCertificateSignatures = async () => apiRequest('/certificates/signatures', { method: 'GET' });
-export const listCertificateVerifications = async () => apiRequest('/certificates/verifications', { method: 'GET' });
-export const getGlobalVitals = async () => apiRequest('/clinical', { method: 'GET' });
-export const getVisitVitals = async () => apiRequest('/clinical', { method: 'GET' });
-export const getCoreDepartments = async () => apiRequest('/departments', { method: 'GET' });
-export const getCorePatients = async () => apiRequest('/clinical', { method: 'GET' });
-export const getCoreReceipts = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const getLabSamples = async () => apiRequest('/diagnostics/lab/orders', { method: 'GET' });
-export const getLabResults = async () => apiRequest('/diagnostics/lab', { method: 'GET' });
-export const getRadiologyStudies = async () => apiRequest('/diagnostics/radiology', { method: 'GET' });
-export const getRadiologyReports = async () => apiRequest('/diagnostics/radiology/orders', { method: 'GET' });
-export const getRadiologyImages = async () => apiRequest('/diagnostics/radiology', { method: 'GET' });
-export const listInvestigationMasters = async (q?: any) => apiRequest('/diagnostics/lab', { method: 'GET' });
-export const listInvestigationOrders = async () => apiRequest('/diagnostics/lab/orders', { method: 'GET' });
-export const getInstruments = async () => apiRequest('/instruments', { method: 'GET' });
-export const getInstrumentBatches = async () => apiRequest('/instrument-batches', { method: 'GET' });
-export const getSterilizationCycles = async () => apiRequest('/sterilization-cycles', { method: 'GET' });
-export const getIssuedInstruments = async () => apiRequest('/issued-instruments', { method: 'GET' });
-export const getIPDAdmissions = async () => apiRequest('/ipd/admissions', { method: 'GET' });
-export const createQuickAdmission = async (data: any) => apiRequest('/ipd/quick-admission', { method: 'POST', body: JSON.stringify(data) });
-export const getPharmacyDispenses = async () => apiRequest('/clinical/prescription', { method: 'GET' });
-export const getPharmacyInvoices = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const getPharmacyStocks = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
-export const getPharmacySuppliers = async () => apiRequest('/assets/vendors', { method: 'GET' });
-export const getPharmacyPrescriptions = async () => apiRequest('/clinical/prescription', { method: 'GET' });
-export const getPurchaseOrders = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const getGRNs = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const getInsuranceClaims = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const getStockTransfers = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
-export const getStockAdjustments = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
-export const listMedicines = async () => apiRequest('/inventory/pharmacy/stock', { method: 'GET' });
-export const createMedicine = async (data: any) => apiRequest('/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyDispense = async (data: any) => apiRequest('/clinical/prescription', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyInvoice = async (data: any) => apiRequest('/billing/invoices', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyStock = async (data: any) => apiRequest('/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacySupplier = async (data: any) => apiRequest('/assets/vendors', { method: 'POST', body: JSON.stringify(data) });
-export const patientRegister = async (data: any) => apiRequest('/patient-register', { method: 'POST', body: JSON.stringify(data) });
-export const deleteUsersById = async (id: string) => apiRequest(`/users/${id}`, { method: 'DELETE' });
-export const getTeamUnder = async (id: string) => apiRequest(`/users/team/${id}`, { method: 'GET' });
-export const updateCertificateTemplate = async (id: string, data: any) => apiRequest(`/certificates/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const createCertificateTemplate = async (data: any) => apiRequest('/certificates/templates', { method: 'POST', body: JSON.stringify(data) });
-export const deleteCertificateTemplate = async (id: string) => apiRequest(`/certificates/templates/${id}`, { method: 'DELETE' });
-export const createCertificateSignature = async (data: any) => apiRequest('/certificates/signatures', { method: 'POST', body: JSON.stringify(data) });
-export const updateCertificateSignature = async (id: string, data: any) => apiRequest(`/certificates/signatures/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteCertificateSignature = async (id: string) => apiRequest(`/certificates/signatures/${id}`, { method: 'DELETE' });
-export const createGeneratedCertificate = async (data: any) => apiRequest('/certificates/generated', { method: 'POST', body: JSON.stringify(data) });
-export const verifyCertificate = async (data: any) => apiRequest('/certificates/verify', { method: 'POST', body: JSON.stringify(data) });
-export const listAmbulances = async () => apiRequest('/ambulances', { method: 'GET' });
-export const createAmbulance = async (data: any) => apiRequest('/ambulances', { method: 'POST', body: JSON.stringify(data) });
-export const updateAmbulance = async (id: string, data: any) => apiRequest(`/ambulances/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteAmbulance = async (id: string) => apiRequest(`/ambulances/${id}`, { method: 'DELETE' });
-export const listAmbulanceTrips = async () => apiRequest('/ambulances/trips', { method: 'GET' });
-export const createAmbulanceTrip = async (data: any) => apiRequest('/ambulances/trips', { method: 'POST', body: JSON.stringify(data) });
-export const listAmbulanceMaintenances = async () => apiRequest('/ambulances/maintenances', { method: 'GET' });
-export const createAmbulanceMaintenance = async (data: any) => apiRequest('/ambulances/maintenances', { method: 'POST', body: JSON.stringify(data) });
-export const listBloodInventory = async () => apiRequest('/blood-bank/inventory', { method: 'GET' });
-export const listBloodRequests = async () => apiRequest('/blood-bank/requests', { method: 'GET' });
-export const listBloodDonors = async () => apiRequest('/blood-bank/donors', { method: 'GET' });
-export const listBloodDonations = async () => apiRequest('/blood-bank/donations', { method: 'GET' });
-export const listBloodGroups = async () => apiRequest('/blood-bank/groups', { method: 'GET' });
-export const listBloodComponents = async () => apiRequest('/blood-bank/components', { method: 'GET' });
-export const createBloodRequest = async (data: any) => apiRequest('/blood-bank/requests', { method: 'POST', body: JSON.stringify(data) });
-export const updateBloodRequestStatus = async (id: string, data: any) => apiRequest(`/blood-bank/requests/${id}/status`, { method: 'PUT', body: JSON.stringify(data) });
-export const createBloodDonor = async (data: any) => apiRequest('/blood-bank/donors', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodDonation = async (data: any) => apiRequest('/blood-bank/donations', { method: 'POST', body: JSON.stringify(data) });
-export const issueBlood = async (data: any) => apiRequest('/blood-bank/issue', { method: 'POST', body: JSON.stringify(data) });
-export const updateBloodDonor = async (id: string, data: any) => apiRequest(`/blood-bank/donors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteBloodDonor = async (id: string) => apiRequest(`/blood-bank/donors/${id}`, { method: 'DELETE' });
-export const updateBloodRequest = async (id: string, data: any) => apiRequest(`/blood-bank/requests/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteBloodRequest = async (id: string) => apiRequest(`/blood-bank/requests/${id}`, { method: 'DELETE' });
-export const updateBloodInventoryStatus = async (id: string, data: any) => apiRequest(`/blood-bank/inventory/${id}/status`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteBloodInventory = async (id: string) => apiRequest(`/blood-bank/inventory/${id}`, { method: 'DELETE' });
-export const createBloodComponent = async (data: any) => apiRequest('/blood-bank/components', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodInventory = async (data: any) => apiRequest('/blood-bank/inventory', { method: 'POST', body: JSON.stringify(data) });
-export const createInstrument = async (data: any) => apiRequest('/instruments', { method: 'POST', body: JSON.stringify(data) });
-export const createInstrumentBatch = async (data: any) => apiRequest('/instrument-batches', { method: 'POST', body: JSON.stringify(data) });
-export const createSterilizationCycle = async (data: any) => apiRequest('/sterilization-cycles', { method: 'POST', body: JSON.stringify(data) });
-export const updateSterilizationCycle = async (id: string, data: any) => apiRequest(`/sterilization-cycles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const issueInstrument = async (data: any) => apiRequest('/instruments/issue', { method: 'POST', body: JSON.stringify(data) });
-export const returnInstrument = async (data: any) => apiRequest('/instruments/return', { method: 'POST', body: JSON.stringify(data) });
-export const createLabSample = async (data: any) => apiRequest('/diagnostics/lab/orders', { method: 'POST', body: JSON.stringify(data) });
-export const updateLabSampleStatus = async (id: string, data: any) => apiRequest(`/diagnostics/lab/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const createLabResult = async (data: any) => apiRequest('/diagnostics/lab', { method: 'POST', body: JSON.stringify(data) });
-export const updateLabResultStatus = async (id: string, data: any) => apiRequest(`/diagnostics/lab/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-
-/** Laboratory Management **/
-export const updateLabSampleTracking = async (id: string, status: string, collectionTime: string) => 
-  apiRequest(`/diagnostics/lab/orders/${id}/sample-tracking`, { 
-    method: 'PATCH', 
-    body: JSON.stringify({ status, collectionTime }) 
+/** Quick admission to IPD */
+export const createQuickAdmission = async (data?: any, queryParams?: Record<string, any>) => {
+  let endpoint = `/ipd/quick-admission`;
+  if (queryParams) {
+    const sp = new URLSearchParams(queryParams);
+    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
+  }
+  return apiRequest(endpoint, { 
+    method: 'POST', 
+    body: JSON.stringify(data || {}) 
   });
+};
 
-export const getLabTatMonitor = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/diagnostics/lab/orders/tat-monitor';
+/** Delete user by ID */
+export const deleteUsersById = async (id: string, queryParams?: Record<string, any>) => {
+  let endpoint = `/users/${id}`;
   if (queryParams) {
     const sp = new URLSearchParams(queryParams);
     if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
   }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-export const listLabOrders = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/diagnostics/lab';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-export const getLabOrderDetails = async (id: string) => apiRequest(`/diagnostics/lab/${id}`, { method: 'GET' });
-export const createLabEntry = async (data: any) => apiRequest('/diagnostics/lab', { method: 'POST', body: JSON.stringify(data) });
-export const updateLabResult = async (id: string, data: any) => 
-  apiRequest(`/diagnostics/lab/orders/${id}/result`, { 
-    method: 'PATCH', 
-    body: JSON.stringify(data) 
+  return apiRequest(endpoint, { 
+    method: 'DELETE', 
   });
-
-/** Radiology Management **/
-export const listRadiologyOrders = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/diagnostics/radiology';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-export const getRadiologyOrderDetails = async (id: string) => apiRequest(`/diagnostics/radiology/${id}`, { method: 'GET' });
-export const updateRadiologyReport = async (id: string, data: any) => 
-  apiRequest(`/diagnostics/radiology/orders/${id}/report`, { 
-    method: 'PATCH', 
-    body: JSON.stringify(data) 
-  });
-
-/** Pharmacy Module **/
-export const getPharmacyStockOverview = async () => apiRequest('/api/inventory/pharmacy/stock', { method: 'GET' });
-export const searchPharmacyStock = async (queryParams: Record<string, any>) => {
-  let endpoint = '/api/inventory/pharmacy/stock/search';
-  const sp = new URLSearchParams(queryParams);
-  if (sp.toString()) endpoint += '?' + sp.toString();
-  return apiRequest(endpoint, { method: 'GET' });
-};
-export const addPharmacyStock = async (data: any) => apiRequest('/api/inventory/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
-
-export const getPrescriptionOverview = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/clinical/prescription';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
 };
 
-export const getPrescriptionByPatient = async (patientId: string) => apiRequest(`/clinical/prescription?patientId=${patientId}`, { method: 'GET' });
+/* --- LEGACY ALIASES --- */
+export const getAutoUsers = getAutoAdminUsers;
+export const getAutoClinicals = getAutoClinical;
 
-/** Invoice & Billing **/
-export const listInvoices = async () => apiRequest('/billing/invoices', { method: 'GET' });
-export const searchInvoices = async (queryParams: Record<string, any>) => {
-  let endpoint = '/billing/invoices/search';
-  const sp = new URLSearchParams(queryParams);
-  if (sp.toString()) endpoint += '?' + sp.toString();
-  return apiRequest(endpoint, { method: 'GET' });
-};
-export const getInvoiceDetails = async (id: string) => apiRequest(`/billing/${id}`, { method: 'GET' });
 
-/** Discharge Management **/
-export const getDischargedToday = async () => apiRequest('/ipd/discharged-today', { method: 'GET' });
-export const getPendingDischargeList = async () => apiRequest('/ipd/admissions/search?status=ADMITTED', { method: 'GET' });
-export const processFinalDischarge = async (admissionId: string, data: any) => apiRequest(`/ipd/discharge/${admissionId}`, { method: 'POST', body: JSON.stringify(data) });
-
-/** Registry & Postmortem **/
-export const getDeathRegistry = async () => apiRequest('/registry/deaths', { method: 'GET' });
-export const getPostmortemSchedule = async () => apiRequest('/registry/postmortem-schedule', { method: 'GET' });
-export const getMortuaryOccupancy = async () => apiRequest('/registry/mortuary', { method: 'GET' });
-
-/** Ambulance Trips & Maintenance **/
-export const listAmbulanceTransportLogs = async () => apiRequest('/ambulances/trips', { method: 'GET' });
-export const listAmbulanceMaintenanceRecords = async () => apiRequest('/ambulances/maintenances', { method: 'GET' });
-
-/* --- NEW API INTEGRATIONS (MAY 2026) --- */
-
-/** Core Fixes & Routing **/
-export const updateClinicalUndefined = async (data?: any) => apiRequest('/clinical/undefined', { method: 'PUT', body: JSON.stringify(data || {}) });
-
-/** Enhanced Filtering **/
-export const getERSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/clinical/er/search';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-export const getOTSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/clinical/ot/search';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-export const getIPDAdmissionSearch = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/ipd/admissions/search';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-/** Staff Management (HR) **/
-export const getHRAttendance = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/hr/attendance';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-export const getHRLeaves = async () => apiRequest('/hr/leaves', { method: 'GET' });
-export const getHRPayroll = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/hr/payroll';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-/** Kitchen & Diet Management **/
-export const getKitchenDashboard = async () => apiRequest('/kitchen/dashboard', { method: 'GET' });
-export const getKitchenDietPlans = async () => apiRequest('/kitchen/diet-plans', { method: 'GET' });
-export const getKitchenMealOrders = async () => apiRequest('/kitchen/meal-orders', { method: 'GET' });
-export const getKitchenSchedule = async () => apiRequest('/kitchen/schedule', { method: 'GET' });
-
-/** Helpdesk & Ticketing **/
-export const getHelpdeskDashboard = async () => apiRequest('/helpdesk/dashboard', { method: 'GET' });
-export const getHelpdeskTickets = async () => apiRequest('/helpdesk/tickets', { method: 'GET' });
-
-/** Parking Management **/
-export const getParkingDashboard = async () => apiRequest('/parking/dashboard', { method: 'GET' });
-export const getParkingEntries = async () => apiRequest('/parking/entries', { method: 'GET' });
-
-/** Registries & Compliance **/
-export const getRegistryBirths = async () => apiRequest('/registry/births', { method: 'GET' });
-export const getRegistryDeaths = async () => apiRequest('/registry/deaths', { method: 'GET' });
-export const getRegistryMortuary = async () => apiRequest('/registry/mortuary', { method: 'GET' });
-
-/** Certificate Management **/
-export const getCertificatesTemplatesList = async () => apiRequest('/certificates/templates', { method: 'GET' });
-export const getCertificatesTypes = async () => apiRequest('/certificates/types', { method: 'GET' });
-export const getCertificatesSignatures = async () => apiRequest('/certificates/signatures', { method: 'GET' });
-export const getCertificatesVerifications = async () => apiRequest('/certificates/verifications', { method: 'GET' });
-
-/** Dashboards & Compatibility Feeds **/
-export const getSuperAdminDashboard = async () => apiRequest('/api/dashboard/super-admin', { method: 'GET' });
-export const getVitalsFeed = async () => apiRequest('/clinical/vitals-feed', { method: 'GET' });
-export const getReportsFeed = async () => apiRequest('/reports', { method: 'GET' });
-export const getMISFeed = async () => apiRequest('/mis', { method: 'GET' });
-export const getClinicalList = async (queryParams?: Record<string, any>) => {
-  let endpoint = '/clinical';
-  if (queryParams) {
-    const sp = new URLSearchParams(queryParams);
-    if (sp.toString()) endpoint += (endpoint.includes('?') ? '&' : '?') + sp.toString();
-  }
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-/* --- ALIASES FOR COMPATIBILITY --- */
-export const createRegister = createAutoAuthRegister;
-export const listUsers = getAutoUsers;
-export const createAutoClinical = getAutoClinicals;
-export const createAsset = createAutoAssetsMasters;
-export const createAssetsMasters = createAutoAssetsMasters;
-export const getAssets = getAutoAssetsMasters;
-export const listDepartments = getAutoDepartments;
-export const listDoctors = getAutoDoctors;
-export const createLogin = getAutoAuthLogin;
-export const listPatients = getAutoClinicals;
-export const listVisits = getAutoClinicals;
-export const getAssetCategories = getAssetsCategories;
-export const getAssetVendors = getAssetsVendors;
-export const getAssetMaintenances = getAssetsMaintenances;
-export const getAssetDepreciations = getAssetsDepreciations;
-export const getAssetDisposals = getAssetsDisposals;
-export const getAssetAudits = getAssetsAudits;
+/* --- API Aliases --- */
+export const getAssetAudits = getAutoAssetsAudits;
+export const getAssetCategories = getAutoAssetsCategories;
+export const getAssetLocations = getAutoAssetsLocations;
+export const getAssetMaintenances = getAutoAssetsMaintenances;
+export const getAssetVendors = getAutoAssetsVendors;
 export const getEquipments = getAutoAssetsMasters;
-export const getAutoGeoCountries = getGeoCountries;
-export const getAutoGeoStates = getGeoStates;
-export const getAutoGeoCities = getGeoCities;
-export const listCities = getGeoCities;
-export const updateById = updateAutoClinical;
-export const updatePosition = updateAutoClinical;
+export const listDepartments = getAutoDepartments;
+export const listDoctors = getAutoAdminUsers;
+export const listUsers = getAutoAdminUsers;
+export const getCoreReceipts = getAutoBillingInvoicesSearch;
+export const getPharmacyStockOverview = getAutoInventoryPharmacyStock;
+export const getPharmacySuppliers = getAutoInventoryPharmacyStockSearch;
+export const patientRegister = createAutoPatientsRegister;
+export const createEquipment = createAutoAssetsMasters;
+export const listVisits = getAutoClinical;
+export const getEquipmentCalibrationRecords = getAutoAssetsAudits;
+export const getEquipmentCategories = getAutoAssetsCategories;
+export const getEquipmentEquipments = getAutoAssetsMasters;
+export const getAutoEquipmentLocations = getAutoAssetsLocations;
+export const getEquipmentMaintenanceLogs = getAutoAssetsUsagelogs;
+export const getEquipmentMaintenanceSchedules = getAutoAssetsMaintenances;
+export const getEquipmentSpareParts = getAutoAssetsSubcategories;
+export const getEquipmentUsageLogs = getAutoAssetsUsagelogs;
+export const getEquipmentVendors = getAutoAssetsVendors;
+export const deleteEquipment = deleteAutoAssetsMastersByid;
 
-/* --- UTILITY FUNCTIONS --- */
-export const getMonthName = (monthIndex: number) => {
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  return months[monthIndex] || '';
-};
-
-export const post = async (endpoint: string, data?: any) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data || {}) });
-
-/* --- ADDITIONAL ALIASES --- */
-export const getAutoEquipmentLocations = getEquipmentLocations;
-export const getAssetLocations = getAssetsLocations;
-export const getBloodDonors = listBloodDonors;
-export const getBloodInventory = listBloodInventory;
-export const getBloodRequests = listBloodRequests;
-export const getAmbulanceAmbulances = listAmbulances;
-export const getAmbulanceTrips = listAmbulanceTrips;
-export const getCertificatesGenerated = listGeneratedCertificates;
-export const getCertificatesTemplates = listCertificateTemplates;
-export const deleteAsset = deleteAutoAssetsMasters;
-export const createAssetCategory = createAutoAssetsCategories;
-export const deleteAssetCategory = async (id: string) => apiRequest(`/assets/categories/${id}`, { method: 'DELETE' });
-export const deleteAssetVendor = async (id: string) => apiRequest(`/assets/vendors/${id}`, { method: 'DELETE' });
-export const createAssetVendor = async (data: any) => apiRequest('/assets/vendors', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetMaintenance = async (data: any) => apiRequest('/assets/maintenances', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetDepreciation = async (data: any) => apiRequest('/assets/depreciations', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetDisposal = async (data: any) => apiRequest('/assets/disposals', { method: 'POST', body: JSON.stringify(data) });
-
-export const createEquipment = async (data: any) => apiRequest('/assets/masters', { method: 'POST', body: JSON.stringify(data) });
-export const deleteEquipment = async (id: string) => apiRequest(`/assets/masters/${id}`, { method: 'DELETE' });
-export const createEquipmentCategory = async (data: any) => apiRequest('/assets/categories', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentMaintenanceSchedule = async (data: any) => apiRequest('/assets/maintenances', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentBreakdown = async (data: any) => apiRequest('/assets/maintenances', { method: 'POST', body: JSON.stringify(data) });
-
-export const createRadiologyReport = async (data: any) => apiRequest('/diagnostics/radiology/orders', { method: 'POST', body: JSON.stringify(data) });
-export const createRadiologyStudy = async (data: any) => apiRequest('/diagnostics/radiology', { method: 'POST', body: JSON.stringify(data) });
-export const updateRadiologyStudyStatus = async (id: string, status: string) => apiRequest(`/diagnostics/radiology/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-
-export const getVitalsGlobal = getGlobalVitals;
-export const getVitalsVisit = getVisitVitals;
-export const createVisitVitals = async (data: any) => apiRequest('/clinical/vitals', { method: 'POST', body: JSON.stringify(data) });
-export const updateVisitVitals = async (id: string, data: any) => apiRequest(`/clinical/vitals/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVisitVitals = async (id: string) => apiRequest(`/clinical/vitals/${id}`, { method: 'DELETE' });
-export const getVitalIcon = (vitalName: string) => {
-  const icons: Record<string, string> = {
-    'BP': 'Activity',
-    'Pulse': 'HeartPulse',
-    'Temp': 'Thermometer',
-    'SpO2': 'Zap',
-    'Weight': 'Weight'
-  };
-  return icons[vitalName] || 'Activity';
-};

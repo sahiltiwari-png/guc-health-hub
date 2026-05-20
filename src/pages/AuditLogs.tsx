@@ -31,7 +31,7 @@ const AuditLogs = () => {
     setLoading(true);
     try {
       const mockLogs = [
-        { _id: '1', timestamp: new Date(), user: { name: 'Admin', role: 'Admin' }, action: 'LOGIN', module: 'Auth', description: 'Admin logged in', ipAddress: '192.168.1.1', severity: 'info' },
+        { id: '1', timestamp: new Date(), user: { name: 'Admin', role: 'Admin' }, action: 'LOGIN', module: 'Auth', description: 'Admin logged in', ipAddress: '192.168.1.1', severity: 'info' },
       ];
       setLogs(mockLogs);
     } catch (error) {
@@ -109,7 +109,7 @@ const AuditLogs = () => {
           </thead>
           <tbody>
             {logs.map((log: any) => (
-              <tr key={log._id}>
+              <tr key={log.id}>
                 <td className="whitespace-nowrap text-[10px] font-mono">{new Date(log.timestamp).toLocaleString()}</td>
                 <td>
                   <div className="font-semibold text-xs">{log.user?.name || 'System'}</div>

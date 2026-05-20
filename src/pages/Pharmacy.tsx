@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
+import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines, extractArray, getPharmacyStock } from "@/api/apiService";
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
@@ -94,7 +94,7 @@ const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
           <thead><tr><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             {prescriptionQueue.length > 0 ? prescriptionQueue.map(p => (
-              <tr key={p._id}>
+              <tr key={p.id}>
                 <td>{p.prescriptionId?.visitId || 'V-001'}</td>
                 <td>{p.prescriptionId?.patientId?.uhid}</td>
                 <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
@@ -147,7 +147,7 @@ const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] })
       <thead><tr><th>S.No</th><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Date/Time</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>
         {prescriptionQueue.map((p, i) => (
-          <tr key={p._id}>
+          <tr key={p.id}>
             <td>{i + 1}</td>
             <td>{p.prescriptionId?.visitId}</td>
             <td>{p.prescriptionId?.patientId?.uhid}</td>
@@ -173,8 +173,8 @@ const RxHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
       <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>
         {prescriptions.length > 0 ? prescriptions.map(p => (
-          <tr key={p._id}>
-            <td>{p._id.substring(0, 8)}</td>
+          <tr key={p.id}>
+            <td>{p.id.substring(0, 8)}</td>
             <td>{p.patientId?.uhid}</td>
             <td className="font-semibold">{p.patientId?.patientName}</td>
             <td>{p.doctorId?.name}</td>
@@ -209,8 +209,8 @@ const MedicineMasterPanel = ({ medicines }: { medicines: any[] }) => (
       <thead><tr><th>Code</th><th>Name</th><th>Generic Name</th><th>Category</th><th>Schedule</th><th>Form</th><th>Strength</th><th>HSN</th><th>GST</th><th>Status</th></tr></thead>
       <tbody>
         {medicines.length > 0 ? medicines.map((m, i) => (
-          <tr key={m._id}>
-            <td className="font-mono text-[10px]">{m._id.substring(0, 8)}</td>
+          <tr key={m.id}>
+            <td className="font-mono text-[10px]">{m.id.substring(0, 8)}</td>
             <td className="font-bold">{m.name}</td>
             <td>{m.genericName || '-'}</td>
             <td>{m.category}</td>
@@ -324,8 +324,8 @@ const DispenseRecordsPanel = ({ dispenses }: { dispenses: any[] }) => (
       <thead><tr><th>Dispense ID</th><th>Patient</th><th>UHID</th><th>Medicine</th><th>Batch</th><th>Qty Dispensed</th><th>Pharmacist</th><th>Time</th><th>Status</th></tr></thead>
       <tbody>
         {dispenses.length > 0 ? dispenses.map((d, i) => (
-          <tr key={d._id}>
-            <td>{d._id.substring(0, 8)}</td>
+          <tr key={d.id}>
+            <td>{d.id.substring(0, 8)}</td>
             <td className="font-semibold">{d.patientId?.patientName}</td>
             <td>{d.patientId?.uhid}</td>
             <td>{d.medicineId?.name}</td>
@@ -350,7 +350,7 @@ const InvoicesPanel = ({ invoices }: { invoices: any[] }) => (
       <thead><tr><th>Invoice No</th><th>Date</th><th>Patient</th><th>UHID</th><th>Net Amt (₹)</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>
         {invoices.length > 0 ? invoices.map(inv => (
-          <tr key={inv._id}>
+          <tr key={inv.id}>
             <td className="font-mono text-[10px]">{inv.invoiceNumber}</td>
             <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
             <td className="font-semibold">{inv.patientId?.patientName}</td>
@@ -386,8 +386,8 @@ const InsuranceClaimsPanel = ({ claims }: { claims: any[] }) => (
       <thead><tr><th>Claim ID</th><th>Patient</th><th>Insurer</th><th>Amount</th><th>Status</th></tr></thead>
       <tbody>
         {claims.length > 0 ? claims.map(c => (
-          <tr key={c._id}>
-            <td>{c._id.substring(0, 8)}</td>
+          <tr key={c.id}>
+            <td>{c.id.substring(0, 8)}</td>
             <td>{c.patientId?.patientName}</td>
             <td>{c.insuranceCompany}</td>
             <td>₹{c.claimAmount?.toLocaleString()}</td>
@@ -408,7 +408,7 @@ const PurchaseOrdersPanel = ({ orders }: { orders: any[] }) => (
       <thead><tr><th>PO No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
       <tbody>
         {orders.length > 0 ? orders.map(o => (
-          <tr key={o._id}>
+          <tr key={o.id}>
             <td>{o.poNumber}</td>
             <td>{o.supplierId?.supplierName}</td>
             <td>{new Date(o.poDate).toLocaleDateString()}</td>
@@ -437,7 +437,7 @@ const GRNPanel = ({ grns }: { grns: any[] }) => (
       <thead><tr><th>GRN No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
       <tbody>
         {grns.length > 0 ? grns.map(g => (
-          <tr key={g._id}>
+          <tr key={g.id}>
             <td>{g.grnNumber}</td>
             <td>{g.supplierId?.supplierName}</td>
             <td>{new Date(g.grnDate).toLocaleDateString()}</td>
@@ -459,7 +459,7 @@ const SuppliersPanel = ({ suppliers }: { suppliers: any[] }) => (
       <thead><tr><th>Supplier Name</th><th>Phone</th><th>Email</th><th>Status</th></tr></thead>
       <tbody>
         {suppliers.length > 0 ? suppliers.map(s => (
-          <tr key={s._id}>
+          <tr key={s.id}>
             <td className="font-bold">{s.supplierName}</td>
             <td>{s.phone}</td>
             <td>{s.email}</td>
@@ -482,8 +482,8 @@ const InterBranchPanel = ({ transfers }: { transfers: any[] }) => (
       <thead><tr><th>Transfer ID</th><th>From</th><th>To</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>
         {transfers.length > 0 ? transfers.map(t => (
-          <tr key={t._id}>
-            <td>{t._id.substring(0, 8)}</td>
+          <tr key={t.id}>
+            <td>{t.id.substring(0, 8)}</td>
             <td>{t.fromBranchId?.name}</td>
             <td>{t.toBranchId?.name}</td>
             <td>{new Date(t.transferDate).toLocaleDateString()}</td>
@@ -504,7 +504,7 @@ const StockAdjustmentPanel = ({ adjustments }: { adjustments: any[] }) => (
       <thead><tr><th>Date</th><th>Medicine</th><th>Type</th><th>Qty Adjust</th><th>Status</th></tr></thead>
       <tbody>
         {adjustments.length > 0 ? adjustments.map(a => (
-          <tr key={a._id}>
+          <tr key={a.id}>
             <td>{new Date(a.adjustmentDate).toLocaleDateString()}</td>
             <td>{a.medicineId?.name}</td>
             <td>{a.adjustmentType}</td>
@@ -598,107 +598,85 @@ const AuditPanel = () => (
 const Pharmacy = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>({
-    prescriptionQueue: [],
-    medicines: [],
-    invoices: [],
-    stocks: [],
-    suppliers: [],
-    purchaseOrders: [],
-    grns: [],
-    insuranceClaims: [],
-    stockTransfers: [],
-    stockAdjustments: [],
-    prescriptions: []
-  });
+  
+  // Data States
+  const [medicines, setMedicines] = useState<any[]>([]);
+  const [stocks, setStocks] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [dispenses, setDispenses] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [claims, setClaims] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [grns, setGrns] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [adjustments, setAdjustments] = useState<any[]>([]);
 
-  const fetchData = async (tab: string) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      switch (tab) {
-        case 'overview':
-        case 'prescriptions':
-          const dq = await getPharmacyDispenses();
-          setData((prev: any) => ({ ...prev, prescriptionQueue: dq.data?.data || dq.data || [] }));
-          break;
-        case 'medicine-master':
-          const m = await listMedicines();
-          setData((prev: any) => ({ ...prev, medicines: m.data?.data || m.data || [] }));
-          break;
-        case 'invoices':
-          const inv = await getPharmacyInvoices();
-          setData((prev: any) => ({ ...prev, invoices: inv.data?.data || inv.data || [] }));
-          break;
-        case 'stock':
-        case 'inventory':
-        case 'stock-batchwise':
-        case 'expiry':
-          const s = await getPharmacyStockOverview();
-          setData((prev: any) => ({ ...prev, stocks: s.data?.content || s.data || [] }));
-          break;
-        case 'suppliers':
-          const sup = await getPharmacySuppliers();
-          setData((prev: any) => ({ ...prev, suppliers: sup.data?.data || sup.data || [] }));
-          break;
-        case 'purchase-orders':
-          const po = await getPurchaseOrders();
-          setData((prev: any) => ({ ...prev, purchaseOrders: po.data?.data || po.data || [] }));
-          break;
-        case 'grn':
-          const grn = await getGRNs();
-          setData((prev: any) => ({ ...prev, grns: grn.data?.data || grn.data || [] }));
-          break;
-        case 'insurance-claims':
-          const ic = await getInsuranceClaims();
-          setData((prev: any) => ({ ...prev, insuranceClaims: ic.data?.data || ic.data || [] }));
-          break;
-        case 'inter-branch':
-          const st = await getStockTransfers();
-          setData((prev: any) => ({ ...prev, stockTransfers: st.data?.data || st.data || [] }));
-          break;
-        case 'stock-adjustment':
-          const sa = await getStockAdjustments();
-          setData((prev: any) => ({ ...prev, stockAdjustments: sa.data?.data || sa.data || [] }));
-          break;
-        case 'rx-header':
-          const pr = await getPharmacyPrescriptions();
-          setData((prev: any) => ({ ...prev, prescriptions: pr.data?.data || pr.data || [] }));
-          break;
-      }
-    } catch (error) {
-      console.error(`Error fetching data for ${tab}:`, error);
+      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes] = await Promise.all([
+        listMedicines(),
+        getPharmacyStock(),
+        getPharmacyPrescriptions(),
+        getPharmacyDispenses(),
+        getPharmacyInvoices(),
+        getInsuranceClaims(),
+        getPurchaseOrders(),
+        getGRNs(),
+        getPharmacySuppliers(),
+        getStockTransfers(),
+        getStockAdjustments()
+      ]);
+
+      setMedicines(extractArray(mRes));
+      setStocks(extractArray(sRes));
+      setPrescriptions(extractArray(pRes));
+      setDispenses(extractArray(dRes));
+      setInvoices(extractArray(iRes));
+      setClaims(extractArray(cRes));
+      setOrders(extractArray(poRes));
+      setGrns(extractArray(gRes));
+      setSuppliers(extractArray(supRes));
+      setTransfers(extractArray(tRes));
+      setAdjustments(extractArray(aRes));
+
+    } catch (e) {
+      console.error('Error syncing pharmacy data:', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData(activeTab);
-  }, [activeTab]);
+    fetchData();
+  }, []);
+
+  const prescriptionQueue = dispenses.slice(0, 10);
 
   const panelMap: Record<string, React.ReactNode> = {
-    overview: <OverviewPanel prescriptionQueue={data.prescriptionQueue} />,
-    prescriptions: <PrescriptionsPanel prescriptionQueue={data.prescriptionQueue} />,
-    'rx-header': <RxHeaderPanel prescriptions={data.prescriptions} />,
+    overview: <OverviewPanel prescriptionQueue={prescriptionQueue} />,
+    prescriptions: <PrescriptionsPanel prescriptionQueue={prescriptionQueue} />,
+    'rx-header': <RxHeaderPanel prescriptions={prescriptions} />,
     'rx-items': <RxItemsPanel />,
-    'medicine-master': <MedicineMasterPanel medicines={data.medicines} />,
-    inventory: <InventoryPanel stocks={data.stocks} />,
-    stock: <StockPanel stocks={data.stocks} />,
-    'stock-batchwise': <StockBatchWisePanel stocks={data.stocks} />,
+    'medicine-master': <MedicineMasterPanel medicines={medicines} />,
+    inventory: <InventoryPanel stocks={stocks} />,
+    stock: <StockPanel stocks={stocks} />,
+    'stock-batchwise': <StockBatchWisePanel stocks={stocks} />,
     dispensing: <DispensingPanel />,
-    'dispense-records': <DispenseRecordsPanel dispenses={data.prescriptionQueue} />,
-    invoices: <InvoicesPanel invoices={data.invoices} />,
+    'dispense-records': <DispenseRecordsPanel dispenses={dispenses} />,
+    invoices: <InvoicesPanel invoices={invoices} />,
     billing: <BillingPanel />,
-    'insurance-claims': <InsuranceClaimsPanel claims={data.insuranceClaims} />,
-    'purchase-orders': <PurchaseOrdersPanel orders={data.purchaseOrders} />,
+    'insurance-claims': <InsuranceClaimsPanel claims={claims} />,
+    'purchase-orders': <PurchaseOrdersPanel orders={orders} />,
     'po-items': <POItemsPanel />,
-    grn: <GRNPanel grns={data.grns} />,
-    suppliers: <SuppliersPanel suppliers={data.suppliers} />,
-    vendors: <VendorsPanel suppliers={data.suppliers} />,
-    'inter-branch': <InterBranchPanel transfers={data.stockTransfers} />,
-    'stock-adjustment': <StockAdjustmentPanel adjustments={data.stockAdjustments} />,
+    grn: <GRNPanel grns={grns} />,
+    suppliers: <SuppliersPanel suppliers={suppliers} />,
+    vendors: <VendorsPanel suppliers={suppliers} />,
+    'inter-branch': <InterBranchPanel transfers={transfers} />,
+    'stock-adjustment': <StockAdjustmentPanel adjustments={adjustments} />,
     'doctor-analytics': <DoctorAnalyticsPanel />,
-    expiry: <ExpiryPanel stocks={data.stocks} />,
+    expiry: <ExpiryPanel stocks={stocks} />,
     reports: <ReportsPanel />,
     alerts: <AlertsPanel />,
     audit: <AuditPanel />,

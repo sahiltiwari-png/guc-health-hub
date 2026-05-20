@@ -1,7 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { Search, Edit, Eye, Printer, Plus, UserSearch, Bed, ClipboardList, LogOut } from 'lucide-react';
-import { createQuickAdmission, getIPDAdmissions, listCities, listDepartments, listUsers, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities } from "@/api/apiService";
+import { 
+  getIPDAdmissions, admitPatient, dischargePatient, 
+  getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities, 
+  getAutoDepartments, getAutoUsers, extractArray, searchPatients
+} from "@/api/apiService";
 
 const IPD = () => {
   const [ipdList, setIpdList] = useState([]);
@@ -21,19 +25,19 @@ const IPD = () => {
     const fetchData = async () => {
       try {
         const [deptRes, docRes, countryRes] = await Promise.all([
-          listDepartments(),
-          listUsers({ role: 'Doctor' }),
+          getAutoDepartments(),
+          getAutoUsers({ role: 'DOCTOR' }),
           getAutoGeoCountries()
         ]);
         
-        if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
-        if (docRes.ok) setDoctors(docRes.data?.data || docRes.data || []);
+        if (deptRes.ok) setDepartments(extractArray(deptRes));
+        if (docRes.ok) setDoctors(extractArray(docRes));
         if (countryRes.ok) {
-          const countriesData = countryRes.data?.data || countryRes.data || [];
+          const countriesData = extractArray(countryRes);
           setCountries(countriesData);
           const india = countriesData.find((c: any) => c.name === 'India');
           if (india) {
-            setFormData(prev => ({ ...prev, country: india._id }));
+            setFormData(prev => ({ ...prev, country: india.id }));
           }
         }
       } catch (error) {
@@ -49,7 +53,7 @@ const IPD = () => {
         setLoading(true);
         try {
           const res = await getIPDAdmissions();
-          setIpdList(res.data?.data || res.data || []);
+          setIpdList(extractArray(res));
         } catch (error) {
           setMessage({ type: 'error', text: 'Failed to fetch IPD list.' });
         }
@@ -119,7 +123,7 @@ const IPD = () => {
   // Fetch cities when state changes
   useEffect(() => {
     if (formData.stateId) {
-      listCities(formData.stateId).then(res => setCities(res.data || []));
+      getAutoGeoCities({ stateId: formData.stateId }).then(res => setCities(res.data || []));
     } else {
       setCities([]);
     }
@@ -130,7 +134,7 @@ const IPD = () => {
     const checked = (e.target as HTMLInputElement).checked;
     
     if (name === 'departmentId') {
-      const dept = departments.find((d: any) => d._id === value);
+      const dept = departments.find((d: any) => d.id === value);
       setFormData(prev => ({ ...prev, departmentId: value, departmentName: dept?.name || '' }));
     } else {
       setFormData(prev => ({ 
@@ -151,15 +155,19 @@ const IPD = () => {
     setLoading(true);
     setMessage({ type: '', text: '' });
     try {
-      const patient = await findPatientByUhid(searchUhid);
+      const res = await searchPatients({ uhid: searchUhid });
+      const patient = res.data?.find((p: any) => p.uhid === searchUhid) || res.data?.[0];
       if (patient) {
         setFormData(prev => ({
           ...prev,
           uhid: patient.uhid || '',
           patientName: patient.patientName || '',
           mobile: patient.mobile || '',
-          age: patient.age || '',
-          gender: patient.gender || '',
+          ageY: patient.age?.toString() || '',
+          gender: patient.gender || 'Male',
+          address: patient.address || '',
+          stateId: patient.stateId || '',
+          cityId: patient.cityId || '',
         }));
         setMessage({ type: 'success', text: 'Patient found!' });
       } else {
@@ -179,55 +187,7 @@ const IPD = () => {
     }
     setLoading(true);
     try {
-      // Prepare the payload for the quick IPD admission (Register + Visit + Admission)
-      const admissionData = {
-        // Patient Info
-        uhid: formData.uhid || undefined,
-        patientName: formData.patientName,
-        mobile: formData.mobile,
-        gender: formData.gender,
-        maritalStatus: formData.maritalStatus,
-        dob: formData.dob || new Date().toISOString().split('T')[0],
-        age: parseInt(formData.ageY) || 0,
-        address: formData.address,
-        country: formData.country || undefined,
-        stateId: formData.stateId || undefined,
-        cityId: formData.cityId || undefined,
-        bloodGroup: formData.bloodGroup,
-        
-        // Visit Info
-        visitType: 'IPD',
-        visitDate: formData.arrivalDate,
-        visitTime: formData.arrivalTime,
-        departmentId: formData.departmentId || undefined,
-        departmentName: formData.departmentName,
-        doctorId: formData.doctorId || undefined,
-        fee: parseFloat(formData.fileCharge) || 0,
-        paymentMode: formData.paymentMode,
-        remark: formData.commentRemark,
-        
-        // IPD Specific Details (Top-level as expected by quick admission controller)
-        idType: formData.idType,
-        idNumber: formData.idNumber,
-        referredBy: formData.referredBy,
-        referralMobile: formData.refMobile,
-        guardianName: formData.guardianName,
-        guardianRelation: formData.guardianRelation,
-        guardianMobile: formData.guardianMobile,
-        insuranceCo: formData.insuranceCo,
-        payerName: formData.payerName,
-        cardNo: formData.cardNo,
-        policyNo: formData.policyNo,
-        diagnosis: formData.provisionalDiagnosis,
-        procedureTreatment: formData.procedureTreatment,
-        isMlc: formData.isMlc,
-        
-        // Admission Details
-        bedId: undefined, // Add bed selection to UI later if needed
-        treatingDoctors: formData.doctorId ? [formData.doctorId] : []
-      };
-
-      await createQuickAdmission(admissionData);
+      await admitPatient(formData);
       setMessage({ type: 'success', text: 'IPD Admission successful!' });
       setActiveTab('list');
     } catch (error: any) {
@@ -311,15 +271,15 @@ const IPD = () => {
                 <tbody>
                   {Array.isArray(ipdList) && ipdList.length > 0 ? (
                     ipdList.map((p: any, index) => (
-                      <tr key={p._id}>
+                      <tr key={p.id}>
                         <td>{index + 1}</td>
                         <td className="font-medium text-primary">{p.admissionNumber}</td>
-                        <td>{p.patientId?.uhid || 'N/A'}</td>
-                        <td className="font-semibold">{p.patientId?.patientName || 'N/A'}</td>
-                        <td>{p.patientId?.age || 'N/A'}/{p.patientId?.gender ? p.patientId.gender[0] : 'N/A'}</td>
+                        <td>{p.uhid || 'N/A'}</td>
+                        <td className="font-semibold">{p.patientName || 'N/A'}</td>
+                        <td>{p.age || 'N/A'}/{p.gender ? p.gender[0] : 'N/A'}</td>
                         <td>{p.bedId?.ward ? `${p.bedId.ward}/ ` : ''}<span className="font-medium">{p.bedId?.bedNumber || 'N/A'}</span></td>
-                        <td>{p.treatingDoctors?.map((d: any) => d?.name || 'N/A').join(', ') || 'N/A'}</td>
-                        <td>{p.visitId?.departmentName || 'N/A'}</td>
+                        <td>{p.doctorName || 'N/A'}</td>
+                        <td>{p.departmentName || 'N/A'}</td>
                         <td>{p.admissionDate ? new Date(p.admissionDate).toLocaleDateString() : 'N/A'}</td>
                         <td>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -405,7 +365,7 @@ const IPD = () => {
                     <select name="departmentId" value={formData.departmentId} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none">
                       <option value="">-- Select Department --</option>
                       {departments.map((d: any) => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>
@@ -416,7 +376,7 @@ const IPD = () => {
                     <select name="doctorId" value={formData.doctorId} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none">
                       <option value="">-- Select Doctor --</option>
                       {doctors.map((d: any) => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>
@@ -536,7 +496,7 @@ const IPD = () => {
                     <select name="country" value={formData.country} onChange={handleInputChange} className="col-span-6 h-6 border border-gray-300 px-1 outline-none bg-gray-50">
                       <option value="">-- Country --</option>
                       {countries.map((c: any) => (
-                        <option key={c._id} value={c._id}>{c.name}</option>
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -548,13 +508,13 @@ const IPD = () => {
                       <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
                         <option value="">-- State --</option>
                         {states.map((s: any) => (
-                          <option key={s._id} value={s._id}>{s.name}</option>
+                          <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
                       <select name="cityId" value={formData.cityId} onChange={handleInputChange} className="flex-1 h-6 border border-gray-300 px-1 outline-none bg-gray-50 text-[10px]">
                         <option value="">-- City --</option>
                         {cities.map((c: any) => (
-                          <option key={c._id} value={c._id}>{c.name}</option>
+                          <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>

@@ -5,9 +5,10 @@ import {
   UtensilsCrossed, Wrench, FileText, CreditCard, SprayCan, Thermometer,
   Syringe, Zap, MonitorCheck, Droplets, Building2, DoorOpen, Users,
   ChefHat, Truck, AlertTriangle, Clock, CheckCircle2, XCircle, Search,
-  BedDouble, Utensils, ShoppingCart, Timer, CircleDollarSign, LayoutGrid
+  BedDouble, Utensils, ShoppingCart, Timer, CircleDollarSign, LayoutGrid,
+  RefreshCw
 } from 'lucide-react';
-import { getAutoDepartments } from "@/api/apiService";
+import { getAutoDepartments, extractArray } from "@/api/apiService";
 
 // ── Department Data ──
 const clinicalDepts = [
@@ -26,77 +27,6 @@ const clinicalDepts = [
   { name: 'Psychiatry', icon: Brain, hod: 'Dr. Amit Saxena', staff: 5, beds: 10, opd: 'Mon-Wed-Fri', status: 'Active' },
   { name: 'Oncology', icon: Shield, hod: 'Dr. Ritu Agarwal', staff: 12, beds: 18, opd: 'Mon-Sat', status: 'Active' },
   { name: 'Urology', icon: Activity, hod: 'Dr. Pankaj Mishra', staff: 7, beds: 10, opd: 'Tue-Sat', status: 'Active' },
-];
-
-const supportDepts = [
-  { name: 'OT (Operation Theatre)', icon: MonitorCheck, hod: 'Dr. Alok Tiwari', rooms: 8, status: 'Active', availability: '24/7' },
-  { name: 'ICU', icon: Thermometer, hod: 'Dr. Neeraj Pandey', rooms: 20, status: 'Active', availability: '24/7' },
-  { name: 'NICU', icon: Baby, hod: 'Dr. Smita Jain', rooms: 12, status: 'Active', availability: '24/7' },
-  { name: 'PICU', icon: Baby, hod: 'Dr. Ravi Shankar', rooms: 8, status: 'Active', availability: '24/7' },
-  { name: 'Emergency / Casualty', icon: AlertTriangle, hod: 'Dr. Deepak Yadav', rooms: 15, status: 'Active', availability: '24/7' },
-  { name: 'Day Care', icon: Clock, hod: 'Dr. Pooja Mehta', rooms: 10, status: 'Active', availability: '8AM-8PM' },
-];
-
-const diagnosticDepts = [
-  { name: 'Radiology', icon: Zap, hod: 'Dr. Kiran Desai', equipment: 'X-Ray, CT, MRI, USG', tests: 450, status: 'Active' },
-  { name: 'Pathology / Laboratory', icon: Microscope, hod: 'Dr. Vinod Sharma', equipment: 'Hematology, Biochemistry', tests: 1200, status: 'Active' },
-  { name: 'Microbiology Lab', icon: Microscope, hod: 'Dr. Asha Kulkarni', equipment: 'Culture, Sensitivity', tests: 380, status: 'Active' },
-  { name: 'Blood Bank', icon: Droplets, hod: 'Dr. Manish Srivastava', equipment: 'Component Sep, Storage', tests: 150, status: 'Active' },
-];
-
-const adminDepts = [
-  { name: 'Pharmacy', icon: Pill, head: 'Mr. Rajendra Prasad', staff: 15, status: 'Active' },
-  { name: 'CSSD', icon: SprayCan, head: 'Mrs. Lata Kumari', staff: 10, status: 'Active' },
-  { name: 'MRD', icon: FileText, head: 'Mr. Sunil Kumar', staff: 8, status: 'Active' },
-  { name: 'Billing & Insurance', icon: CreditCard, head: 'Mr. Ashok Gupta', staff: 12, status: 'Active' },
-  { name: 'Housekeeping', icon: SprayCan, head: 'Mr. Ram Bahadur', staff: 35, status: 'Active' },
-  { name: 'Maintenance / Biomedical', icon: Wrench, head: 'Mr. Dinesh Pal', staff: 14, status: 'Active' },
-];
-
-const infrastructureData = {
-  rooms: [
-    { floor: 'Ground', type: 'General Ward', total: 20, occupied: 16, available: 4 },
-    { floor: 'Ground', type: 'Private Room', total: 10, occupied: 8, available: 2 },
-    { floor: '1st', type: 'General Ward', total: 25, occupied: 20, available: 5 },
-    { floor: '1st', type: 'Semi-Private', total: 15, occupied: 12, available: 3 },
-    { floor: '2nd', type: 'Deluxe Room', total: 12, occupied: 10, available: 2 },
-    { floor: '2nd', type: 'Suite', total: 5, occupied: 3, available: 2 },
-    { floor: '3rd', type: 'ICU', total: 20, occupied: 18, available: 2 },
-    { floor: '3rd', type: 'NICU', total: 12, occupied: 10, available: 2 },
-    { floor: '4th', type: 'OT', total: 8, occupied: 5, available: 3 },
-    { floor: '4th', type: 'Recovery', total: 10, occupied: 6, available: 4 },
-  ],
-  wards: [
-    { name: 'Male General Ward', floor: 'Ground', beds: 30, nurse: 'Sr. Nurse Kamla', status: 'Active' },
-    { name: 'Female General Ward', floor: 'Ground', beds: 30, nurse: 'Sr. Nurse Rekha', status: 'Active' },
-    { name: 'Pediatric Ward', floor: '1st', beds: 20, nurse: 'Sr. Nurse Sunita', status: 'Active' },
-    { name: 'Maternity Ward', floor: '1st', beds: 25, nurse: 'Sr. Nurse Geeta', status: 'Active' },
-    { name: 'Surgical Ward', floor: '2nd', beds: 25, nurse: 'Sr. Nurse Anita', status: 'Active' },
-    { name: 'Orthopedic Ward', floor: '2nd', beds: 20, nurse: 'Sr. Nurse Meera', status: 'Active' },
-  ],
-  kitchens: [
-    { floor: 'Ground', name: 'Main Kitchen', capacity: '500 meals/day', head: 'Chef Ramesh', status: 'Active', timing: '5AM-10PM' },
-    { floor: '1st', name: 'Pantry - Floor 1', capacity: '150 meals/day', head: 'Mr. Suresh', status: 'Active', timing: '6AM-9PM' },
-    { floor: '2nd', name: 'Pantry - Floor 2', capacity: '150 meals/day', head: 'Mr. Mohan', status: 'Active', timing: '6AM-9PM' },
-    { floor: '3rd', name: 'ICU Pantry', capacity: '80 meals/day', head: 'Mrs. Savitri', status: 'Active', timing: '24/7' },
-    { floor: '4th', name: 'Pantry - Floor 4', capacity: '100 meals/day', head: 'Mr. Kishan', status: 'Active', timing: '6AM-9PM' },
-  ],
-};
-
-// Canteen Management Data
-const canteenTables = [
-  { id: 'T-01', seats: 4, status: 'Occupied', guest: 'Dr. Sharma + 3', orderNo: 'ORD-1045', since: '12:15 PM' },
-  { id: 'T-02', seats: 6, status: 'Available', guest: '-', orderNo: '-', since: '-' },
-  { id: 'T-03', seats: 4, status: 'Occupied', guest: 'Nurse Staff (4)', orderNo: 'ORD-1046', since: '12:20 PM' },
-  { id: 'T-04', seats: 2, status: 'Reserved', guest: 'Dr. Menon', orderNo: '-', since: '12:30 PM' },
-  { id: 'T-05', seats: 8, status: 'Occupied', guest: 'Visitor Group', orderNo: 'ORD-1044', since: '12:00 PM' },
-  { id: 'T-06', seats: 4, status: 'Available', guest: '-', orderNo: '-', since: '-' },
-  { id: 'T-07', seats: 6, status: 'Occupied', guest: 'Admin Team', orderNo: 'ORD-1047', since: '12:25 PM' },
-  { id: 'T-08', seats: 4, status: 'Cleaning', guest: '-', orderNo: '-', since: '-' },
-  { id: 'T-09', seats: 2, status: 'Available', guest: '-', orderNo: '-', since: '-' },
-  { id: 'T-10', seats: 6, status: 'Occupied', guest: 'Lab Staff (5)', orderNo: 'ORD-1048', since: '12:30 PM' },
-  { id: 'T-11', seats: 4, status: 'Available', guest: '-', orderNo: '-', since: '-' },
-  { id: 'T-12', seats: 8, status: 'Reserved', guest: 'Meeting Lunch', orderNo: '-', since: '1:00 PM' },
 ];
 
 const canteenOrders = [
@@ -143,15 +73,27 @@ const Departments = () => {
   const [infraTab, setInfraTab] = useState<'rooms' | 'wards'>('rooms');
   const [canteenView, setCanteenView] = useState<'tables' | 'orders' | 'menu'>('tables');
   const [departments, setDepartments] = useState<any[]>([]);
+  const [infraData, setInfraData] = useState({ rooms: [], wards: [], kitchens: [] });
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await getAutoDepartments();
-      if (res.ok) {
-        setDepartments(res.data?.data || res.data || []);
-      }
+      const [deptRes, wardsRes, bedsRes, kitchenRes] = await Promise.all([
+        getAutoDepartments(),
+        apiRequest('/api/v1/ipd/wards'),
+        apiRequest('/api/v1/ipd/beds'),
+        apiRequest('/api/v1/kitchen/schedule')
+      ]);
+
+      if (deptRes.ok) setDepartments(extractArray(deptRes));
+      
+      setInfraData({
+        wards: wardsRes.ok ? extractArray(wardsRes) : [],
+        rooms: bedsRes.ok ? extractArray(bedsRes) : [], // Mapping beds to "rooms" for now
+        kitchens: kitchenRes.ok ? extractArray(kitchenRes) : []
+      });
+
     } catch (e) { 
       console.error('Error fetching departments:', e); 
     } finally { 
@@ -206,20 +148,20 @@ const Departments = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-6 gap-2 my-2">
-        <SummaryCard label="Clinical Depts" value={clinicalDepts.length} />
-        <SummaryCard label="Support Units" value={supportDepts.length} />
-        <SummaryCard label="Diagnostic Labs" value={diagnosticDepts.length} />
-        <SummaryCard label="Admin Services" value={adminDepts.length} />
-        <SummaryCard label="Total Beds" value={infrastructureData.rooms.reduce((a, r) => a + r.total, 0)} />
-        <SummaryCard label="Available Beds" value={infrastructureData.rooms.reduce((a, r) => a + r.available, 0)} />
+        <SummaryCard label="Total Depts" value={departments.length} />
+        <SummaryCard label="Clinical" value={departments.filter(d => d.type === 'CLINICAL').length} />
+        <SummaryCard label="Support" value={departments.filter(d => d.type === 'SUPPORT').length} />
+        <SummaryCard label="Diagnostic" value={departments.filter(d => d.type === 'DIAGNOSTIC').length} />
+        <SummaryCard label="Total Wards" value={infraData.wards.length} />
+        <SummaryCard label="Total Beds" value={infraData.rooms.length} />
       </div>
 
       {/* Tab Content */}
       <div className="bg-card border border-border">
-        {activeTab === 'clinical' && <ClinicalTable data={clinicalDepts} search={search} />}
-        {activeTab === 'support' && <SupportTable data={supportDepts} search={search} />}
-        {activeTab === 'diagnostic' && <DiagnosticTable data={diagnosticDepts} search={search} />}
-        {activeTab === 'admin' && <AdminTable data={adminDepts} search={search} />}
+        {activeTab === 'clinical' && <ClinicalTable data={departments.filter(d => d.type === 'CLINICAL' || !d.type)} search={search} />}
+        {activeTab === 'support' && <SupportTable data={departments.filter(d => d.type === 'SUPPORT')} search={search} />}
+        {activeTab === 'diagnostic' && <DiagnosticTable data={departments.filter(d => d.type === 'DIAGNOSTIC')} search={search} />}
+        {activeTab === 'admin' && <AdminTable data={departments.filter(d => d.type === 'ADMIN')} search={search} />}
         {activeTab === 'infrastructure' && (
           <div>
             <div className="flex gap-0 border-b border-border">
@@ -230,11 +172,11 @@ const Departments = () => {
                 </button>
               ))}
             </div>
-            {infraTab === 'rooms' && <RoomsTable />}
-            {infraTab === 'wards' && <WardsTable />}
+            {infraTab === 'rooms' && <RoomsTable data={infraData.rooms} />}
+            {infraTab === 'wards' && <WardsTable data={infraData.wards} />}
           </div>
         )}
-        {activeTab === 'kitchen' && <KitchenTable />}
+        {activeTab === 'kitchen' && <KitchenTable data={infraData.kitchens} />}
         {activeTab === 'canteen' && <CanteenDashboard view={canteenView} setView={setCanteenView} />}
       </div>
     </div>
@@ -248,22 +190,22 @@ const SummaryCard = ({ label, value }: { label: string; value: number }) => (
   </div>
 );
 
-const ClinicalTable = ({ data, search }: { data: typeof clinicalDepts; search: string }) => {
+const ClinicalTable = ({ data, search }: { data: any[]; search: string }) => {
   const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
   return (
     <table className="hms-table">
       <thead><tr>
-        <th>#</th><th>Department</th><th>HOD</th><th>Staff</th><th>Beds</th><th>OPD Days</th><th>Status</th><th>Actions</th>
+        <th>#</th><th>Department</th><th>Code</th><th>HOD</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
         {filtered.map((d, i) => {
-          const Icon = d.icon;
           return (
-            <tr key={d.name}>
+            <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Icon size={13} className="text-primary" />{d.name}</div></td>
-              <td>{d.hod}</td><td>{d.staff}</td><td>{d.beds}</td><td>{d.opd}</td>
-              <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{d.status}</span></td>
+              <td><div className="flex items-center gap-1.5"><Stethoscope size={13} className="text-primary" />{d.name}</div></td>
+              <td className="font-mono text-[10px]">{d.code}</td>
+              <td>{d.hodName || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
               <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
             </tr>
           );
@@ -273,22 +215,22 @@ const ClinicalTable = ({ data, search }: { data: typeof clinicalDepts; search: s
   );
 };
 
-const SupportTable = ({ data, search }: { data: typeof supportDepts; search: string }) => {
+const SupportTable = ({ data, search }: { data: any[]; search: string }) => {
   const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
   return (
     <table className="hms-table">
       <thead><tr>
-        <th>#</th><th>Unit</th><th>Head</th><th>Rooms/Beds</th><th>Availability</th><th>Status</th><th>Actions</th>
+        <th>#</th><th>Unit</th><th>Code</th><th>Head</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
         {filtered.map((d, i) => {
-          const Icon = d.icon;
           return (
-            <tr key={d.name}>
+            <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Icon size={13} className="text-primary" />{d.name}</div></td>
-              <td>{d.hod}</td><td>{d.rooms}</td><td>{d.availability}</td>
-              <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{d.status}</span></td>
+              <td><div className="flex items-center gap-1.5"><Wrench size={13} className="text-primary" />{d.name}</div></td>
+              <td className="font-mono text-[10px]">{d.code}</td>
+              <td>{d.hodName || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
               <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
             </tr>
           );
@@ -298,22 +240,22 @@ const SupportTable = ({ data, search }: { data: typeof supportDepts; search: str
   );
 };
 
-const DiagnosticTable = ({ data, search }: { data: typeof diagnosticDepts; search: string }) => {
+const DiagnosticTable = ({ data, search }: { data: any[]; search: string }) => {
   const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
   return (
     <table className="hms-table">
       <thead><tr>
-        <th>#</th><th>Department</th><th>HOD</th><th>Equipment</th><th>Avg Tests/Day</th><th>Status</th><th>Actions</th>
+        <th>#</th><th>Department</th><th>Code</th><th>HOD</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
         {filtered.map((d, i) => {
-          const Icon = d.icon;
           return (
-            <tr key={d.name}>
+            <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Icon size={13} className="text-primary" />{d.name}</div></td>
-              <td>{d.hod}</td><td className="text-[10px]">{d.equipment}</td><td>{d.tests}</td>
-              <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{d.status}</span></td>
+              <td><div className="flex items-center gap-1.5"><Microscope size={13} className="text-primary" />{d.name}</div></td>
+              <td className="font-mono text-[10px]">{d.code}</td>
+              <td>{d.hodName || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
               <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
             </tr>
           );
@@ -323,22 +265,22 @@ const DiagnosticTable = ({ data, search }: { data: typeof diagnosticDepts; searc
   );
 };
 
-const AdminTable = ({ data, search }: { data: typeof adminDepts; search: string }) => {
+const AdminTable = ({ data, search }: { data: any[]; search: string }) => {
   const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
   return (
     <table className="hms-table">
       <thead><tr>
-        <th>#</th><th>Service</th><th>Head</th><th>Staff</th><th>Status</th><th>Actions</th>
+        <th>#</th><th>Service</th><th>Code</th><th>Head</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
         {filtered.map((d, i) => {
-          const Icon = d.icon;
           return (
-            <tr key={d.name}>
+            <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Icon size={13} className="text-primary" />{d.name}</div></td>
-              <td>{d.head}</td><td>{d.staff}</td>
-              <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{d.status}</span></td>
+              <td><div className="flex items-center gap-1.5"><Building2 size={13} className="text-primary" />{d.name}</div></td>
+              <td className="font-mono text-[10px]">{d.code}</td>
+              <td>{d.hodName || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
               <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
             </tr>
           );
@@ -348,53 +290,46 @@ const AdminTable = ({ data, search }: { data: typeof adminDepts; search: string 
   );
 };
 
-const RoomsTable = () => (
+const RoomsTable = ({ data }: { data: any[] }) => (
   <table className="hms-table">
-    <thead><tr><th>Floor</th><th>Room Type</th><th>Total</th><th>Occupied</th><th>Available</th><th>Occupancy %</th></tr></thead>
+    <thead><tr><th>Bed No</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>
-      {infrastructureData.rooms.map((r, i) => (
-        <tr key={i}>
-          <td>{r.floor}</td><td>{r.type}</td><td>{r.total}</td>
-          <td className="text-destructive font-semibold">{r.occupied}</td>
-          <td className="font-semibold" style={{ color: 'hsl(var(--hms-success))' }}>{r.available}</td>
-          <td>
-            <div className="flex items-center gap-1">
-              <div className="w-16 h-2 bg-muted rounded-sm overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: `${(r.occupied / r.total) * 100}%` }} />
-              </div>
-              <span className="text-[10px]">{Math.round((r.occupied / r.total) * 100)}%</span>
-            </div>
-          </td>
+      {data.map((r, i) => (
+        <tr key={r.id}>
+          <td className="font-mono font-bold text-primary">{r.bedNumber}</td>
+          <td><span className="text-[10px] px-1.5 py-0.5 bg-muted rounded uppercase">{r.bedType}</span></td>
+          <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${r.available ? 'bg-hms-success text-hms-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>{r.available ? 'Available' : 'Occupied'}</span></td>
+          <td><button className="hms-btn-secondary text-[10px]">Manage</button></td>
         </tr>
       ))}
     </tbody>
   </table>
 );
 
-const WardsTable = () => (
+const WardsTable = ({ data }: { data: any[] }) => (
   <table className="hms-table">
-    <thead><tr><th>#</th><th>Ward Name</th><th>Floor</th><th>Total Beds</th><th>In-Charge</th><th>Status</th></tr></thead>
+    <thead><tr><th>#</th><th>Ward Name</th><th>Type</th><th>Capacity</th><th>Status</th></tr></thead>
     <tbody>
-      {infrastructureData.wards.map((w, i) => (
-        <tr key={i}>
-          <td>{i + 1}</td><td>{w.name}</td><td>{w.floor}</td><td>{w.beds}</td><td>{w.nurse}</td>
-          <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{w.status}</span></td>
+      {data.map((w, i) => (
+        <tr key={w.id}>
+          <td>{i + 1}</td><td>{w.name}</td><td>{w.wardType}</td><td>{w.capacity} Beds</td>
+          <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">Active</span></td>
         </tr>
       ))}
     </tbody>
   </table>
 );
 
-const KitchenTable = () => (
+const KitchenTable = ({ data }: { data: any[] }) => (
   <div>
-    <div className="hms-section-header text-xs">Kitchen / Dietary Services (Floor-wise)</div>
+    <div className="hms-section-header text-xs">Kitchen / Dietary Services Schedule</div>
     <table className="hms-table">
-      <thead><tr><th>#</th><th>Floor</th><th>Kitchen Name</th><th>Capacity</th><th>In-Charge</th><th>Timing</th><th>Status</th></tr></thead>
+      <thead><tr><th>#</th><th>Task / Item</th><th>Time</th><th>Status</th></tr></thead>
       <tbody>
-        {infrastructureData.kitchens.map((k, i) => (
+        {data.map((k, i) => (
           <tr key={i}>
-            <td>{i + 1}</td><td>{k.floor}</td><td>{k.name}</td><td>{k.capacity}</td><td>{k.head}</td><td>{k.timing}</td>
-            <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">{k.status}</span></td>
+            <td>{i + 1}</td><td>{k.taskName || k.itemName || 'Meal Prep'}</td><td>{k.scheduledTime || 'N/A'}</td>
+            <td><span className="text-[10px] px-1.5 py-0.5 bg-hms-success text-hms-success-foreground">Scheduled</span></td>
           </tr>
         ))}
       </tbody>

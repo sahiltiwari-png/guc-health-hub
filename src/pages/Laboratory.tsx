@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FlaskConical, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Microscope, TestTube, FileText } from 'lucide-react';
-import { createLabEntry, getAutoAssetsMasters, getLabTatMonitor, listLabOrders, listUsers, updateLabResultStatus, updateLabSampleStatus } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
-
-type Tab = 'samples' | 'reports' | 'equipment' | 'testmaster' | 'qc' | 'outsource' | 'tat';
-
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'samples', label: 'Sample Tracking' },
-  { key: 'reports', label: 'Lab Reports' },
-  { key: 'equipment', label: 'Equipment' },
-  { key: 'tat', label: 'TAT Monitor' },
-  { key: 'testmaster', label: 'Test Master' },
-  { key: 'qc', label: 'Quality Control' },
-  { key: 'outsource', label: 'Outsourced Tests' },
-];
+import { getLabOrders, extractArray, getAutoAssetsMasters, getLabTatMonitor, listUsers, updateLabResultStatus, updateLabSampleStatus, createLabEntry } from "@/api/apiService";
 
 const Laboratory = () => {
   const { toast } = useToast();
@@ -47,22 +35,25 @@ const Laboratory = () => {
     setLoading(true);
     try {
       const [labRes, assetRes, tatRes, userRes] = await Promise.all([
-        listLabOrders(),
+        getLabOrders(),
         getAutoAssetsMasters({ categoryName: 'Laboratory' }),
         getLabTatMonitor(),
         listUsers({ role: 'Doctor' })
       ]);
 
-      const labContent = labRes.data?.content || labRes.data || [];
+      if (labRes.ok) {
+        const labContent = extractArray(labRes);
+        setData(prev => ({
+          ...prev,
+          samples: labContent.filter((item: any) => item.status !== 'COMPLETED'),
+          results: labContent.filter((item: any) => item.status === 'COMPLETED'),
+        }));
+      }
       
-      setData({
-        samples: labContent.filter((item: any) => item.status !== 'COMPLETED'),
-        results: labContent.filter((item: any) => item.status === 'COMPLETED'),
-        equipments: assetRes.data?.content || assetRes.data || [],
-        tatData: tatRes.data?.content || tatRes.data || [],
-        testMasters: [], // Can be fetched if needed, using lab list for now
-        users: userRes.data?.content || userRes.data || []
-      });
+      if (assetRes.ok) setData(prev => ({ ...prev, equipments: extractArray(assetRes) }));
+      if (tatRes.ok) setData(prev => ({ ...prev, tatData: extractArray(tatRes) }));
+      if (userRes.ok) setData(prev => ({ ...prev, users: extractArray(userRes) }));
+
     } catch (error) {
       console.error('Error fetching laboratory data:', error);
       toast({ title: 'Error', description: 'Failed to sync laboratory data', variant: 'destructive' });
@@ -292,7 +283,7 @@ const Laboratory = () => {
                 <thead><tr><th>Analyzer</th><th>Brand/Model</th><th>Uptime</th><th>Today Samples</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {data.equipments.map((e: any) => (
-                    <tr key={e._id || e.id}>
+                    <tr key={e.id || e.id}>
                       <td className="font-bold">{e.name}</td>
                       <td>{e.brand || e.manufacturer} {e.model || e.modelNumber}</td>
                       <td>99.2%</td>
@@ -310,7 +301,7 @@ const Laboratory = () => {
                 <thead><tr><th>Test Name</th><th>Category</th><th>Price</th><th>Status</th></tr></thead>
                 <tbody>
                   {data.testMasters.map((t: any) => (
-                    <tr key={t._id}>
+                    <tr key={t.id}>
                       <td className="font-bold">{t.name}</td>
                       <td>{t.category}</td>
                       <td>₹{t.price}</td>

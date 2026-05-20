@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
-import { post } from "@/api/apiService";
+import { getOTBookings, extractArray } from "@/api/apiService";
 
 const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
 
@@ -46,11 +46,31 @@ const preOpChecklist = [
 const OTManagement = () => {
   const [tab, setTab] = useState('Dashboard');
   const { toast } = useToast();
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [surgeryMedia, setSurgeryMedia] = useState([
     { id: 1, patient: 'Rajesh Kumar', surgery: 'CABG', type: 'Video', name: 'cabg_procedure_start.mp4', url: '#', date: '2024-03-15' },
     { id: 2, patient: 'Mohan Lal', surgery: 'Lap Chole', type: 'Image', name: 'gallbladder_view.jpg', url: '#', date: '2024-03-15' },
   ]);
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const res = await getOTBookings();
+      if (res.ok) {
+        setBookings(extractArray(res));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,7 +139,31 @@ const OTManagement = () => {
           <div className="bg-card border border-border">
             <div className="hms-section-header text-xs">Today's Schedule</div>
             <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Type</th><th>Duration</th><th>Status</th></tr></thead>
-              <tbody>{schedule.map((s, i) => <tr key={i}><td>{s.time}</td><td>{s.room}</td><td>{s.surgery}</td><td>{s.patient}</td><td>{s.surgeon}</td><td><StatusBadge status={s.type} /></td><td>{s.duration}</td><td><StatusBadge status={s.status} /></td></tr>)}</tbody>
+              <tbody>
+                {bookings.length > 0 ? bookings.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.time || 'N/A'}</td>
+                    <td>{s.room || 'N/A'}</td>
+                    <td>{s.surgery || 'N/A'}</td>
+                    <td>{s.patientName || 'N/A'}</td>
+                    <td>{s.surgeonName || 'N/A'}</td>
+                    <td><StatusBadge status={s.type || 'Elective'} /></td>
+                    <td>{s.duration || 'N/A'}</td>
+                    <td><StatusBadge status={s.status || 'Scheduled'} /></td>
+                  </tr>
+                )) : schedule.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.time}</td>
+                    <td>{s.room}</td>
+                    <td>{s.surgery}</td>
+                    <td>{s.patient}</td>
+                    <td>{s.surgeon}</td>
+                    <td><StatusBadge status={s.type} /></td>
+                    <td>{s.duration}</td>
+                    <td><StatusBadge status={s.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>

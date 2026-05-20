@@ -1,63 +1,47 @@
 const fs = require('fs');
 const path = require('path');
 
-const pagesDir = path.join(__dirname, 'src', 'pages');
-const allImports = new Set();
-
-const pageFiles = fs.readdirSync(pagesDir).filter(f => f.endsWith('.tsx'));
-
-console.log('Found', pageFiles.length, 'pages');
-
-for (const file of pageFiles) {
-  const content = fs.readFileSync(path.join(pagesDir, file), 'utf8');
-  
-  // Look for imports from apiService
-  const importRegex = /import\s*\{([^}]+)\}\s*from\s*['"]@?\/?api\/apiService['"]/g;
-  let match;
-  while ((match = importRegex.exec(content)) !== null) {
-    const importsStr = match[1];
-    const imports = importsStr.split(',').map(s => s.trim().split(/\s+/)[0]);
-    for (const imp of imports) {
-      if (imp && imp.length > 0) {
-        allImports.add(imp);
-      }
+const files = [];
+function getFiles(dir) {
+  if (!fs.existsSync(dir)) return;
+  fs.readdirSync(dir).forEach(file => {
+    const p = path.join(dir, file);
+    if (fs.statSync(p).isDirectory()) {
+      if (file !== 'node_modules' && file !== '.git') getFiles(p);
+    } else if (p.endsWith('.tsx') || p.endsWith('.ts')) {
+      files.push(p);
     }
-  }
+  });
 }
 
-console.log('\nAll imports from pages:', Array.from(allImports));
+getFiles('src');
 
-const dummyFunctions = Array.from(allImports).map(imp => {
-  return `export const ${imp} = async () => ({ data: [], status: 200, ok: true });`;
-}).join('\n');
+const imports = new Set();
+files.forEach(f => {
+  const content = fs.readFileSync(f, 'utf8');
+  // Match both single and multiline imports
+  const regex = /import\s*{([\s\S]*?)}\s*from\s*['"]@\/api\/apiService['"]/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const importContent = match[1];
+    // Split by comma and clean up
+    importContent.split(',').forEach(i => {
+      const cleaned = i.replace(/\/\/.*$/gm, '') // Remove single line comments
+                      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multiline comments
+                      .trim();
+      if (!cleaned) return;
+      
+      // Handle "name as alias"
+      const name = cleaned.split(/\s+as\s+/)[0].trim();
+      if (name && !name.includes('\n') && !name.includes('}')) {
+        imports.add(name);
+      } else if (name.includes('}')) {
+        // Handle cases where the closing brace is caught
+        const actualName = name.split('}')[0].trim();
+        if (actualName) imports.add(actualName);
+      }
+    });
+  }
+});
 
-const appendScript = `const fs = require('fs');
-const path = require('path');
-
-const aliases = \`
-export const getEquipments = getAssetsMasters;
-export const createEquipment = createEquipmentEquipments;
-export const deleteEquipment = deleteEquipmentEquipmentsById;
-export const createEquipmentCategory = createEquipmentCategories;
-export const getEquipmentMaintenanceSchedules = getEquipmentMaintenanceschedules;
-export const createEquipmentMaintenanceSchedule = createEquipmentMaintenanceschedules;
-export const getEquipmentMaintenanceLogs = getEquipmentMaintenancelogs;
-export const getEquipmentCalibrationRecords = getEquipmentCalibrationrecords;
-export const getEquipmentSpareParts = getEquipmentSpareparts;
-export const getEquipmentUsageLogs = getEquipmentUsagelogs;
-export const getEquipmentBreakdowns = async () => ({ data: [], status: 200, ok: true });
-export const createEquipmentBreakdown = async () => ({ data: null, status: 200, ok: true });
-
-export const patientRegister = createPatientsRegister;
-export const listPatients = async () => ({ data: [], status: 200, ok: true });
-
-${dummyFunctions}
-\`;
-
-const apiPath = path.join(__dirname, 'src', 'api', 'apiService.ts');
-fs.appendFileSync(apiPath, aliases);
-console.log('Aliases added successfully');
-`;
-
-fs.writeFileSync(path.join(__dirname, 'append-aliases.cjs'), appendScript);
-console.log('\nappend-aliases.cjs has been updated with all imports!');
+console.log(JSON.stringify(Array.from(imports).sort(), null, 2));

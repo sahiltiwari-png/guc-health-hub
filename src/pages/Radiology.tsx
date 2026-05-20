@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Monitor } from 'lucide-react';
-import { listRadiologyOrders, listUsers, updateRadiologyStudyStatus, createRadiologyReport } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
-
-type Tab = 'orders' | 'reports' | 'equipment' | 'contrast' | 'pacs' | 'schedule' | 'dose';
-
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'orders', label: 'Radiology Orders' },
-  { key: 'reports', label: 'Reports & Dictation' },
-  { key: 'equipment', label: 'Equipment' },
-  { key: 'contrast', label: 'Contrast Inventory' },
-  { key: 'pacs', label: 'PACS/DICOM' },
-];
+import { getRadiologyScans, listUsers, updateRadiologyStudyStatus, createRadiologyReport } from "@/api/apiService";
 
 const Radiology = () => {
   const { toast } = useToast();
@@ -34,7 +24,7 @@ const Radiology = () => {
     setLoading(true);
     try {
       const [radioRes, userRes] = await Promise.all([
-        listRadiologyOrders(),
+        getRadiologyScans(),
         listUsers({ role: 'Doctor' })
       ]);
 
@@ -244,7 +234,7 @@ const Radiology = () => {
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Radiologist</label>
                   <select className="hms-select w-full" required value={selectedItem?.reportedBy} onChange={e => setSelectedItem({...selectedItem, reportedBy: e.target.value})}>
                     <option value="">-- Select Radiologist --</option>
-                    {data.users.map((u: any) => <option key={u._id} value={u._id}>{u.name}</option>)}
+                    {data.users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
                 </div>
                 <div>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Siren, Eye, Edit, Clock, AlertTriangle, CheckCircle, Printer, Activity } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Siren, Eye, Edit, Clock, AlertTriangle, CheckCircle, Printer, Activity, RefreshCw } from 'lucide-react';
+import { getERVisits, extractArray } from "@/api/apiService";
 
 const tabs = ['Dashboard','Active Cases','Triage','Trauma Bay','Resuscitation','MLC Register','Waiting Area','Shift Handover'];
 
@@ -8,28 +9,34 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
 };
 
-const activeCases = [
-  { id: 'ER-001', patient: 'Unknown Male', age: '~35/M', arrival: '05:30', mode: 'Ambulance', triage: 'Red', complaint: 'RTA - Head Injury, Unconscious', bp: '90/60', hr: '120', spo2: '88%', gcs: '6', doctor: 'Dr. Singh', bed: 'Resus-1', mlc: 'MLC', status: 'Critical' },
-  { id: 'ER-002', patient: 'Ramesh Yadav', age: '52/M', arrival: '06:15', mode: 'Self', triage: 'Orange', complaint: 'Chest Pain, Sweating, Breathlessness', bp: '160/100', hr: '110', spo2: '94%', gcs: '15', doctor: 'Dr. Sharma', bed: 'Bay-1', mlc: 'Non-MLC', status: 'Active' },
-  { id: 'ER-003', patient: 'Kavita Singh', age: '28/F', arrival: '07:00', mode: 'Self', triage: 'Yellow', complaint: 'Acute Abdomen, Vomiting', bp: '110/70', hr: '95', spo2: '99%', gcs: '15', doctor: 'Dr. Gupta', bed: 'Bay-3', mlc: 'Non-MLC', status: 'Active' },
-  { id: 'ER-004', patient: 'Suresh Kumar', age: '45/M', arrival: '07:30', mode: 'Ambulance', triage: 'Red', complaint: 'Poisoning - Organophosphorus', bp: '80/50', hr: '45', spo2: '85%', gcs: '8', doctor: 'Dr. Singh', bed: 'Resus-2', mlc: 'MLC', status: 'Critical' },
-  { id: 'ER-005', patient: 'Meena Devi', age: '60/F', arrival: '08:00', mode: 'Self', triage: 'Green', complaint: 'Fever, Body Ache (5 days)', bp: '120/80', hr: '88', spo2: '98%', gcs: '15', doctor: 'Dr. Mehta', bed: 'Bay-5', mlc: 'Non-MLC', status: 'Active' },
-  { id: 'ER-006', patient: 'Child (Ram)', age: '5/M', arrival: '08:30', mode: 'Self', triage: 'Orange', complaint: 'High Fever, Seizure Episode', bp: '-', hr: '140', spo2: '96%', gcs: '13', doctor: 'Dr. Pediatric', bed: 'Peds Bay', mlc: 'Non-MLC', status: 'Active' },
-  { id: 'ER-007', patient: 'Anil Gupta', age: '40/M', arrival: '09:00', mode: 'Police', triage: 'Yellow', complaint: 'Assault - Stab Wound Abdomen', bp: '100/65', hr: '105', spo2: '97%', gcs: '14', doctor: 'Dr. Gupta', bed: 'Trauma-1', mlc: 'MLC', status: 'Active' },
-];
-
-const traumaBays = [
-  { bay: 'Resuscitation Bay-1', equipment: 'Ventilator, Defibrillator, Central Line Kit', patient: 'Unknown Male (ER-001)', status: 'Occupied' },
-  { bay: 'Resuscitation Bay-2', equipment: 'Ventilator, Defibrillator, Stomach Wash Kit', patient: 'Suresh Kumar (ER-004)', status: 'Occupied' },
-  { bay: 'Trauma Bay-1', equipment: 'Splints, Suture Kit, USG', patient: 'Anil Gupta (ER-007)', status: 'Occupied' },
-  { bay: 'Trauma Bay-2', equipment: 'Splints, Suture Kit', patient: '-', status: 'Available' },
-  { bay: 'Observation Bay-1 (5 beds)', equipment: 'Monitors, O2 Points', patient: '3/5 Occupied', status: 'Available' },
-  { bay: 'Pediatric Bay', equipment: 'Pediatric Equipment', patient: 'Child Ram (ER-006)', status: 'Occupied' },
-  { bay: 'Isolation Bay', equipment: 'Negative Pressure', patient: '-', status: 'Available' },
-];
-
 const Emergency = () => {
   const [tab, setTab] = useState('Dashboard');
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCases = async () => {
+    setLoading(true);
+    try {
+      const res = await getERVisits();
+      if (res.ok) {
+        setCases(extractArray(res));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCases();
+  }, []);
+
+  const activeCases = cases.length > 0 ? cases : [
+    { id: 'ER-001', patient: 'Unknown Male', age: '~35/M', arrival: '05:30', mode: 'Ambulance', triage: 'Red', complaint: 'RTA - Head Injury, Unconscious', bp: '90/60', hr: '120', spo2: '88%', gcs: '6', doctor: 'Dr. Singh', bed: 'Resus-1', mlc: 'MLC', status: 'Critical' },
+    { id: 'ER-002', patient: 'Ramesh Yadav', age: '52/M', arrival: '06:15', mode: 'Self', triage: 'Orange', complaint: 'Chest Pain, Sweating, Breathlessness', bp: '160/100', hr: '110', spo2: '94%', gcs: '15', doctor: 'Dr. Sharma', bed: 'Bay-1', mlc: 'Non-MLC', status: 'Active' },
+  ];
+
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><Siren size={14} /> Emergency Department Management</div>

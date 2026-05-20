@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { BedDouble, Eye, Edit, AlertTriangle, CheckCircle, Clock, Activity, Thermometer, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BedDouble, Eye, Edit, AlertTriangle, CheckCircle, Clock, Activity, Thermometer, Heart, RefreshCw } from 'lucide-react';
+import { apiRequest, extractArray } from "@/api/apiService";
 
 const tabs = ['Dashboard','Bed Map','Patient Monitor','Ventilator Tracker','Nursing Notes','Intake/Output','Ward Transfer','Census Report'];
 
@@ -8,30 +9,45 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
 };
 
-const icuPatients = [
-  { bed: 'ICU1-B01', patient: 'Rajesh Kumar', uhid: 'P-1001', age: '58/M', diagnosis: 'Acute MI - Post CABG', doctor: 'Dr. Sharma', day: 5, ventilator: 'On Ventilator', mode: 'SIMV', fio2: '60%', peep: '8', spo2: '97%', bp: '118/72', hr: '82', temp: '37.2°C', rr: '16', gcs: '10T', urine: '1200ml', condition: 'Critical' },
-  { bed: 'ICU1-B02', patient: 'Sunita Devi', uhid: 'P-1012', age: '45/F', diagnosis: 'Severe Pneumonia + ARDS', doctor: 'Dr. Singh', day: 3, ventilator: 'On Ventilator', mode: 'PC-AC', fio2: '80%', peep: '12', spo2: '93%', bp: '105/65', hr: '110', temp: '38.8°C', rr: '22', gcs: '9T', urine: '800ml', condition: 'Critical' },
-  { bed: 'ICU1-B03', patient: 'Mohan Gupta', uhid: 'P-1015', age: '62/M', diagnosis: 'CVA (Ischemic Stroke)', doctor: 'Dr. Gupta', day: 7, ventilator: 'Weaning', mode: 'CPAP', fio2: '40%', peep: '5', spo2: '98%', bp: '135/85', hr: '76', temp: '36.8°C', rr: '14', gcs: '12', urine: '1500ml', condition: 'Improving' },
-  { bed: 'ICU1-B04', patient: 'Priya Sharma', uhid: 'P-1018', age: '35/F', diagnosis: 'Post C-Section Eclampsia', doctor: 'Dr. Verma', day: 2, ventilator: 'Self', mode: '-', fio2: 'Room', peep: '-', spo2: '99%', bp: '140/90', hr: '88', temp: '37.0°C', rr: '18', gcs: '15', urine: '1800ml', condition: 'Stable' },
-  { bed: 'ICU1-B05', patient: '-', uhid: '-', age: '-', diagnosis: '-', doctor: '-', day: 0, ventilator: '-', mode: '-', fio2: '-', peep: '-', spo2: '-', bp: '-', hr: '-', temp: '-', rr: '-', gcs: '-', urine: '-', condition: 'Vacant' },
-  { bed: 'ICU1-B06', patient: 'Deepak Verma', uhid: 'P-1000', age: '55/M', diagnosis: 'Septic Shock', doctor: 'Dr. Singh', day: 4, ventilator: 'On Ventilator', mode: 'VC-AC', fio2: '70%', peep: '10', spo2: '95%', bp: '90/55', hr: '120', temp: '39.2°C', rr: '24', gcs: '8T', urine: '400ml', condition: 'Critical' },
-];
-
-const wardBeds = [
-  { ward: 'General Ward-A', total: 30, occupied: 26, vacant: 3, reserved: 1, cleaning: 0 },
-  { ward: 'General Ward-B', total: 30, occupied: 24, vacant: 4, reserved: 1, cleaning: 1 },
-  { ward: 'General Ward-C', total: 30, occupied: 28, vacant: 1, reserved: 1, cleaning: 0 },
-  { ward: 'Private Ward', total: 20, occupied: 15, vacant: 4, reserved: 1, cleaning: 0 },
-  { ward: 'Deluxe Suite', total: 10, occupied: 6, vacant: 3, reserved: 1, cleaning: 0 },
-  { ward: 'ICU-1', total: 8, occupied: 5, vacant: 1, reserved: 1, cleaning: 1 },
-  { ward: 'ICU-2', total: 6, occupied: 4, vacant: 1, reserved: 1, cleaning: 0 },
-  { ward: 'NICU', total: 10, occupied: 7, vacant: 2, reserved: 1, cleaning: 0 },
-  { ward: 'Pediatric Ward', total: 15, occupied: 10, vacant: 4, reserved: 1, cleaning: 0 },
-  { ward: 'Maternity Ward', total: 20, occupied: 14, vacant: 5, reserved: 1, cleaning: 0 },
-];
-
 const ICUWard = () => {
   const [tab, setTab] = useState('Dashboard');
+  const [loading, setLoading] = useState(false);
+  const [wards, setWards] = useState<any[]>([]);
+  const [beds, setBeds] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [wRes, bRes, pRes] = await Promise.all([
+        apiRequest('/api/v1/ipd/wards'),
+        apiRequest('/api/v1/ipd/beds'),
+        apiRequest('/api/v1/ipd/admissions') // Assuming this exists or similar
+      ]);
+
+      if (wRes.ok) setWards(extractArray(wRes));
+      if (bRes.ok) setBeds(extractArray(bRes));
+      if (pRes.ok) setPatients(extractArray(pRes));
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Use real data if available, fallback to mock
+  const displayWards = wards.length > 0 ? wards : [
+    { name: 'General Ward-A', total: 30, occupied: 26, vacant: 3, reserved: 1, cleaning: 0 },
+  ];
+  const displayPatients = patients.length > 0 ? patients : [
+    { bed: 'ICU1-B01', patient: 'Rajesh Kumar', uhid: 'P-1001', age: '58/M', diagnosis: 'Acute MI - Post CABG', doctor: 'Dr. Sharma', day: 5, ventilator: 'On Ventilator', mode: 'SIMV', fio2: '60%', peep: '8', spo2: '97%', bp: '118/72', hr: '82', temp: '37.2°C', rr: '16', gcs: '10T', urine: '1200ml', condition: 'Critical' },
+  ];
+
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><BedDouble size={14} /> ICU / Ward Management</div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
-import { deleteUsersById, getTeamUnder, getAutoUsers } from "@/api/apiService";
+import { deleteUsersById, getTeamUnder, getAutoUsers, getAutoAdminRoles, extractArray } from "@/api/apiService";
 
 type Tab = 'all' | 'doctors' | 'nurses' | 'hierarchy';
 
@@ -21,19 +21,30 @@ const Staff = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  const fetchRoles = async () => {
+    try {
+      const res = await getAutoAdminRoles();
+      if (res.ok) {
+        setRoles(extractArray(res));
+      }
+    } catch (e) {
+      console.error('Error fetching roles:', e);
+    }
+  };
+
   const fetchStaff = async () => {
     setIsLoading(true);
     try {
       const res = await getAutoUsers({ 
-        role: tab !== 'all' ? tab.slice(0, -1).toUpperCase() : undefined, // simple heuristic for 'doctors' -> 'DOCTOR'
+        role: tab !== 'all' ? tab.slice(0, -1).toUpperCase() : (selectedRole || undefined),
         search: searchQuery,
         page: currentPage,
         limit: 20
       });
       if (res.ok) {
-        const data = res.data?.data || res.data;
-        setStaff(Array.isArray(data) ? data : (data?.users || data?.data || []));
-        setTotalPages(res.data?.totalPages || res.data?.data?.totalPages || 1);
+        setStaff(extractArray(res));
+        setTotalPages(res.data?.totalPages || 1);
       }
     } catch (e) { 
       console.error('Error fetching staff:', e); 
@@ -42,9 +53,13 @@ const Staff = () => {
     }
   };
 
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
   useEffect(() => { 
     fetchStaff(); 
-  }, [tab, searchQuery, currentPage]);
+  }, [tab, searchQuery, currentPage, selectedRole]);
 
   const limit = 20;
 
@@ -66,7 +81,7 @@ const Staff = () => {
 
   const getTeamUnder = (managerId: string) => {
     if (!Array.isArray(staff)) return [];
-    return staff.filter(s => s.managerId?._id === managerId);
+    return staff.filter(s => s.managerId?.id === managerId);
   };
 
   return (
@@ -100,7 +115,7 @@ const Staff = () => {
           onChange={(e) => setSelectedRole(e.target.value)}
         >
           <option value="">All Roles</option>
-          {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+          {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
 
         <div className="flex gap-0.5 p-0.5 bg-muted rounded-sm">
@@ -122,7 +137,7 @@ const Staff = () => {
         {tab === 'hierarchy' ? (
           <div className="p-6 space-y-8">
             {staff.filter(s => !s.managerId).map(manager => (
-              <div key={manager._id} className="space-y-4">
+              <div key={manager.id} className="space-y-4">
                 <div className="flex items-center gap-3 bg-primary/5 p-3 border-l-4 border-primary rounded-r">
                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                       {manager.name.charAt(0)}
@@ -136,8 +151,8 @@ const Staff = () => {
                 </div>
                 
                 <div className="ml-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-l-2 border-dashed border-border pl-6 relative">
-                   {getTeamUnder(manager._id).map(reportee => (
-                      <div key={reportee._id} className="bg-card border border-border p-3 rounded shadow-sm hover:border-primary/50 transition-all group relative">
+                   {getTeamUnder(manager.id).map(reportee => (
+                      <div key={reportee.id} className="bg-card border border-border p-3 rounded shadow-sm hover:border-primary/50 transition-all group relative">
                          <div className="absolute -left-6 top-1/2 w-6 h-0.5 bg-dashed border-t-2 border-border"></div>
                          <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs">
@@ -150,7 +165,7 @@ const Staff = () => {
                          </div>
                       </div>
                    ))}
-                   {getTeamUnder(manager._id).length === 0 && (
+                   {getTeamUnder(manager.id).length === 0 && (
                       <div className="text-[10px] text-muted-foreground italic py-2">No direct reports</div>
                    )}
                 </div>
@@ -173,7 +188,7 @@ const Staff = () => {
             </thead>
             <tbody>
               {staff.map((s) => (
-                <tr key={s._id}>
+                <tr key={s.id}>
                   <td className="font-bold text-primary uppercase tracking-tighter">{s.employee_id}</td>
                   <td>
                     <div className="font-bold">{s.name}</div>
@@ -206,7 +221,7 @@ const Staff = () => {
                   <td>
                     <div className="flex items-center gap-1">
                       <Users size={12} className="text-primary" />
-                      <span className="text-xs font-bold">{getTeamUnder(s._id).length}</span>
+                      <span className="text-xs font-bold">{getTeamUnder(s.id).length}</span>
                     </div>
                   </td>
                   <td>
@@ -220,7 +235,7 @@ const Staff = () => {
                     <div className="flex gap-1">
                       <button onClick={() => setViewingStaff(s)} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="View Profile"><Eye size={14} /></button>
                       <button className="p-1.5 hover:bg-muted rounded text-muted-foreground" title="Edit Details"><Edit size={14} /></button>
-                      <button onClick={() => handleDelete(s._id)} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="Delete Staff"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(s.id)} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="Delete Staff"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -263,7 +278,7 @@ const Staff = () => {
                     { label: 'Qualification', value: viewingStaff.qualification },
                     { label: 'Reports To', value: viewingStaff.managerId?.name || 'Top Management' },
                     { label: 'Joining Date', value: viewingStaff.joiningDate ? new Date(viewingStaff.joiningDate).toLocaleDateString() : 'N/A' },
-                    { label: 'Team Size', value: `${getTeamUnder(viewingStaff._id).length} People` },
+                    { label: 'Team Size', value: `${getTeamUnder(viewingStaff.id).length} People` },
                   ].map((d, i) => (
                     <div key={i} className="space-y-0.5">
                        <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">{d.label}</span>

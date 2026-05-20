@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Printer, Trash2, Eye, Calendar, FileText, Image, UserSearch } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { createAutoPatientsPatientRegister, createAutoClinical, getAutoGeoCities, getAutoGeoCountries, getAutoGeoStates, getAutoUsers, getAutoClinicals, getAutoEquipmentLocations, getAutoDepartments } from "@/api/apiService";
+import { 
+  getOPDVisits, createOPDWalkIn, 
+  getAutoGeoCities, getAutoGeoCountries, getAutoGeoStates, 
+  getAutoUsers, getAutoEquipmentLocations, 
+  getAutoDepartments, extractArray, searchPatients
+} from "@/api/apiService";
 
 import { toast as sonnerToast } from 'sonner';
 
@@ -59,22 +64,22 @@ const OPD = () => {
     setIsLoading(true);
     try {
       const [vRes, dRes, cRes, rRes, deptRes] = await Promise.all([
-        getAutoClinicals({ visitType: 'OPD' }),
+        getOPDVisits(),
         getAutoUsers({ role: 'DOCTOR' }), 
         getAutoGeoCountries(),
         getAutoEquipmentLocations(),
         getAutoDepartments()
       ]);
       
-      if (vRes.ok) setVisits(vRes.data?.data || vRes.data || []);
+      if (vRes.ok) setVisits(extractArray(vRes));
       else sonnerToast.error("Failed to load visits");
 
-      if (dRes.ok) setDoctors(dRes.data?.data || dRes.data || []);
+      if (dRes.ok) setDoctors(extractArray(dRes));
       else sonnerToast.error("Failed to load doctors");
 
-      if (cRes.ok) setCountries(cRes.data?.data || cRes.data || []);
-      if (rRes.ok) setRooms(rRes.data?.data || rRes.data || []);
-      if (deptRes.ok) setDepartments(deptRes.data?.data || deptRes.data || []);
+      if (cRes.ok) setCountries(extractArray(cRes));
+      if (rRes.ok) setRooms(extractArray(rRes));
+      if (deptRes.ok) setDepartments(extractArray(deptRes));
       
     } catch (e) { 
       console.error(e); 
@@ -93,7 +98,7 @@ const OPD = () => {
     
     setIsLoading(true);
     try {
-      const res = await createAutoClinical(formData);
+      const res = await createOPDWalkIn(formData);
       if (res.ok) {
         sonnerToast.success("OPD Visit created successfully");
         fetchInitialData();
@@ -140,7 +145,7 @@ const OPD = () => {
     
     // Special handling for department to set name too
     if (name === 'departmentId') {
-      const dept = departments.find(d => d._id === value);
+      const dept = departments.find(d => d.id === value);
       setFormData(prev => ({ ...prev, departmentId: value, departmentName: dept?.name || '' }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -176,8 +181,8 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const res = await getAutoPatients();
-      const foundPatient = res.data?.find((p: any) => p.uhid === searchUhid);
+      const res = await searchPatients({ uhid: searchUhid });
+      const foundPatient = res.data?.find((p: any) => p.uhid === searchUhid) || res.data?.[0];
       if (foundPatient) {
         preFillForm(foundPatient);
       } else {
@@ -196,8 +201,8 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const res = await getAutoPatients();
-      const foundPatient = res.data?.find((p: any) => p.mobile === formData.mobile);
+      const res = await searchPatients({ mobile: formData.mobile });
+      const foundPatient = res.data?.find((p: any) => p.mobile === formData.mobile) || res.data?.[0];
       if (foundPatient) {
         preFillForm(foundPatient);
       } else {
@@ -237,7 +242,7 @@ const OPD = () => {
       cityId: visit.patientId.cityId || '',
       departmentId: visit.departmentId || '',
       departmentName: visit.departmentName || '',
-      doctorId: visit.doctorId?._id || visit.doctorId || '',
+      doctorId: visit.doctorId?.id || visit.doctorId || '',
       roomId: visit.roomId || '',
       fee: visit.fee || 0,
       paymentMode: visit.paymentMode || 'Cash',
@@ -251,7 +256,7 @@ const OPD = () => {
   const handleCreateOpd = async () => {
     setIsLoading(true);
     try {
-      const res = await createAutoPatientsPatientRegister({ ...formData, patientId: patient?._id });
+      const res = await createOPDWalkIn({ ...formData, patientId: patient?.id });
       if (res.ok) {
         toast({ title: "Success", description: "OPD visit registered successfully." });
         fetchInitialData();
@@ -344,7 +349,7 @@ const OPD = () => {
               <label className="hms-form-label w-24 text-right">Department :</label>
               <select name="departmentId" value={formData.departmentId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select Department --</option>
-                {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-3">
@@ -384,12 +389,12 @@ const OPD = () => {
               <label className="hms-form-label w-24 text-right">Doctor :</label>
               <select name="doctorId" value={formData.doctorId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select Doctor --</option>
-                {doctors.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
               <label className="hms-form-label ml-2">Room:</label>
               <select name="roomId" value={formData.roomId} onChange={handleInputChange} className="hms-select w-32">
                 <option value="">-- Select Room --</option>
-                {rooms.map(r => <option key={r._id} value={r._id}>{r.roomNumber}</option>)}
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber}</option>)}
               </select>
               <div className="w-28 hms-input bg-muted font-bold text-primary flex items-center justify-center">
                 {formData.fee > 0 ? formData.fee : '--'}
@@ -413,17 +418,17 @@ const OPD = () => {
               <label className="hms-form-label w-24 text-right">Resident :</label>
               <select name="country" value={formData.country} onChange={handleInputChange} className="hms-select w-28">
                 <option value="">-- Country --</option>
-                {countries.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <label className="hms-form-label ml-2">State :</label>
               <select name="stateId" value={formData.stateId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select State --</option>
-                {states.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <label className="hms-form-label ml-2">City :</label>
               <select name="cityId" value={formData.cityId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select City --</option>
-                {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-3">
@@ -483,7 +488,7 @@ const OPD = () => {
           <tbody className="text-[11px]">
             {visits.length > 0 ? (
               visits.map((visit, index) => (
-                <tr key={visit._id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                <tr key={visit.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                   <td className="py-1 px-2 border-r border-border">
                     <div className="flex items-center gap-1">
                       {index + 1} <FileText size={10} className="text-[#cc0000]" />
