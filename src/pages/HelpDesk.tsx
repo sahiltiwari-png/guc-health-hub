@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Headphones, Eye, Edit, MessageSquare, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
-
-const tabs = ['Dashboard','All Tickets','Open Tickets','Escalations','Knowledge Base','SLA Report','Staff Performance','Settings'];
+import { extractArray, getHelpdeskTickets } from "@/api/apiService";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const c: Record<string, string> = { 'Open': 'bg-blue-700 text-white', 'In Progress': 'bg-yellow-600 text-white', 'Resolved': 'bg-green-700 text-white', 'Closed': 'bg-muted text-foreground', 'Escalated': 'bg-red-700 text-white', 'High': 'bg-red-700 text-white', 'Medium': 'bg-yellow-600 text-white', 'Low': 'bg-green-700 text-white', 'Critical': 'bg-red-900 text-white', 'Overdue': 'bg-red-700 text-white', 'Within SLA': 'bg-green-700 text-white' };
@@ -20,7 +19,22 @@ const tickets = [
 ];
 
 const HelpDesk = () => {
+  const tabs = ['Dashboard','All Tickets','Open Tickets','Escalations','Knowledge Base','SLA Report','Staff Performance','Settings'];
   const [tab, setTab] = useState('Dashboard');
+  const [ticketsList, setTicketsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTickets = async () => {
+    setLoading(true);
+    try {
+      const res = await getHelpdeskTickets();
+      if (res.ok) setTicketsList(extractArray(res));
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchTickets(); }, []);
+
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><Headphones size={14} /> Help Desk & Ticketing System</div>

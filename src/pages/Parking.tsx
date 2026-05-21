@@ -1,17 +1,30 @@
-import React from 'react';
-import { Car } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Car, RefreshCw } from 'lucide-react';
+import { extractArray, getParkingEntries } from "@/api/apiService";
 
-const parkingData = [
-  { sno: 1, vehicleNo: 'UP-16-AB-1234', type: 'Car', owner: 'Mr. Rajesh Kumar', uhid: 'U-1001', inTime: '09:00 AM', outTime: '-', charges: 50, status: 'Parked' },
-  { sno: 2, vehicleNo: 'DL-01-CD-5678', type: 'Bike', owner: 'Mr. Amit Sharma', uhid: 'U-1003', inTime: '09:30 AM', outTime: '-', charges: 20, status: 'Parked' },
-  { sno: 3, vehicleNo: 'UP-14-EF-9012', type: 'Car', owner: 'Staff - Dr. Alok Mehta', uhid: '-', inTime: '08:00 AM', outTime: '-', charges: 0, status: 'Staff' },
-  { sno: 4, vehicleNo: 'HR-26-GH-3456', type: 'Car', owner: 'Mrs. Sunita Devi', uhid: 'U-1002', inTime: '08:45 AM', outTime: '11:30 AM', charges: 50, status: 'Exited' },
-  { sno: 5, vehicleNo: 'UP-16-IJ-7890', type: 'Ambulance', owner: 'Hospital', uhid: '-', inTime: '06:00 AM', outTime: '-', charges: 0, status: 'Reserved' },
-];
+const Parking = () => {
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-const Parking = () => (
+  const fetchParking = async () => {
+    setLoading(true);
+    try {
+      const res = await getParkingEntries();
+      if (res.ok) setEntries(extractArray(res));
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchParking(); }, []);
+
+  return (
   <div>
-    <div className="hms-section-header flex items-center gap-2"><Car size={14} /> Parking Management</div>
+    <div className="hms-section-header flex items-center justify-between">
+      <div className="flex items-center gap-2"><Car size={14} /> Parking Management</div>
+      <button onClick={fetchParking} className="p-1 hover:bg-muted rounded text-primary">
+        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+      </button>
+    </div>
     <div className="grid grid-cols-4 gap-2 mb-3">
       {[
         { label: 'Total Slots', value: '100' },
@@ -36,14 +49,15 @@ const Parking = () => (
     <table className="hms-table">
       <thead><tr><th>S.No.</th><th>Vehicle No.</th><th>Type</th><th>Owner</th><th>UHID</th><th>In Time</th><th>Out Time</th><th>Charges</th><th>Status</th></tr></thead>
       <tbody>
-        {parkingData.map(p => (
-          <tr key={p.sno}><td>{p.sno}</td><td>{p.vehicleNo}</td><td>{p.type}</td><td>{p.owner}</td><td>{p.uhid}</td><td>{p.inTime}</td><td>{p.outTime}</td><td>₹{p.charges}</td>
+        {entries.map((p, i) => (
+          <tr key={p.id || i}><td>{i + 1}</td><td>{p.vehicleNo}</td><td>{p.type}</td><td>{p.owner}</td><td>{p.uhid}</td><td>{p.inTime}</td><td>{p.outTime}</td><td>₹{p.charges}</td>
             <td><span className={`px-2 py-0.5 text-[10px] font-bold ${p.status === 'Parked' ? 'bg-hms-info text-primary-foreground' : p.status === 'Exited' ? 'bg-muted' : p.status === 'Staff' ? 'bg-hms-success text-hms-success-foreground' : 'bg-hms-warning'}`}>{p.status}</span></td>
           </tr>
         ))}
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
 export default Parking;

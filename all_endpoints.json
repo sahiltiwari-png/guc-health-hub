@@ -1,0 +1,1986 @@
+[
+  {
+    "path": "/api-error/401",
+    "method": "GET",
+    "summary": "Unauthorized",
+    "tags": [
+      "ApiErrorFallbackController"
+    ]
+  },
+  {
+    "path": "/api-error/403",
+    "method": "GET",
+    "summary": "Forbidden",
+    "tags": [
+      "ApiErrorFallbackController"
+    ]
+  },
+  {
+    "path": "/",
+    "method": "GET",
+    "summary": "Home",
+    "tags": [
+      "HomeController"
+    ]
+  },
+  {
+    "path": "/api/admin/users",
+    "method": "GET",
+    "summary": "GET /api/admin/users",
+    "tags": [
+      "Admin Management"
+    ]
+  },
+  {
+    "path": "/api/admin/users/search",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "Admin Management"
+    ]
+  },
+  {
+    "path": "/api/admin/roles",
+    "method": "GET",
+    "summary": "Search users",
+    "tags": [
+      "Admin Management"
+    ]
+  },
+  {
+    "path": "/api/admin/branches",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "Admin Management"
+    ]
+  },
+  {
+    "path": "/api/v1/auth/register",
+    "method": "POST",
+    "summary": "Register user",
+    "tags": [
+      "V1 - UserRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/auth/login",
+    "method": "POST",
+    "summary": "POST /api/v1/auth/login",
+    "tags": [
+      "V1 - UserRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/auth/users",
+    "method": "GET",
+    "summary": "GET /api/v1/auth/users",
+    "tags": [
+      "V1 - UserRoute"
+    ]
+  },
+  {
+    "path": "/api/departments",
+    "method": "POST",
+    "summary": "Create department",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments",
+    "method": "GET",
+    "summary": "Get Department By Id",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/list-all",
+    "method": "GET",
+    "summary": "List all departments (no pagination)",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/active",
+    "method": "GET",
+    "summary": "List all departments (no pagination)",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/{id}",
+    "method": "GET",
+    "summary": "Get Department By Id",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/{id}",
+    "method": "PUT",
+    "summary": "Update department",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/{id}",
+    "method": "DELETE",
+    "summary": "Update department",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/code/{code}",
+    "method": "GET",
+    "summary": "Get Department By Code",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/departments/search",
+    "method": "GET",
+    "summary": "Update Department",
+    "tags": [
+      "Department Management"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments",
+    "method": "GET",
+    "summary": "Create Appointment V1",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments",
+    "method": "POST",
+    "summary": "Create a new appointment",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/{id}",
+    "method": "GET",
+    "summary": "Get Appointment By Id",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/{id}",
+    "method": "PUT",
+    "summary": "Update Appointment V1",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/{id}",
+    "method": "DELETE",
+    "summary": "Update appointment",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/daily",
+    "method": "GET",
+    "summary": "Update appointment status",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/patient/{patientId}",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/doctor/{doctorId}",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/search",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/masters",
+    "method": "GET",
+    "summary": "List Assets - Masters",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/masters",
+    "method": "POST",
+    "summary": "List Assets - Masters",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/masters/{id}",
+    "method": "GET",
+    "summary": "Create Assets - Masters",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/masters/{id}",
+    "method": "PUT",
+    "summary": "Update Asset Master",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/masters/{id}",
+    "method": "DELETE",
+    "summary": "Update Assets - Masters",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/categories",
+    "method": "GET",
+    "summary": "Create Asset Category",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/categories",
+    "method": "POST",
+    "summary": "List Assets - Categories",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/sub-categories",
+    "method": "GET",
+    "summary": "Create Assets - Categories",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/sub-categories",
+    "method": "POST",
+    "summary": "List Assets - Sub categories",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/vendors",
+    "method": "GET",
+    "summary": "Create Assets - Sub categories",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/vendors",
+    "method": "POST",
+    "summary": "List Assets - Vendors",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/locations",
+    "method": "GET",
+    "summary": "Create Assets - Vendors",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/locations",
+    "method": "POST",
+    "summary": "List Assets - Locations",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/assignments",
+    "method": "GET",
+    "summary": "Create Assets - Locations",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/assignments",
+    "method": "POST",
+    "summary": "List Assets - Assignments",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/maintenances",
+    "method": "GET",
+    "summary": "Create Assets - Assignments",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/maintenances",
+    "method": "POST",
+    "summary": "List Assets - Maintenances",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/audits",
+    "method": "GET",
+    "summary": "Create Assets - Maintenances",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/documents",
+    "method": "GET",
+    "summary": "List Assets - Audits",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/assets/usage-logs",
+    "method": "GET",
+    "summary": "List Assets - Documents",
+    "tags": [
+      "Assets - Masters"
+    ]
+  },
+  {
+    "path": "/api/v1/billing",
+    "method": "GET",
+    "summary": "Get Billing By Id V1",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/{id}",
+    "method": "GET",
+    "summary": "Get Billing By Id V1",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/{id}",
+    "method": "PUT",
+    "summary": "Update Billing V1",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/{id}",
+    "method": "DELETE",
+    "summary": "Update invoice",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/service-charges",
+    "method": "POST",
+    "summary": "Create Service Charge",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/service-charges",
+    "method": "GET",
+    "summary": "Create service charge",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/invoices",
+    "method": "POST",
+    "summary": "Create Invoice",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/invoices",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/invoices/search",
+    "method": "GET",
+    "summary": "Search invoices",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/invoices/{id}",
+    "method": "DELETE",
+    "summary": "Update invoice payment",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical",
+    "method": "GET",
+    "summary": "List V1 - clinicalDetailsRoute",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical",
+    "method": "POST",
+    "summary": "Create V1 - clinicalDetailsRoute",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/{id}",
+    "method": "GET",
+    "summary": "Get Clinical Detail By Id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/{id}",
+    "method": "PUT",
+    "summary": "Update Clinical Detail",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/{id}",
+    "method": "DELETE",
+    "summary": "Update V1 - clinicalDetailsRoute",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/addiction",
+    "method": "POST",
+    "summary": "Add Addiction",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/addiction/{patientId}",
+    "method": "GET",
+    "summary": "Addiction",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/addiction/{id}",
+    "method": "PUT",
+    "summary": "Addiction/:patientId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/addiction/{id}",
+    "method": "DELETE",
+    "summary": "Addiction/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/all-clinical-details/",
+    "method": "GET",
+    "summary": "Addiction/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/surgical",
+    "method": "POST",
+    "summary": "All-clinical-details/",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/surgical/{patientId}",
+    "method": "GET",
+    "summary": "Surgical",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/surgical/{id}",
+    "method": "PUT",
+    "summary": "Surgical/:patientId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical",
+    "method": "POST",
+    "summary": "Surgical/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical/{patientId}",
+    "method": "GET",
+    "summary": "Medical",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical/{id}",
+    "method": "PUT",
+    "summary": "Medical/:patientId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical/{id}",
+    "method": "DELETE",
+    "summary": "Medical/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/personalhistory",
+    "method": "POST",
+    "summary": "Medical/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/personalhistory/{patientId}",
+    "method": "GET",
+    "summary": "Personalhistory",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/personalhistory/{id}",
+    "method": "PUT",
+    "summary": "Personalhistory/:patientId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/creatediagnosis",
+    "method": "POST",
+    "summary": "Personalhistory/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/updatediagnosis/{id}",
+    "method": "PUT",
+    "summary": "Creatediagnosis",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/getdiagnosis/{id}",
+    "method": "GET",
+    "summary": "Updatediagnosis/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/diagnosispatient/{patientId}",
+    "method": "GET",
+    "summary": "Getdiagnosis/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/visitdiagnosis/{visitId}",
+    "method": "GET",
+    "summary": "Diagnosispatient/:patientId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/createdoctornotes",
+    "method": "POST",
+    "summary": "Visitdiagnosis/:visitId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/updatedoctornotes/{id}",
+    "method": "PUT",
+    "summary": "Createdoctornotes",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/updatedoctornotes/{id}",
+    "method": "GET",
+    "summary": "Updatedoctornotes/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/deletedoctornotes/{id}",
+    "method": "DELETE",
+    "summary": "Updatedoctornotes/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/createPrescription/{visitId}",
+    "method": "POST",
+    "summary": "Deletedoctornotes/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/updatePrescription/{id}",
+    "method": "PUT",
+    "summary": "CreatePrescription/:visitId",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/getPrescription/{id}",
+    "method": "GET",
+    "summary": "UpdatePrescription/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/deletePrescription/{id}",
+    "method": "DELETE",
+    "summary": "GetPrescription/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/emr",
+    "method": "POST",
+    "summary": "DeletePrescription/:id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/emr/search",
+    "method": "GET",
+    "summary": "Search EMR records",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/emr/{id}",
+    "method": "GET",
+    "summary": "Get E M R By Id",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/emr/{id}",
+    "method": "PUT",
+    "summary": "Update E M R",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/nursing-note",
+    "method": "POST",
+    "summary": "Update EMR record",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/nursing-note/admission/{admissionId}",
+    "method": "GET",
+    "summary": "Add nursing note",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/discharge-summary",
+    "method": "POST",
+    "summary": "Create discharge summary",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/discharge-summary/admission/{admissionId}",
+    "method": "GET",
+    "summary": "Get Discharge Summary",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/er/visit",
+    "method": "POST",
+    "summary": "Register E R Visit",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/er/search",
+    "method": "GET",
+    "summary": "Search ER visits",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/ot/booking",
+    "method": "POST",
+    "summary": "Schedule OT procedure",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/ot/search",
+    "method": "GET",
+    "summary": "Search OT bookings",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/surgical-history",
+    "method": "POST",
+    "summary": "Add surgical history",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/surgical-history/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add surgical history",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical-history",
+    "method": "POST",
+    "summary": "Add Medical History",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/medical-history/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add medical history",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/personal-history",
+    "method": "POST",
+    "summary": "Add Personal History",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/personal-history/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add personal history",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/diagnosis",
+    "method": "POST",
+    "summary": "Add Diagnosis",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/diagnosis/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add clinical diagnosis",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/doctor-note",
+    "method": "POST",
+    "summary": "Add Doctor Note",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/doctor-note/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add doctor note",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/prescription",
+    "method": "POST",
+    "summary": "Add Prescription",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/prescription",
+    "method": "GET",
+    "summary": "GET /api/v1/clinical/prescription",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/prescription/patient/{patientId}",
+    "method": "GET",
+    "summary": "Add clinical prescription",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/vitals",
+    "method": "POST",
+    "summary": "Record patient vitals",
+    "tags": [
+      "V1 - PatientVitals"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/vitals",
+    "method": "GET",
+    "summary": "Record patient vitals",
+    "tags": [
+      "V1 - PatientVitals"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/vitals/history/{patientId}",
+    "method": "GET",
+    "summary": "List patient vitals",
+    "tags": [
+      "V1 - PatientVitals"
+    ]
+  },
+  {
+    "path": "/api/dashboard/doctor/{doctorId}",
+    "method": "GET",
+    "summary": "Get Doctor Dashboard",
+    "tags": [
+      "Dashboard & Portal"
+    ]
+  },
+  {
+    "path": "/api/dashboard/patient/{uhid}",
+    "method": "GET",
+    "summary": "Get Patient Portal",
+    "tags": [
+      "Dashboard & Portal"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab",
+    "method": "GET",
+    "summary": "List V1 - labRoute",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab",
+    "method": "POST",
+    "summary": "List V1 - labRoute",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/{id}",
+    "method": "GET",
+    "summary": "Get Lab By Id V1",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/{id}",
+    "method": "PUT",
+    "summary": "Update Lab V1",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/{id}",
+    "method": "DELETE",
+    "summary": "Update V1 - labRoute",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology",
+    "method": "GET",
+    "summary": "Create Radiology V1",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology",
+    "method": "POST",
+    "summary": "List V1 - radiologyRoute",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/{id}",
+    "method": "GET",
+    "summary": "Get Radiology By Id V1",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/{id}",
+    "method": "PUT",
+    "summary": "Update Radiology V1",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/{id}",
+    "method": "DELETE",
+    "summary": "Update V1 - radiologyRoute",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/orders",
+    "method": "POST",
+    "summary": "Create Lab Order",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/orders/search",
+    "method": "GET",
+    "summary": "Search lab orders",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/orders",
+    "method": "POST",
+    "summary": "Create radiology order",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/orders/search",
+    "method": "GET",
+    "summary": "Search radiology orders",
+    "tags": [
+      "V1 - labRoute"
+    ]
+  },
+  {
+    "path": "/api/doctors",
+    "method": "POST",
+    "summary": "Register new doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors",
+    "method": "GET",
+    "summary": "Register new doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/{id}",
+    "method": "GET",
+    "summary": "Get Doctor By Id",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/{id}",
+    "method": "PUT",
+    "summary": "Update Doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/{id}",
+    "method": "DELETE",
+    "summary": "Delete Doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/available",
+    "method": "GET",
+    "summary": "Update doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/specialization",
+    "method": "GET",
+    "summary": "Delete Doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/department/{departmentId}",
+    "method": "GET",
+    "summary": "Delete Doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/doctors/search",
+    "method": "GET",
+    "summary": "Delete Doctor",
+    "tags": [
+      "Doctor Management"
+    ]
+  },
+  {
+    "path": "/api/finance/transaction",
+    "method": "POST",
+    "summary": "Record financial transaction",
+    "tags": [
+      "Finance Management"
+    ]
+  },
+  {
+    "path": "/api/finance/transactions",
+    "method": "GET",
+    "summary": "Record financial transaction",
+    "tags": [
+      "Finance Management"
+    ]
+  },
+  {
+    "path": "/api/inventory/pharmacy/stock",
+    "method": "POST",
+    "summary": "Add pharmacy stock",
+    "tags": [
+      "Inventory Management"
+    ]
+  },
+  {
+    "path": "/api/inventory/pharmacy/stock",
+    "method": "GET",
+    "summary": "Add pharmacy stock",
+    "tags": [
+      "Inventory Management"
+    ]
+  },
+  {
+    "path": "/api/inventory/pharmacy/stock/search",
+    "method": "GET",
+    "summary": "Search pharmacy stock",
+    "tags": [
+      "Inventory Management"
+    ]
+  },
+  {
+    "path": "/api/inventory/pharmacy/stock/{id}",
+    "method": "PUT",
+    "summary": "Update pharmacy stock",
+    "tags": [
+      "Inventory Management"
+    ]
+  },
+  {
+    "path": "/api/inventory/pharmacy/stock/{id}",
+    "method": "DELETE",
+    "summary": "Update pharmacy stock",
+    "tags": [
+      "Inventory Management"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd",
+    "method": "GET",
+    "summary": "Get Ipd By Id V1",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/{id}",
+    "method": "GET",
+    "summary": "Get Ipd By Id V1",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/{id}",
+    "method": "PUT",
+    "summary": "Update Ipd V1",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/{id}",
+    "method": "DELETE",
+    "summary": "Update admission",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/wards",
+    "method": "POST",
+    "summary": "Create Ward",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/wards",
+    "method": "GET",
+    "summary": "Create ward",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/beds",
+    "method": "POST",
+    "summary": "Create Bed",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/beds",
+    "method": "GET",
+    "summary": "Create bed",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/beds/available",
+    "method": "GET",
+    "summary": "Get Bed By Id",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/beds/{bedId}",
+    "method": "GET",
+    "summary": "Get Bed By Id",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/admit",
+    "method": "POST",
+    "summary": "Admit Patient",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/admissions/search",
+    "method": "GET",
+    "summary": "Admit patient",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/discharge/{admissionId}",
+    "method": "POST",
+    "summary": "Discharge patient",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/transfer-bed/{admissionId}",
+    "method": "POST",
+    "summary": "Discharge patient",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/nurses/available",
+    "method": "GET",
+    "summary": "Get Nurse By Id",
+    "tags": [
+      "Nurse Management"
+    ]
+  },
+  {
+    "path": "/api/nurses/department/{departmentId}",
+    "method": "GET",
+    "summary": "Get Nurse By Id",
+    "tags": [
+      "Nurse Management"
+    ]
+  },
+  {
+    "path": "/api/nurses/{id}",
+    "method": "GET",
+    "summary": "Get Nurse By Id",
+    "tags": [
+      "Nurse Management"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/check-in/{appointmentId}",
+    "method": "POST",
+    "summary": "Check-in patient from appointment",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/walk-in",
+    "method": "POST",
+    "summary": "Check-in patient from appointment",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd",
+    "method": "GET",
+    "summary": "Get Visit By Id",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/search",
+    "method": "GET",
+    "summary": "Search OPD visits",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/{id}",
+    "method": "GET",
+    "summary": "Get Visit By Id",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/{id}",
+    "method": "DELETE",
+    "summary": "Delete Visit",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/vitals/{opdVisitId}",
+    "method": "POST",
+    "summary": "Record Vitals",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/patient-register",
+    "method": "POST",
+    "summary": "Patient Register V1",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/register",
+    "method": "POST",
+    "summary": "Register new patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients",
+    "method": "GET",
+    "summary": "Get Patient By Id",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/{id}",
+    "method": "GET",
+    "summary": "Get Patient By Id",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/{id}",
+    "method": "PUT",
+    "summary": "Update Patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/{id}",
+    "method": "DELETE",
+    "summary": "Delete Patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/search-by-phone",
+    "method": "GET",
+    "summary": "Update patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/uhid/{uhid}",
+    "method": "GET",
+    "summary": "Search patient by phone",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/{id}/family",
+    "method": "GET",
+    "summary": "Delete Patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/patients/search",
+    "method": "GET",
+    "summary": "Delete Patient",
+    "tags": [
+      "V1 - PatientRegistrationAndVisitedRoute"
+    ]
+  },
+  {
+    "path": "/api/reception/visitor/entry",
+    "method": "POST",
+    "summary": "Log visitor entry",
+    "tags": [
+      "Reception Management"
+    ]
+  },
+  {
+    "path": "/api/reception/visitor/exit/{id}",
+    "method": "PUT",
+    "summary": "Log visitor entry",
+    "tags": [
+      "Reception Management"
+    ]
+  },
+  {
+    "path": "/api/reception/visitors/active",
+    "method": "GET",
+    "summary": "Log visitor exit",
+    "tags": [
+      "Reception Management"
+    ]
+  },
+  {
+    "path": "/api/reporting/generate",
+    "method": "POST",
+    "summary": "Generate system report",
+    "tags": [
+      "Reporting Management"
+    ]
+  },
+  {
+    "path": "/api/reporting/list",
+    "method": "GET",
+    "summary": "Generate system report",
+    "tags": [
+      "Reporting Management"
+    ]
+  },
+  {
+    "path": "/api/support/employee",
+    "method": "POST",
+    "summary": "Hire employee",
+    "tags": [
+      "Support Management"
+    ]
+  },
+  {
+    "path": "/api/support/employees",
+    "method": "GET",
+    "summary": "Hire employee",
+    "tags": [
+      "Support Management"
+    ]
+  },
+  {
+    "path": "/api/telemedicine/initiate",
+    "method": "POST",
+    "summary": "Initiate video call",
+    "tags": [
+      "Telemedicine"
+    ]
+  },
+  {
+    "path": "/api/v1/appointments/{id}/status",
+    "method": "PATCH",
+    "summary": "Method Summary",
+    "tags": [
+      "V1 - appointmentRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/equipment/breakdown-tickets",
+    "method": "GET",
+    "summary": "GET /api/v1/equipment/breakdown-tickets",
+    "tags": [
+      "Equipment Management"
+    ]
+  },
+  {
+    "path": "/api/v1/equipment/maintenance-schedules",
+    "method": "GET",
+    "summary": "List breakdown tickets",
+    "tags": [
+      "Equipment Management"
+    ]
+  },
+  {
+    "path": "/api/v1/equipment/categories",
+    "method": "GET",
+    "summary": "List maintenance schedules",
+    "tags": [
+      "Equipment Management"
+    ]
+  },
+  {
+    "path": "/api/v1/billing/invoices/{id}/payment",
+    "method": "PATCH",
+    "summary": "Search invoices",
+    "tags": [
+      "V1 - billingRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/undefined",
+    "method": "PUT",
+    "summary": "List prescriptions",
+    "tags": [
+      "V1 - clinicalDetailsRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/registry/births",
+    "method": "GET",
+    "summary": "GET /api/v1/registry/births",
+    "tags": [
+      "Birth & Death Registry"
+    ]
+  },
+  {
+    "path": "/api/v1/registry/deaths",
+    "method": "GET",
+    "summary": "List birth records",
+    "tags": [
+      "Birth & Death Registry"
+    ]
+  },
+  {
+    "path": "/api/v1/registry/mortuary",
+    "method": "GET",
+    "summary": "List death records",
+    "tags": [
+      "Birth & Death Registry"
+    ]
+  },
+  {
+    "path": "/api/v1/registry/postmortem-schedule",
+    "method": "GET",
+    "summary": "Mortuary status",
+    "tags": [
+      "Birth & Death Registry"
+    ]
+  },
+  {
+    "path": "/api/v1/certificates/templates",
+    "method": "GET",
+    "summary": "GET /api/v1/certificates/templates",
+    "tags": [
+      "Certificate Management"
+    ]
+  },
+  {
+    "path": "/api/v1/certificates/types",
+    "method": "GET",
+    "summary": "List certificate templates",
+    "tags": [
+      "Certificate Management"
+    ]
+  },
+  {
+    "path": "/api/v1/certificates/generated",
+    "method": "GET",
+    "summary": "List certificate types",
+    "tags": [
+      "Certificate Management"
+    ]
+  },
+  {
+    "path": "/api/v1/certificates/signatures",
+    "method": "GET",
+    "summary": "List generated certificates",
+    "tags": [
+      "Certificate Management"
+    ]
+  },
+  {
+    "path": "/api/v1/certificates/verifications",
+    "method": "GET",
+    "summary": "List digital signatures",
+    "tags": [
+      "Certificate Management"
+    ]
+  },
+  {
+    "path": "/api/dashboard/super-admin",
+    "method": "GET",
+    "summary": "Method Summary",
+    "tags": [
+      "Dashboard & Portal"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/orders/{id}/result",
+    "method": "PATCH",
+    "summary": "Search lab orders",
+    "tags": [
+      "V1 - radiologyRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/orders/{id}/sample-tracking",
+    "method": "PATCH",
+    "summary": "Update lab result",
+    "tags": [
+      "V1 - radiologyRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/lab/orders/tat-monitor",
+    "method": "GET",
+    "summary": "Update sample tracking status",
+    "tags": [
+      "V1 - radiologyRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/diagnostics/radiology/orders/{id}/report",
+    "method": "PATCH",
+    "summary": "Search radiology orders",
+    "tags": [
+      "V1 - radiologyRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/laboratory",
+    "method": "GET",
+    "summary": "GET /api/v1/laboratory",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/laboratory/samples",
+    "method": "GET",
+    "summary": "GET /api/v1/laboratory/samples",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/radiology",
+    "method": "GET",
+    "summary": "Frontend laboratory feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/radiology/scans",
+    "method": "GET",
+    "summary": "Frontend laboratory feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/pharmacy/inventory",
+    "method": "GET",
+    "summary": "Frontend radiology feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/pharmacy/dispenses",
+    "method": "GET",
+    "summary": "Frontend pharmacy inventory feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/inventory",
+    "method": "GET",
+    "summary": "Frontend pharmacy dispense feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/donations",
+    "method": "GET",
+    "summary": "Frontend blood bank inventory feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/donors",
+    "method": "GET",
+    "summary": "Frontend blood bank donations feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/groups",
+    "method": "GET",
+    "summary": "Frontend blood bank donors feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/components",
+    "method": "GET",
+    "summary": "Frontend blood bank groups feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/blood-bank/requests",
+    "method": "GET",
+    "summary": "Frontend blood bank components feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/clinical/vitals-feed",
+    "method": "GET",
+    "summary": "Frontend blood bank requests feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/reports",
+    "method": "GET",
+    "summary": "Frontend clinical vitals feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/mis",
+    "method": "GET",
+    "summary": "Frontend reports feed",
+    "tags": [
+      "Frontend Compatibility"
+    ]
+  },
+  {
+    "path": "/api/v1/instruments",
+    "method": "GET",
+    "summary": "GET /api/v1/instruments",
+    "tags": [
+      "Instrument Management"
+    ]
+  },
+  {
+    "path": "/api/v1/instrument-batches",
+    "method": "GET",
+    "summary": "List instruments",
+    "tags": [
+      "Instrument Management"
+    ]
+  },
+  {
+    "path": "/api/v1/sterilization-cycles",
+    "method": "GET",
+    "summary": "List instrument batches",
+    "tags": [
+      "Instrument Management"
+    ]
+  },
+  {
+    "path": "/api/v1/issued-instruments",
+    "method": "GET",
+    "summary": "List sterilization cycles",
+    "tags": [
+      "Instrument Management"
+    ]
+  },
+  {
+    "path": "/api/v1/ipd/discharged-today",
+    "method": "GET",
+    "summary": "Discharge patient",
+    "tags": [
+      "V1 - ipdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/opd/{id}/status",
+    "method": "PATCH",
+    "summary": "Record vitals",
+    "tags": [
+      "V1 - opdRoute"
+    ]
+  },
+  {
+    "path": "/api/v1/ambulances",
+    "method": "GET",
+    "summary": "GET /api/v1/ambulances",
+    "tags": [
+      "Ambulance Management"
+    ]
+  },
+  {
+    "path": "/api/v1/ambulances/trips",
+    "method": "GET",
+    "summary": "List ambulances",
+    "tags": [
+      "Ambulance Management"
+    ]
+  },
+  {
+    "path": "/api/v1/ambulances/maintenances",
+    "method": "GET",
+    "summary": "List ambulance trips",
+    "tags": [
+      "Ambulance Management"
+    ]
+  },
+  {
+    "path": "/api/v1/kitchen/dashboard",
+    "method": "GET",
+    "summary": "GET /api/v1/kitchen/dashboard",
+    "tags": [
+      "Kitchen Management"
+    ]
+  },
+  {
+    "path": "/api/v1/kitchen/diet-plans",
+    "method": "GET",
+    "summary": "Kitchen dashboard statistics",
+    "tags": [
+      "Kitchen Management"
+    ]
+  },
+  {
+    "path": "/api/v1/kitchen/meal-orders",
+    "method": "GET",
+    "summary": "List diet plans",
+    "tags": [
+      "Kitchen Management"
+    ]
+  },
+  {
+    "path": "/api/v1/kitchen/schedule",
+    "method": "GET",
+    "summary": "List meal orders",
+    "tags": [
+      "Kitchen Management"
+    ]
+  },
+  {
+    "path": "/api/v1/helpdesk/dashboard",
+    "method": "GET",
+    "summary": "GET /api/v1/helpdesk/dashboard",
+    "tags": [
+      "Help Desk"
+    ]
+  },
+  {
+    "path": "/api/v1/helpdesk/tickets",
+    "method": "GET",
+    "summary": "Help desk dashboard statistics",
+    "tags": [
+      "Help Desk"
+    ]
+  },
+  {
+    "path": "/api/v1/hr/attendance",
+    "method": "GET",
+    "summary": "GET /api/v1/hr/attendance",
+    "tags": [
+      "Staff Management"
+    ]
+  },
+  {
+    "path": "/api/v1/hr/leaves",
+    "method": "GET",
+    "summary": "Get staff attendance",
+    "tags": [
+      "Staff Management"
+    ]
+  },
+  {
+    "path": "/api/v1/hr/payroll",
+    "method": "GET",
+    "summary": "Get leave requests",
+    "tags": [
+      "Staff Management"
+    ]
+  },
+  {
+    "path": "/api/v1/parking/dashboard",
+    "method": "GET",
+    "summary": "GET /api/v1/parking/dashboard",
+    "tags": [
+      "Parking Management"
+    ]
+  },
+  {
+    "path": "/api/v1/parking/entries",
+    "method": "GET",
+    "summary": "Parking dashboard statistics",
+    "tags": [
+      "Parking Management"
+    ]
+  }
+]

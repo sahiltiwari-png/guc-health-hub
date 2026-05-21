@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Siren, Eye, Edit, Clock, AlertTriangle, CheckCircle, Printer, Activity, RefreshCw } from 'lucide-react';
 import { getERVisits, extractArray } from "@/api/apiService";
 
-const tabs = ['Dashboard','Active Cases','Triage','Trauma Bay','Resuscitation','MLC Register','Waiting Area','Shift Handover'];
-
 const StatusBadge = ({ status }: { status: string }) => {
   const c: Record<string, string> = { 'Red': 'bg-red-700 text-white', 'Orange': 'bg-orange-600 text-white', 'Yellow': 'bg-yellow-500 text-black', 'Green': 'bg-green-700 text-white', 'Black': 'bg-black text-white', 'Active': 'bg-blue-700 text-white', 'Discharged': 'bg-green-700 text-white', 'Admitted': 'bg-yellow-600 text-white', 'Referred': 'bg-purple-700 text-white', 'Critical': 'bg-red-900 text-white', 'Stable': 'bg-green-700 text-white', 'MLC': 'bg-red-700 text-white', 'Non-MLC': 'bg-green-700 text-white', 'Occupied': 'bg-red-700 text-white', 'Available': 'bg-green-700 text-white' };
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
 };
 
 const Emergency = () => {
+  const tabs = ['Dashboard','Active Cases','Triage','Trauma Bay','Resuscitation','MLC Register','Waiting Area','Shift Handover'];
   const [tab, setTab] = useState('Dashboard');
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

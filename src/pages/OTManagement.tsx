@@ -4,8 +4,6 @@ import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import { getOTBookings, extractArray } from "@/api/apiService";
 
-const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
-
 const StatusBadge = ({ status }: { status: string }) => {
   const c: Record<string, string> = { 'Running': 'bg-green-700 text-white', 'Scheduled': 'bg-blue-700 text-white', 'Completed': 'bg-green-800 text-white', 'Preparing': 'bg-yellow-600 text-white', 'Cancelled': 'bg-red-700 text-white', 'Available': 'bg-green-700 text-white', 'Occupied': 'bg-red-700 text-white', 'Cleaning': 'bg-yellow-600 text-white', 'Emergency': 'bg-red-700 text-white', 'Elective': 'bg-blue-700 text-white', 'Done': 'bg-green-700 text-white', 'Pending': 'bg-yellow-600 text-white', 'GA': 'bg-purple-700 text-white', 'SA': 'bg-blue-700 text-white', 'LA': 'bg-green-700 text-white' };
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
@@ -44,6 +42,7 @@ const preOpChecklist = [
 ];
 
 const OTManagement = () => {
+  const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
   const [tab, setTab] = useState('Dashboard');
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);

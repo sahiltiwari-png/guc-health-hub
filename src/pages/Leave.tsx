@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, X, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, FileText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { apiRequest, extractArray, getLeaves } from "@/api/apiService";
 
 type Tab = 'my-leaves' | 'requests';
 
@@ -22,16 +23,33 @@ const Leave = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const mockLeaves = [
-        { id: '1', leaveType: 'Sick', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date() },
-      ];
-      const mockRequests = [
-        { id: '1', userId: { name: 'Nurse Jane', employee_id: 'EMP002' }, leaveType: 'Casual', startDate: new Date(), endDate: new Date(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date() },
-      ];
-      if (tab === 'my-leaves') {
-        setLeaves(mockLeaves);
+      const endpoint = tab === 'my-leaves' ? '/api/hr/leaves/me' : '/api/hr/leaves/requests';
+      const res = await apiRequest(endpoint);
+      
+      if (res.ok) {
+        if (tab === 'my-leaves') {
+          setLeaves(extractArray(res));
+        } else {
+          setRequests(extractArray(res));
+        }
       } else {
-        setRequests(mockRequests);
+        // Fallback to getLeaves if endpoint fails
+        const fallbackRes = await getLeaves();
+        if (fallbackRes.ok) {
+             const data = extractArray(fallbackRes);
+             if (tab === 'my-leaves') setLeaves(data);
+             else setRequests(data);
+        } else {
+            // Mock fallback
+            const mockLeaves = [
+              { id: '1', leaveType: 'Sick', startDate: new Date().toISOString(), endDate: new Date().toISOString(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date().toISOString() },
+            ];
+            const mockRequests = [
+              { id: '1', userId: { fullName: 'Nurse Jane', employeeId: 'EMP002' }, leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date().toISOString() },
+            ];
+            if (tab === 'my-leaves') setLeaves(mockLeaves);
+            else setRequests(mockRequests);
+        }
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -48,12 +66,37 @@ const Leave = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const newLeave = { id: Date.now().toString(), ...formData, status: 'Pending', totalDays: 1, createdAt: new Date() };
-      setLeaves([newLeave, ...leaves]);
-      toast({ title: 'Success', description: 'Leave application submitted' });
-      setShowModal(null);
+      const res = await apiRequest('/api/hr/leaves', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Leave application submitted' });
+        setShowModal(null);
+        fetchData();
+      } else {
+        throw new Error(res.data?.message || 'Failed to submit');
+      }
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Application failed', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, status: 'Approved' | 'Rejected') => {
+    setLoading(true);
+    try {
+      const res = await apiRequest(`/api/hr/leaves/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        toast({ title: 'Success', description: `Leave ${status.toLowerCase()}` });
+        fetchData();
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Action failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

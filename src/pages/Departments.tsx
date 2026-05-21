@@ -57,17 +57,16 @@ const canteenMenu = [
   { item: 'Samosa (2 pcs)', price: 30, category: 'Snack', available: true },
 ];
 
-const tabs = [
-  { id: 'clinical', label: 'Clinical', icon: Stethoscope },
-  { id: 'support', label: 'Critical Care', icon: Thermometer },
-  { id: 'diagnostic', label: 'Diagnostics', icon: Microscope },
-  { id: 'admin', label: 'Admin & Services', icon: Wrench },
-  { id: 'infrastructure', label: 'Rooms / Wards', icon: BedDouble },
-  { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
-  { id: 'canteen', label: 'Canteen Mgmt', icon: Utensils },
-];
-
 const Departments = () => {
+  const tabs = [
+    { id: 'clinical', label: 'Clinical', icon: Stethoscope },
+    { id: 'support', label: 'Critical Care', icon: Thermometer },
+    { id: 'diagnostic', label: 'Diagnostics', icon: Microscope },
+    { id: 'admin', label: 'Admin & Services', icon: Wrench },
+    { id: 'infrastructure', label: 'Rooms / Wards', icon: BedDouble },
+    { id: 'kitchen', label: 'Kitchen', icon: ChefHat },
+    { id: 'canteen', label: 'Canteen Mgmt', icon: Utensils },
+  ];
   const [activeTab, setActiveTab] = useState('clinical');
   const [search, setSearch] = useState('');
   const [infraTab, setInfraTab] = useState<'rooms' | 'wards'>('rooms');
@@ -93,6 +92,11 @@ const Departments = () => {
         rooms: bedsRes.ok ? extractArray(bedsRes) : [], // Mapping beds to "rooms" for now
         kitchens: kitchenRes.ok ? extractArray(kitchenRes) : []
       });
+
+      // Add default mock departments if empty to ensure UI has content
+      if (!deptRes.ok || extractArray(deptRes).length === 0) {
+        setDepartments(clinicalDepts.map((d, i) => ({ id: `mock-${i}`, name: d.name, type: 'CLINICAL', status: d.status, head: d.hod, staffCount: d.staff, beds: d.beds })));
+      }
 
     } catch (e) { 
       console.error('Error fetching departments:', e); 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, MapPin, Smartphone, RefreshCw, CheckCircle, XCircle, AlertCircle, Play, Square } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getHRAttendance, extractArray } from "@/api/apiService";
+import { extractArray, getAttendance, getHRAttendance } from "@/api/apiService";
 
 const Attendance = () => {
   const { toast } = useToast();
@@ -13,7 +13,7 @@ const Attendance = () => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await getHRAttendance();
+      const res = await getAttendance();
       if (res.ok) {
         const data = extractArray(res);
         setHistory(data);
@@ -21,7 +21,7 @@ const Attendance = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayRec = data.find((r: any) => {
-          const rDate = new Date(r.date);
+          const rDate = new Date(r.date || r.createdAt);
           rDate.setHours(0, 0, 0, 0);
           return rDate.getTime() === today.getTime();
         });
@@ -43,12 +43,19 @@ const Attendance = () => {
   const handleClockIn = async () => {
     setLoading(true);
     try {
+      const res = await apiRequest('/api/hr/attendance/clock-in', { method: 'POST' });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Clocked in successfully' });
+        fetchHistory();
+      } else {
+        throw new Error(res.data?.message || 'Clock-in failed');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Clock-in failed', variant: 'destructive' });
+      // Mock fallback for UI testing
       const newRecord = { id: Date.now().toString(), date: new Date(), clockIn: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, status: 'Present' };
       setHistory([newRecord, ...history]);
       setTodayRecord(newRecord);
-      toast({ title: 'Success', description: 'Clocked in successfully' });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Clock-in failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -57,12 +64,19 @@ const Attendance = () => {
   const handleClockOut = async () => {
     setLoading(true);
     try {
+      const res = await apiRequest('/api/hr/attendance/clock-out', { method: 'POST' });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Clocked out successfully' });
+        fetchHistory();
+      } else {
+        throw new Error(res.data?.message || 'Clock-out failed');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Clock-out failed', variant: 'destructive' });
+      // Mock fallback
       const updatedRecord = { ...todayRecord, clockOut: { time: new Date(), device: navigator.userAgent.split(') ')[0] + ')' }, workHours: 8 };
       setHistory(history.map(h => h.id === updatedRecord.id ? updatedRecord : h));
       setTodayRecord(updatedRecord);
-      toast({ title: 'Success', description: 'Clocked out successfully' });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Clock-out failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

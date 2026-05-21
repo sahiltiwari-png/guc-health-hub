@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Droplets, Users, Clock, CheckCircle2, AlertTriangle, ThermometerSun, Search, Printer, Eye, Plus, Edit, Trash2, RefreshCw, X } from 'lucide-react';
-import { createBloodComponent, createBloodDonation, createBloodDonor, createBloodInventory, createBloodRequest, deleteBloodDonor, deleteBloodInventory, deleteBloodRequest, getBloodDonors, getBloodInventory, getBloodRequests, issueBlood, listBloodComponents, listBloodDonations, listBloodDonors, listBloodGroups, listBloodInventory, listBloodRequests, getAutoPatients, listUsers, updateBloodDonor, updateBloodInventoryStatus, updateBloodRequest, updateBloodRequestStatus, extractArray } from "@/api/apiService";
+import { createBloodComponent, createBloodDonation, createBloodDonor, createBloodInventory, createBloodRequest, deleteBloodDonor, deleteBloodInventory, deleteBloodRequest, extractArray, getAutoPatients, getBloodBankDonations, getBloodBankInventory, getBloodDonors, getBloodInventory, getBloodRequests, issueBlood, listBloodComponents, listBloodDonations, listBloodDonors, listBloodGroups, listBloodInventory, listBloodRequests, listUsers, updateBloodDonor, updateBloodInventoryStatus, updateBloodRequest, updateBloodRequestStatus } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 const statusColor = (s: string) => {
@@ -55,13 +55,10 @@ const BloodBank = () => {
     doctors: []
   });
 
-  // UI States
-  const [showModal, setShowModal] = useState<string | null>(null); // 'request' | 'donor' | 'donation'
-  const [selectedItem, setSelectedItem] = useState<any>(null);
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes] = await Promise.all([
+      const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes, iRes, dRes] = await Promise.all([
         getBloodInventory(),
         listBloodRequests(),
         listBloodDonors(),
@@ -69,14 +66,16 @@ const BloodBank = () => {
         listBloodGroups(),
         listBloodComponents(),
         getAutoPatients({ limit: 100 }),
-        listUsers({ role: 'Doctor' })
+        listUsers({ role: 'Doctor' }),
+        getBloodBankInventory(),
+        getBloodBankDonations()
       ]);
 
       setData({
-        inventory: extractArray(invRes),
+        inventory: extractArray(invRes).length > 0 ? extractArray(invRes) : extractArray(iRes),
         requests: extractArray(reqRes),
         donors: extractArray(donorRes),
-        donations: extractArray(donRes),
+        donations: extractArray(donRes).length > 0 ? extractArray(donRes) : extractArray(dRes),
         groups: extractArray(grpRes),
         components: extractArray(compRes),
         patients: extractArray(patRes),

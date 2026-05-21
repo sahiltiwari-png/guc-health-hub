@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Edit, RefreshCw } from 'lucide-react';
-import { getAutoAdminBranches } from "@/api/apiService";
+import { getAutoAdminBranches, apiRequest, extractArray } from "@/api/apiService";
 
 const Branches = () => {
   const [branches, setBranches] = useState<any[]>([]);
@@ -11,7 +11,13 @@ const Branches = () => {
     try {
       const res = await getAutoAdminBranches();
       if (res.ok) {
-        setBranches(Array.isArray(res.data) ? res.data : (res.data?.data || []));
+        setBranches(extractArray(res));
+      } else {
+        // Fallback to manual fetch if helper fails
+        const directRes = await apiRequest('/api/admin/branches');
+        if (directRes.ok) {
+          setBranches(extractArray(directRes));
+        }
       }
     } catch (error) {
       console.error('Error fetching branches:', error);

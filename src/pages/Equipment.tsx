@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer, ArrowLeftRight, FileText } from 'lucide-react';
-import { createEquipment, createEquipmentBreakdown, createEquipmentCategory, createEquipmentMaintenanceSchedule, deleteEquipment, getEquipmentBreakdowns, getEquipmentCalibrationRecords, getEquipmentCategories, getEquipmentDocuments, getEquipmentEquipments, getAutoEquipmentLocations, getEquipmentMaintenanceLogs, getEquipmentMaintenanceSchedules, getEquipmentSpareParts, getEquipmentTransfers, getEquipmentUsageLogs, getEquipmentVendors, getEquipments, extractArray } from "@/api/apiService";
-
-const tabs = ['Dashboard','Equipment Register','Categories','Maintenance','Calibration','Breakdowns','Spare Parts','Transfers','Usage Logs','Documents','Vendors'];
+import { createEquipment, createEquipmentBreakdown, createEquipmentCategory, createEquipmentMaintenanceSchedule, deleteEquipment, extractArray, getAutoEquipmentLocations, getEquipment, getEquipmentBreakdowns, getEquipmentCalibrationRecords, getEquipmentCategories, getEquipmentDocuments, getEquipmentEquipments, getEquipmentMaintenanceLogs, getEquipmentMaintenanceSchedules, getEquipmentSpareParts, getEquipmentTransfers, getEquipmentUsageLogs, getEquipmentVendors, getEquipments } from "@/api/apiService";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const colors: Record<string, string> = { 
@@ -17,6 +15,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const Equipment = () => {
+  const tabs = ['Dashboard','Equipment Register','Categories','Maintenance','Calibration','Breakdowns','Spare Parts','Transfers','Usage Logs','Documents','Vendors'];
   const [tab, setTab] = useState('Dashboard');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>({
@@ -37,6 +36,21 @@ const Equipment = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [formData, setFormData] = useState<any>({});
+
+  const fetchEquipmentData = async () => {
+    setLoading(true);
+    try {
+      const res = await getEquipment();
+      if (res.ok) {
+        const equipment = extractArray(res);
+        setData((prev: any) => ({ ...prev, equipments: equipment }));
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchEquipmentData(); }, []);
+
 
   const fetchData = async (currentTab: string) => {
     setLoading(true);

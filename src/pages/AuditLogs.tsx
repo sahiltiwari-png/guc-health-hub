@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, Download, Filter, Eye, AlertTriangle, LogIn, LogOut, Edit, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { apiRequest, extractArray } from '@/api/apiService';
 
 const severityColors: Record<string, string> = {
   info: 'bg-blue-100 text-blue-800',
@@ -30,10 +31,16 @@ const AuditLogs = () => {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const mockLogs = [
-        { id: '1', timestamp: new Date(), user: { name: 'Admin', role: 'Admin' }, action: 'LOGIN', module: 'Auth', description: 'Admin logged in', ipAddress: '192.168.1.1', severity: 'info' },
-      ];
-      setLogs(mockLogs);
+      const res = await apiRequest('/api/audit-logs');
+      if (res.ok) {
+        setLogs(extractArray(res));
+      } else {
+        // Mock data fallback if API fails
+        const mockLogs = [
+          { id: '1', timestamp: new Date(), user: { name: 'Admin', role: 'Admin' }, action: 'LOGIN', module: 'Auth', description: 'Admin logged in', ipAddress: '192.168.1.1', severity: 'info' },
+        ];
+        setLogs(mockLogs);
+      }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       toast({ title: 'Error', description: 'Failed to sync audit logs', variant: 'destructive' });

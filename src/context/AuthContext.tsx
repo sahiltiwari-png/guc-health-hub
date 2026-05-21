@@ -1,20 +1,22 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface User {
-  id: string;
+  id: string | number;
   username?: string;
   email?: string;
   role: string;
-  roles?: string[];
+  roles?: any[];
   name: string;
+  fullName?: string;
+  phoneNumber?: string;
   branch?: string;
-  hospitalId?: string;
-  branchId?: string;
+  hospitalId?: string | number;
+  branchId?: string | number;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (userData: User, token: string, hospitalId?: string, branchId?: string) => void;
+  login: (userData: any, token: string, hospitalId?: string | number, branchId?: string | number) => void;
   logout: () => void;
   currentBranch: string;
   setBranch: (branch: string) => void;
@@ -31,24 +33,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return localStorage.getItem('current_branch') || 'Main Branch - Noida';
   });
 
-  const login = (userData: User, token: string, hospitalId?: string, branchId?: string) => {
-    // Determine a single primary role string
+  const login = (userData: any, token: string, hospitalId?: string | number, branchId?: string | number) => {
+    // Determine a single primary role string from the complex structure
     let primaryRole = 'RECEPTIONIST';
-    if (userData.role && typeof userData.role === 'string') {
+    
+    // Case 1: user.role is a string
+    if (typeof userData.role === 'string') {
       primaryRole = userData.role;
-    } else if (userData.role && (userData.role as any).name) {
-      primaryRole = (userData.role as any).name;
-    } else if (userData.roles && userData.roles.length > 0) {
-      const r = userData.roles[0];
-      primaryRole = typeof r === 'string' ? r : (r as any).name;
+    } 
+    // Case 2: user.roles is an array of strings
+    else if (Array.isArray(userData.roles) && userData.roles.length > 0 && typeof userData.roles[0] === 'string') {
+      primaryRole = userData.roles[0];
+    }
+    // Case 3: user.roles is an array of objects (new structure)
+    else if (Array.isArray(userData.roles) && userData.roles.length > 0 && typeof userData.roles[0] === 'object') {
+      primaryRole = userData.roles[0].name || 'RECEPTIONIST';
+    }
+    // Case 4: legacy role object
+    else if (userData.role && typeof userData.role === 'object') {
+      primaryRole = userData.role.name || 'RECEPTIONIST';
     }
 
-    const fullUser = { ...userData, role: primaryRole, branch: currentBranch, hospitalId, branchId };
+    const fullUser: User = { 
+      ...userData, 
+      name: userData.fullName || userData.name || userData.username || 'User',
+      role: primaryRole.toUpperCase(), 
+      branch: currentBranch, 
+      hospitalId: hospitalId || userData.hospitalId, 
+      branchId: branchId || userData.branchId 
+    };
+    
     setUser(fullUser);
     localStorage.setItem('hms_token', token);
     localStorage.setItem('hms_user', JSON.stringify(fullUser));
-    if (hospitalId) localStorage.setItem('hospital_id', hospitalId);
-    if (branchId) localStorage.setItem('branch_id', branchId);
+    if (hospitalId || userData.hospitalId) localStorage.setItem('hospital_id', String(hospitalId || userData.hospitalId));
+    if (branchId || userData.branchId) localStorage.setItem('branch_id', String(branchId || userData.branchId));
   };
 
   const logout = () => {

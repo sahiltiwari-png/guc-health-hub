@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Download, RefreshCw, CheckCircle, Clock, AlertTriangle, FileText, TrendingUp, Search, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getHRPayroll, extractArray } from "@/api/apiService";
+import { extractArray, getHRPayroll, getPayroll } from "@/api/apiService";
 
 type Tab = 'my-payrolls' | 'history';
 
@@ -28,6 +28,10 @@ const Payroll = () => {
         } else {
           setHistory(extractArray({ ...res, data: data?.history }));
         }
+      } else {
+        // Fallback to getPayroll if HRPayroll fails
+        const fallbackRes = await getPayroll();
+        if (fallbackRes.ok) setPayrolls(extractArray(fallbackRes));
       }
     } catch (error) {
       console.error('Error fetching payrolls:', error);

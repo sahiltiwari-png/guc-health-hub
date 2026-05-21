@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
-import { deleteUsersById, getTeamUnder, getAutoUsers, getAutoAdminRoles, extractArray } from "@/api/apiService";
+import { deleteUsersById, extractArray, getAutoAdminRoles, getAutoUsers, getStaff, getTeamUnder } from "@/api/apiService";
 
 type Tab = 'all' | 'doctors' | 'nurses' | 'hierarchy';
 
@@ -45,6 +45,10 @@ const Staff = () => {
       if (res.ok) {
         setStaff(extractArray(res));
         setTotalPages(res.data?.totalPages || 1);
+      } else {
+        // Fallback to general staff list if search fails
+        const fallbackRes = await getStaff();
+        if (fallbackRes.ok) setStaff(extractArray(fallbackRes));
       }
     } catch (e) { 
       console.error('Error fetching staff:', e); 

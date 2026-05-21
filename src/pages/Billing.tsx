@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getBillingInvoices, extractArray } from "@/api/apiService";
+import { extractArray, getBilling, getBillingInvoices } from "@/api/apiService";
 import { Receipt, Search, Printer, Eye, Download, Filter, RefreshCw } from 'lucide-react';
 
 const Billing = () => {
@@ -10,7 +10,7 @@ const Billing = () => {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const res = await getBillingInvoices();
+      const res = await getBilling();
       if (res.ok) {
         setBills(extractArray(res));
       }

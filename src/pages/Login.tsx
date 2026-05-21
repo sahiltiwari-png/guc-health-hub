@@ -21,12 +21,14 @@ const Login = () => {
       const response = await apiService.createLogin({ username, password });
       
       if (!response.ok || !response.data) {
-        throw new Error('Invalid username or password');
+        throw new Error(response.data?.message || 'Invalid username or password');
       }
 
-      const { user, token, hospitalId, branchId, roles } = response.data;
+      // Handle both old and new response structures
+      const data = response.data.data || response.data;
+      const { user, token, hospitalId, branchId } = data;
       
-      login({ ...user, roles }, token, hospitalId, branchId);
+      login(user, token, hospitalId, branchId);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

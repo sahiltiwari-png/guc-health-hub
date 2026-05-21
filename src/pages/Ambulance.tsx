@@ -5,7 +5,7 @@ import {
   Plus, Edit, Trash2, Settings, History, Wrench, ShieldCheck,
   MoreVertical, Eye, Printer, Download, RefreshCw, X
 } from 'lucide-react';
-import { getAmbulanceFleet, createAmbulance, createAmbulanceMaintenance, createAmbulanceTrip, deleteAmbulance, getAmbulanceAmbulances, getAmbulanceTrips, listAmbulanceMaintenances, listAmbulanceTrips, listAmbulances, getAutoPatients, listUsers, updateAmbulance, extractArray } from "@/api/apiService";
+import { createAmbulance, createAmbulanceMaintenance, createAmbulanceTrip, deleteAmbulance, extractArray, getAmbulanceAmbulances, getAmbulanceFleet, getAmbulanceTrips, getAmbulances, getAutoPatients, listAmbulanceMaintenances, listAmbulanceTrips, listAmbulances, listUsers, updateAmbulance } from "@/api/apiService";
 
 const statusColor = (s: string) => {
   if (s === 'Available' || s === 'Active' || s === 'Completed') return 'bg-hms-success text-hms-success-foreground';
@@ -39,23 +39,22 @@ const Ambulance = () => {
     drivers: []
   });
 
-  // UI States
-  const [showModal, setShowModal] = useState<string | null>(null); // 'vehicle' | 'trip' | 'maintenance'
-  const [selectedItem, setSelectedItem] = useState<any>(null);
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ambRes, tripsRes, maintRes, patientsRes, driversRes] = await Promise.all([
+      const [ambRes, tripsRes, maintRes, patientsRes, driversRes, fleetRes, tRes] = await Promise.all([
         getAmbulanceFleet(),
         listAmbulanceTrips(),
         listAmbulanceMaintenances(),
         getAutoPatients({ limit: 100 }),
-        listUsers({ role: 'Driver' })
+        listUsers({ role: 'Driver' }),
+        getAmbulances(),
+        getAmbulanceTrips()
       ]);
 
       setData({
-        ambulances: extractArray(ambRes),
-        trips: extractArray(tripsRes),
+        ambulances: extractArray(ambRes).length > 0 ? extractArray(ambRes) : extractArray(fleetRes),
+        trips: extractArray(tripsRes).length > 0 ? extractArray(tripsRes) : extractArray(tRes),
         maintenances: extractArray(maintRes),
         patients: extractArray(patientsRes),
         drivers: extractArray(driversRes)

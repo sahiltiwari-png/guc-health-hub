@@ -5,10 +5,23 @@ import {
   getOPDVisits, createOPDWalkIn, 
   getAutoGeoCities, getAutoGeoCountries, getAutoGeoStates, 
   getAutoUsers, getAutoEquipmentLocations, 
-  getAutoDepartments, extractArray, searchPatients
+  getAutoDepartments, extractArray, searchPatients,
+  getApiV1OpdSearch, patchApiV1OpdByidStatus, postApiV1OpdVitalsByopdVisitId,
+  getApiV1OpdByid
 } from "@/api/apiService";
 
 import { toast as sonnerToast } from 'sonner';
+
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const OPD = () => {
   const { toast } = useToast();
@@ -17,6 +30,24 @@ const OPD = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [patient, setPatient] = useState<any>(null);
   const [visits, setVisits] = useState<any[]>([]);
+  const [pagination, setPagination] = useState({ page: 0, size: 10, total: 0 });
+
+  // Vitals State
+  const [isVitalsOpen, setIsVitalsOpen] = useState(false);
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+  const [vitalsData, setVitalsData] = useState({
+    weight: 0,
+    height: 0,
+    bp: '',
+    temp: 0,
+    pulse: 0,
+    resp: 0,
+    spo2: 0
+  });
+
+  // Status State
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [statusUpdate, setStatusUpdate] = useState({ status: 'WAITING', remark: '' });
 
   // Dynamic lists
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -60,19 +91,25 @@ const OPD = () => {
     slot: 'Slot I'
   });
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (page = 0) => {
     setIsLoading(true);
     try {
       const [vRes, dRes, cRes, rRes, deptRes] = await Promise.all([
-        getOPDVisits(),
+        getOPDVisits({ page, size: pagination.size }),
         getAutoUsers({ role: 'DOCTOR' }), 
         getAutoGeoCountries(),
         getAutoEquipmentLocations(),
         getAutoDepartments()
       ]);
       
-      if (vRes.ok) setVisits(extractArray(vRes));
-      else sonnerToast.error("Failed to load visits");
+      if (vRes.ok) {
+        // Handle nested data.data.content for paginated response
+        const content = vRes.data?.data?.content || vRes.data?.content || extractArray(vRes);
+        setVisits(content);
+        
+        const total = vRes.data?.data?.totalElements ?? vRes.data?.totalElements ?? 0;
+        setPagination(prev => ({ ...prev, page, total }));
+      } else sonnerToast.error("Failed to load visits");
 
       if (dRes.ok) setDoctors(extractArray(dRes));
       else sonnerToast.error("Failed to load doctors");
@@ -87,6 +124,69 @@ const OPD = () => {
     } finally { 
       setIsLoading(false); 
       setDataLoaded(true); 
+    }
+  };
+
+  const handleTableSearch = async () => {
+    if (!tableSearch) {
+      fetchInitialData();
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await getApiV1OpdSearch({ 
+        patientName: tableSearch, 
+        page: 0, 
+        size: pagination.size 
+      });
+      if (res.ok) {
+        const content = res.data?.data?.content || res.data?.content || extractArray(res);
+        setVisits(content);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!selectedVisitId) return;
+    setIsLoading(true);
+    try {
+      const res = await patchApiV1OpdByidStatus(selectedVisitId, statusUpdate);
+      if (res.ok) {
+        sonnerToast.success("Status updated successfully");
+        setIsStatusOpen(false);
+        fetchInitialData(pagination.page);
+      } else {
+        sonnerToast.error(res.message || "Failed to update status");
+      }
+    } catch (e) {
+      console.error(e);
+      sonnerToast.error("An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveVitals = async () => {
+    if (!selectedVisitId) return;
+    setIsLoading(true);
+    try {
+      const res = await postApiV1OpdVitalsByopdVisitId(selectedVisitId, vitalsData);
+      if (res.ok) {
+        sonnerToast.success("Vitals recorded successfully");
+        setIsVitalsOpen(false);
+        fetchInitialData(pagination.page);
+      } else {
+        sonnerToast.error(res.message || "Failed to record vitals");
+      }
+    } catch (e) {
+      console.error(e);
+      sonnerToast.error("An error occurred");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -214,43 +314,55 @@ const OPD = () => {
     setIsLoading(false);
   };
 
-  const handleViewVisit = (visit: any) => {
-    if (!visit.patientId) return;
-    
-    // Fill patient state
-    setPatient(visit.patientId);
-    
-    // Fill form data
-    setFormData(prev => ({
-      ...prev,
-      visitDate: visit.visitDate ? new Date(visit.visitDate).toISOString().split('T')[0] : prev.visitDate,
-      visitTime: visit.visitTime || prev.visitTime,
-      visitType: visit.visitType || 'OPD',
-      mobile: visit.patientId.mobile || '',
-      patientName: visit.patientId.patientName || '',
-      gender: visit.patientId.gender || 'Male',
-      maritalStatus: visit.patientId.maritalStatus || 'Single',
-      address: visit.patientId.address || '',
-      bloodGroup: visit.patientId.bloodGroup || 'NA',
-      email: visit.patientId.email || '',
-      dob: visit.patientId.dob ? new Date(visit.patientId.dob).toISOString().split('T')[0] : '',
-      age: visit.patientId.age || 0,
-      currentAge: visit.patientId.currentAge || '',
-      guardianName: visit.patientId.guardianName || '',
-      relationType: visit.patientId.relationType || 'Father',
-      stateId: visit.patientId.stateId || '',
-      cityId: visit.patientId.cityId || '',
-      departmentId: visit.departmentId || '',
-      departmentName: visit.departmentName || '',
-      doctorId: visit.doctorId?.id || visit.doctorId || '',
-      roomId: visit.roomId || '',
-      fee: visit.fee || 0,
-      paymentMode: visit.paymentMode || 'Cash',
-      remark: visit.remark || '',
-      discountPercent: visit.discountPercent || 0,
-    }));
-    
-    toast({ title: "Visit Loaded", description: `Showing details for ${visit.patientId.patientName}` });
+  const handleViewVisit = async (visit: any) => {
+    setIsLoading(true);
+    try {
+      const res = await getApiV1OpdByid(visit.id);
+      if (res.ok && res.data) {
+        const fullVisit = res.data;
+        // Fill patient state
+        setPatient(fullVisit.patientId || { id: fullVisit.patientId, patientName: fullVisit.patientName });
+        
+        // Fill form data
+        setFormData(prev => ({
+          ...prev,
+          visitDate: fullVisit.visitTime ? new Date(fullVisit.visitTime).toISOString().split('T')[0] : prev.visitDate,
+          visitTime: fullVisit.visitTime ? new Date(fullVisit.visitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : prev.visitTime,
+          visitType: fullVisit.visitType || 'OPD',
+          mobile: fullVisit.mobile || '',
+          patientName: fullVisit.patientName || '',
+          gender: fullVisit.gender || 'Male',
+          maritalStatus: fullVisit.maritalStatus || 'Single',
+          address: fullVisit.address || '',
+          bloodGroup: fullVisit.bloodGroup || 'NA',
+          email: fullVisit.email || '',
+          dob: fullVisit.dob ? new Date(fullVisit.dob).toISOString().split('T')[0] : '',
+          age: fullVisit.age || 0,
+          currentAge: fullVisit.currentAge || '',
+          guardianName: fullVisit.guardianName || '',
+          relationType: fullVisit.relationType || 'Father',
+          stateId: fullVisit.stateId || '',
+          cityId: fullVisit.cityId || '',
+          departmentId: fullVisit.departmentId || '',
+          departmentName: fullVisit.departmentName || '',
+          doctorId: fullVisit.doctorId || '',
+          roomId: fullVisit.roomId || '',
+          fee: fullVisit.fee || 0,
+          paymentMode: fullVisit.paymentMode || 'Cash',
+          remark: fullVisit.remark || '',
+          discountPercent: fullVisit.discountPercent || 0,
+        }));
+        
+        toast({ title: "Visit Details Loaded", description: `Showing details for ${fullVisit.patientName}` });
+      } else {
+        sonnerToast.error("Failed to fetch visit details");
+      }
+    } catch (e) {
+      console.error(e);
+      sonnerToast.error("An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCreateOpd = async () => {
@@ -462,89 +574,211 @@ const OPD = () => {
           <label className="hms-form-label">Search List:</label>
           <div className="relative">
             <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input className="hms-input pl-8 w-60" value={tableSearch} onChange={e => setTableSearch(e.target.value)} placeholder="Name or UHID..." />
+            <input className="hms-input pl-8 w-60" value={tableSearch} onChange={e => setTableSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleTableSearch()} placeholder="Name or UHID..." />
           </div>
         </div>
       </div>
 
       {/* List Table */}
-      <div className="flex-1 bg-card border border-border shadow-sm rounded-sm overflow-hidden">
-        <table className="hms-table w-full border-collapse">
-          <thead>
-            <tr className="bg-[#cc0000] text-white">
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">S.No.</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Queue</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">OPD ID</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">UHID</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Patient Name</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Department</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Doctor</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Type</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Fee</th>
-              <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Mode</th>
-              <th className="text-white font-semibold py-1 px-2 text-left text-[11px]">Process</th>
-            </tr>
-          </thead>
-          <tbody className="text-[11px]">
-            {visits.length > 0 ? (
-              visits.map((visit, index) => (
-                <tr key={visit.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                  <td className="py-1 px-2 border-r border-border">
-                    <div className="flex items-center gap-1">
-                      {index + 1} <FileText size={10} className="text-[#cc0000]" />
-                    </div>
-                  </td>
-                  <td className="py-1 px-2 border-r border-border">
-                    <div className="flex items-center gap-1">
-                      {visit.queue || index + 1} <span className="text-[#cc0000] text-[10px]">✕</span>
-                    </div>
-                  </td>
-                  <td className="py-1 px-2 border-r border-border">
-                    <div className="flex items-center gap-1">
-                      {visit.receiptNo || `OP-${index + 1}`} <Printer size={10} className="text-[#cc0000]" />
-                    </div>
-                  </td>
-                  <td className="py-1 px-2 border-r border-border text-slate-600">{visit.patientId?.uhid || 'N/A'}</td>
-                  <td className="py-1 px-2 border-r border-border">
-                    <div className="flex items-center gap-1">
-                      <Edit size={10} className="text-[#cc0000]" />
-                      <span className="font-medium text-slate-700 uppercase">{visit.patientId?.patientName || 'N/A'}</span>
-                    </div>
-                  </td>
-                  <td className="py-1 px-2 border-r border-border uppercase text-slate-600">{visit.departmentName || 'N/A'}</td>
-                  <td className="py-1 px-2 border-r border-border uppercase text-slate-600">{visit.doctorId?.name || 'N/A'}</td>
-                  <td className="py-1 px-2 border-r border-border text-slate-600">{visit.visitType === 'OPD' ? 'Gen' : visit.visitType}</td>
-                  <td className="py-1 px-2 border-r border-border">
-                    <div className="flex items-center gap-1">
-                      <Edit size={10} className="text-[#cc0000]" />
-                      <span className="text-slate-600 font-medium">{visit.fee}/-</span>
-                    </div>
-                  </td>
-                  <td className="py-1 px-2 border-r border-border text-slate-600">{visit.paymentMode}</td>
-                  <td className="py-0.5 px-2">
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => handleViewVisit(visit)}
-                        className="w-5 h-5 flex items-center justify-center bg-[#ff0000] text-white rounded-sm shadow-sm hover:bg-[#cc0000] transition-colors" 
-                        title="View"
-                      >
-                        <Eye size={10} />
-                      </button>
-                      <button className="w-5 h-5 flex items-center justify-center bg-[#28a745] text-white rounded-sm shadow-sm" title="Print"><Printer size={10} /></button>
-                      <button className="w-5 h-5 flex items-center justify-center bg-[#17a2b8] text-white rounded-sm shadow-sm" title="Edit"><Edit size={10} /></button>
-                      <button className="w-5 h-5 flex items-center justify-center bg-[#dc3545] text-white rounded-sm shadow-sm" title="Delete"><Trash2 size={10} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={11} className="text-center text-muted-foreground py-4">No visits today</td>
+      <div className="flex-1 bg-card border border-border shadow-sm rounded-sm overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-auto">
+          <table className="hms-table w-full border-collapse">
+            <thead>
+              <tr className="bg-[#cc0000] text-white">
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">S.No.</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Queue</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">OPD ID</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">UHID</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Patient Name</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Department</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Doctor</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Type</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Fee</th>
+                <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Status</th>
+                <th className="text-white font-semibold py-1 px-2 text-left text-[11px]">Process</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="text-[11px]">
+              {visits.length > 0 ? (
+                visits.map((visit, index) => (
+                  <tr key={visit.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="flex items-center gap-1">
+                        {pagination.page * pagination.size + index + 1} <FileText size={10} className="text-[#cc0000]" />
+                      </div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="flex items-center gap-1">
+                        {visit.tokenNumber || index + 1} <span className="text-[#cc0000] text-[10px]">✕</span>
+                      </div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="flex items-center gap-1">
+                        {visit.tokenNumber || `OP-${visit.id}`} <Printer size={10} className="text-[#cc0000]" />
+                      </div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border font-bold text-primary">{visit.patientId?.uhid || visit.patientId || 'N/A'}</td>
+                    <td className="py-1 px-2 border-r border-border uppercase font-medium">{visit.patientName}</td>
+                    <td className="py-1 px-2 border-r border-border">{visit.departmentName}</td>
+                    <td className="py-1 px-2 border-r border-border">{visit.doctorName}</td>
+                    <td className="py-1 px-2 border-r border-border text-[#cc0000] font-bold">{visit.visitType || 'OPD'}</td>
+                    <td className="py-1 px-2 border-r border-border font-bold">{visit.fee || 0}/-</td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                        visit.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                        visit.status === 'IN_CONSULTATION' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {visit.status || 'WAITING'}
+                      </span>
+                    </td>
+                    <td className="py-0.5 px-2">
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => handleViewVisit(visit)}
+                          className="w-5 h-5 flex items-center justify-center bg-[#ff0000] text-white rounded-sm shadow-sm hover:bg-[#cc0000] transition-colors" 
+                          title="View"
+                        >
+                          <Eye size={10} />
+                        </button>
+                        <button className="w-5 h-5 flex items-center justify-center bg-[#28a745] text-white rounded-sm shadow-sm" title="Print"><Printer size={10} /></button>
+                        <button onClick={() => handleViewVisit(visit)} className="w-5 h-5 flex items-center justify-center bg-[#17a2b8] text-white rounded-sm shadow-sm" title="Edit"><Edit size={10} /></button>
+                        <button 
+                          onClick={() => {
+                            setSelectedVisitId(visit.id);
+                            setVitalsData({
+                              weight: visit.weight || 0,
+                              height: visit.height || 0,
+                              bp: visit.bloodPressure || '',
+                              temp: visit.temperature || 0,
+                              pulse: visit.pulseRate || 0,
+                              resp: visit.respiratoryRate || 0,
+                              spo2: visit.spo2 || 0
+                            });
+                            setIsVitalsOpen(true);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded-sm shadow-sm" 
+                          title="Vitals"
+                        >
+                          <FileText size={10} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedVisitId(visit.id);
+                            setStatusUpdate({ status: visit.status || 'WAITING', remark: visit.remark || '' });
+                            setIsStatusOpen(true);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center bg-orange-600 text-white rounded-sm shadow-sm" 
+                          title="Status"
+                        >
+                          <Calendar size={10} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={11} className="py-8 text-center text-muted-foreground italic">No OPD visits found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <div className="bg-muted/30 p-2 flex items-center justify-between border-t border-border text-[10px]">
+          <div>Total Records: {pagination.total}</div>
+          <div className="flex gap-2">
+            <button 
+              disabled={pagination.page === 0} 
+              onClick={() => fetchInitialData(pagination.page - 1)}
+              className="px-2 py-1 bg-card border border-border disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="flex items-center px-2">Page {pagination.page + 1}</span>
+            <button 
+              disabled={(pagination.page + 1) * pagination.size >= pagination.total} 
+              onClick={() => fetchInitialData(pagination.page + 1)}
+              className="px-2 py-1 bg-card border border-border disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Vitals Dialog */}
+      <Dialog open={isVitalsOpen} onOpenChange={setIsVitalsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Record Patient Vitals</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="weight" className="text-right text-xs">Weight (kg)</Label>
+              <Input id="weight" type="number" className="col-span-3 h-8 text-xs" value={vitalsData.weight} onChange={e => setVitalsData({...vitalsData, weight: parseFloat(e.target.value)})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="height" className="text-right text-xs">Height (cm)</Label>
+              <Input id="height" type="number" className="col-span-3 h-8 text-xs" value={vitalsData.height} onChange={e => setVitalsData({...vitalsData, height: parseFloat(e.target.value)})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="bp" className="text-right text-xs">BP (mmHg)</Label>
+              <Input id="bp" placeholder="120/80" className="col-span-3 h-8 text-xs" value={vitalsData.bp} onChange={e => setVitalsData({...vitalsData, bp: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="temp" className="text-right text-xs">Temp (°C)</Label>
+              <Input id="temp" type="number" className="col-span-3 h-8 text-xs" value={vitalsData.temp} onChange={e => setVitalsData({...vitalsData, temp: parseFloat(e.target.value)})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pulse" className="text-right text-xs">Pulse (bpm)</Label>
+              <Input id="pulse" type="number" className="col-span-3 h-8 text-xs" value={vitalsData.pulse} onChange={e => setVitalsData({...vitalsData, pulse: parseInt(e.target.value)})} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="spo2" className="text-right text-xs">SpO2 (%)</Label>
+              <Input id="spo2" type="number" className="col-span-3 h-8 text-xs" value={vitalsData.spo2} onChange={e => setVitalsData({...vitalsData, spo2: parseInt(e.target.value)})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsVitalsOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveVitals} disabled={isLoading}>Save Vitals</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Dialog */}
+      <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Visit Status</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right text-xs">Status</Label>
+              <select 
+                id="status" 
+                className="col-span-3 hms-select" 
+                value={statusUpdate.status} 
+                onChange={e => setStatusUpdate({...statusUpdate, status: e.target.value})}
+              >
+                <option value="WAITING">WAITING</option>
+                <option value="CALLED">CALLED</option>
+                <option value="IN_CONSULTATION">IN_CONSULTATION</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="remark" className="text-right text-xs">Remark</Label>
+              <Input id="remark" className="col-span-3 h-8 text-xs" value={statusUpdate.remark} onChange={e => setStatusUpdate({...statusUpdate, remark: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStatusOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateStatus} disabled={isLoading}>Update Status</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

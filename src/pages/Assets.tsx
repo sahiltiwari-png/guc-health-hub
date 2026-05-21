@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer } from 'lucide-react';
-import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetsCategories, getAssetsLocations, getAutoAssetsMasters, getAssetsVendors, extractArray } from "@/api/apiService";
+import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, extractArray, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetsCategories, getAssetsLocations, getAssetsVendors, getAutoAssetsMasters } from "@/api/apiService";
 
-
-const tabs = ['Dashboard','Asset Register','Categories','Maintenance','Depreciation','Disposal','Vendors','Audit Trail'];
 
 const StatusBadge = ({ status }: { status: string }) => {
   const colors: Record<string, string> = { 
@@ -31,6 +29,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const Assets = () => {
+  const tabs = ['Dashboard','Asset Register','Categories','Maintenance','Depreciation','Disposal','Vendors','Audit Trail'];
   const [tab, setTab] = useState('Dashboard');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>({
@@ -46,6 +45,21 @@ const Assets = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [formData, setFormData] = useState<any>({});
+
+  const fetchAssets = async () => {
+    setLoading(true);
+    try {
+      const res = await getAssets();
+      if (res.ok) {
+        const assets = extractArray(res);
+        setData((prev: any) => ({ ...prev, assets }));
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchAssets(); }, []);
+
 
   const fetchData = async (currentTab: string) => {
     setLoading(true);

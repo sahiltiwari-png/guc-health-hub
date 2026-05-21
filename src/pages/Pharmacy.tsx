@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines, extractArray, getPharmacyStock } from "@/api/apiService";
+import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, extractArray, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInventory, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStock, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
 import {
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
@@ -27,35 +27,7 @@ const auditLogs = [
   { time: '09:15 AM', user: 'System', action: 'Alert', detail: 'Low stock alert triggered for Insulin Glargine (3 units)', module: 'Alerts' },
 ];
 
-/* ───────── TABS ───────── */
 
-const tabs = [
-  { key: 'overview', label: 'Overview', icon: BarChart3 },
-  { key: 'prescriptions', label: 'Prescriptions', icon: ClipboardList },
-  { key: 'rx-header', label: 'Rx Header', icon: FileText },
-  { key: 'rx-items', label: 'Rx Items', icon: ClipboardList },
-  { key: 'medicine-master', label: 'Medicine Master', icon: BookOpen },
-  { key: 'inventory', label: 'Inventory', icon: Package },
-  { key: 'stock', label: 'Stock', icon: Archive },
-  { key: 'stock-batchwise', label: 'Stock Batch-Wise', icon: Layers },
-  { key: 'dispensing', label: 'Dispensing', icon: Pill },
-  { key: 'dispense-records', label: 'Dispense Records', icon: Receipt },
-  { key: 'invoices', label: 'Invoices', icon: Receipt },
-  { key: 'billing', label: 'Billing & Insurance', icon: CreditCard },
-  { key: 'insurance-claims', label: 'Insurance Claims', icon: ShieldCheck },
-  { key: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
-  { key: 'po-items', label: 'PO Items', icon: ClipboardList },
-  { key: 'grn', label: 'GRN', icon: Download },
-  { key: 'suppliers', label: 'Suppliers', icon: UserCheck },
-  { key: 'vendors', label: 'Vendors', icon: Truck },
-  { key: 'inter-branch', label: 'Inter-Branch Transfer', icon: ArrowLeftRight },
-  { key: 'stock-adjustment', label: 'Stock Adjustment', icon: Wrench },
-  { key: 'doctor-analytics', label: 'Doctor Analytics', icon: Activity },
-  { key: 'expiry', label: 'Expiry & Compliance', icon: ShieldCheck },
-  { key: 'reports', label: 'Reports', icon: FileText },
-  { key: 'alerts', label: 'Alerts', icon: Bell },
-  { key: 'audit', label: 'Audit Logs', icon: FileText },
-];
 
 /* ───────── STATUS BADGE ───────── */
 const StatusBadge = ({ status }: { status: string }) => {
@@ -596,6 +568,31 @@ const AuditPanel = () => (
 /* ───────── MAIN COMPONENT ───────── */
 
 const Pharmacy = () => {
+  const tabs = [
+    { key: 'overview', label: 'Overview', icon: BarChart3 },
+    { key: 'prescriptions', label: 'Prescriptions', icon: ClipboardList },
+    { key: 'rx-header', label: 'Rx Header', icon: FileText },
+    { key: 'rx-items', label: 'Rx Items', icon: ClipboardList },
+    { key: 'medicine-master', label: 'Medicine Master', icon: BookOpen },
+    { key: 'inventory', label: 'Inventory', icon: Package },
+    { key: 'stock', label: 'Stock', icon: Archive },
+    { key: 'stock-batchwise', label: 'Stock Batch-Wise', icon: Layers },
+    { key: 'dispensing', label: 'Dispensing', icon: Pill },
+    { key: 'dispense-records', label: 'Dispense Records', icon: Receipt },
+    { key: 'invoices', label: 'Invoices', icon: Receipt },
+    { key: 'billing', label: 'Billing & Insurance', icon: CreditCard },
+    { key: 'insurance-claims', label: 'Insurance Claims', icon: ShieldCheck },
+    { key: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
+    { key: 'po-items', label: 'PO Items', icon: ClipboardList },
+    { key: 'grn', label: 'GRN', icon: Download },
+    { key: 'suppliers', label: 'Suppliers', icon: UserCheck },
+    { key: 'vendors', label: 'Vendors', icon: Truck },
+    { key: 'stock-transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
+    { key: 'stock-adjustments', label: 'Stock Adjustments', icon: Wrench },
+    { key: 'expiring', label: 'Expiring Soon', icon: Clock },
+    { key: 'audit', label: 'Audit Logs', icon: FileText },
+    { key: 'reports', label: 'Reports', icon: TrendingUp },
+  ];
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   
@@ -611,11 +608,12 @@ const Pharmacy = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [adjustments, setAdjustments] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes] = await Promise.all([
+      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes, invRes] = await Promise.all([
         listMedicines(),
         getPharmacyStock(),
         getPharmacyPrescriptions(),
@@ -626,7 +624,8 @@ const Pharmacy = () => {
         getGRNs(),
         getPharmacySuppliers(),
         getStockTransfers(),
-        getStockAdjustments()
+        getStockAdjustments(),
+        getPharmacyInventory()
       ]);
 
       setMedicines(extractArray(mRes));
@@ -640,6 +639,7 @@ const Pharmacy = () => {
       setSuppliers(extractArray(supRes));
       setTransfers(extractArray(tRes));
       setAdjustments(extractArray(aRes));
+      setInventory(extractArray(invRes));
 
     } catch (e) {
       console.error('Error syncing pharmacy data:', e);
@@ -673,13 +673,11 @@ const Pharmacy = () => {
     grn: <GRNPanel grns={grns} />,
     suppliers: <SuppliersPanel suppliers={suppliers} />,
     vendors: <VendorsPanel suppliers={suppliers} />,
-    'inter-branch': <InterBranchPanel transfers={transfers} />,
-    'stock-adjustment': <StockAdjustmentPanel adjustments={adjustments} />,
-    'doctor-analytics': <DoctorAnalyticsPanel />,
-    expiry: <ExpiryPanel stocks={stocks} />,
-    reports: <ReportsPanel />,
-    alerts: <AlertsPanel />,
+    'stock-transfers': <InterBranchPanel transfers={transfers} />,
+    'stock-adjustments': <StockAdjustmentPanel adjustments={adjustments} />,
+    expiring: <ExpiryPanel stocks={stocks} />,
     audit: <AuditPanel />,
+    reports: <ReportsPanel />,
   };
 
   return (

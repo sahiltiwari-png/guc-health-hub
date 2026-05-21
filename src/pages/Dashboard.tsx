@@ -8,16 +8,14 @@ import {
   Monitor, UtensilsCrossed, Headphones, FileOutput, Scissors, Siren, 
   ChevronRight, MoreHorizontal, ArrowUp, ArrowDown, Phone, Mail, 
   Home, MapPin, CalendarCheck, Thermometer, BloodDrop, Weight,
-  Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star
+  Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { 
-  getAutoAssetsMasters, getAutoUsers, getAutoClinicals, 
-  getAutoDashboardDoctor, getAutoDashboardPatient,
-  getAutoAdminBranches, getAutoIpdBeds, getAutoBillingInvoicesSearch,
-  getAutoAdminUsersSearch, getAutoAdminUsers, extractArray, apiRequest,
-  getDashboardStats
+  apiRequest, extractArray, getAssets, getPatients, getUsers, getDashboardStats, getBranches, 
+  getAppointments, getIPDAdmissions, getBilling, getStaff
 } from "@/api/apiService";
+import { toast } from "sonner";
 
 type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
 
@@ -73,765 +71,223 @@ const MiniTable = ({ title, headers, rows, icon: Icon }: MiniTableProps) => (
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {rows.length > 0 ? rows.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
                 <td key={j} className="py-1 px-1.5">{cell}</td>
               ))}
             </tr>
-          ))}
+          )) : (
+            <tr><td colSpan={headers.length} className="text-center py-4 text-muted-foreground text-xs">No records found</td></tr>
+          )}
         </tbody>
       </table>
     </div>
   </div>
 );
 
-import { toast } from "sonner";
-
 const Dashboard = () => {
   const { user } = useAuth();
-  const [role, setRole] = useState<UserRole>('RECEPTIONIST');
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     hospitals: 0,
     users: 0,
     patients: 0,
     assets: 0,
     appointments: 0,
-    revenue: 0,
-    activeBeds: 0,
+    revenue: '₹0',
+    activeBeds: '0/0',
     staffOnDuty: 0,
-    pendingTasks: 0
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [recentRegistrations, setRecentRegistrations] = useState<any[][]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[][]>([]);
+  
+  const [recentPatients, setRecentPatients] = useState<any[][]>([]);
+  const [recentAppointments, setRecentAppointments] = useState<any[][]>([]);
+  const [recentStaff, setRecentStaff] = useState<any[][]>([]);
 
-  const fetchDashboardData = async () => {
-    if (!user) return;
+  const fetchData = async () => {
     setLoading(true);
-    setError(null);
     try {
-      console.log('[Dashboard] Fetching data for role:', role);
-      
-      // Role-specific data fetching
-      if (role === 'DOCTOR' && user.id) {
-        const docRes = await getAutoDashboardDoctor(user.id);
-        if (docRes.ok && docRes.data) {
-          setStats(prev => ({
-            ...prev,
-            appointments: docRes.data.appointments?.length || 0,
-            pendingTasks: docRes.data.pendingProcedures?.length || 0
-          }));
-        }
-      }
-
-      // Super Admin specific data fetching
-      if (role === 'SUPER_ADMIN') {
-        const saRes = await getDashboardStats();
-        if (saRes.ok && saRes.data) {
-          const saData = saRes.data;
-          setStats(prev => ({
-            ...prev,
-            hospitals: saData.stats?.totalHospitals || 0,
-            users: saData.stats?.totalUsers || 0,
-            patients: saData.stats?.totalPatients || 0,
-            assets: saData.stats?.totalAssets || 0,
-            revenue: parseFloat((saData.stats?.revenue || '₹0L').replace('₹', '').replace('L', '')) || 0,
-            appointments: saData.stats?.appointments || 0,
-            activeBeds: parseInt((saData.stats?.activeBeds || '0/0').split('/')[0]) || 0,
-            staffOnDuty: saData.stats?.staffOnDuty || 0,
-          }));
-        }
-      }
-
-      // General fallback data
-      const results = await Promise.allSettled([
-        getAutoAdminUsers(), 
-        getAutoClinicals(), 
-        getAutoAssetsMasters(),
-        getAutoAdminBranches(),
-        getAutoIpdBeds(),
-        getAutoBillingInvoicesSearch({ status: 'PAID' }),
+      const [saRes, uRes, pRes, aRes, bRes, appRes, ipdRes, billRes, staffRes] = await Promise.all([
+        getDashboardStats(),
+        getUsers(),
+        getPatients(),
+        getAssets(),
+        getBranches(),
+        getAppointments(),
+        getIPDAdmissions(),
+        getBilling(),
+        getStaff()
       ]);
-      
-      const [u, p, a, b, beds, billing] = results.map(r => 
-        r.status === 'fulfilled' ? r.value : { ok: false, data: null }
-      );
 
-      // Only update stats if they weren't already updated by the specific dashboard call
-      setStats(prev => ({
-        ...prev,
-        users: role !== 'SUPER_ADMIN' && u.ok ? (u.data?.totalElements || u.data?.total || u.data?.length || 0) : prev.users,
-        patients: role !== 'SUPER_ADMIN' && p.ok ? (p.data?.totalElements || p.data?.total || p.data?.length || 0) : prev.patients,
-        hospitals: role !== 'SUPER_ADMIN' && b.ok ? (b.data?.totalElements || b.data?.total || b.data?.length || 0) : prev.hospitals,
-      }));
-
-      if (u.ok && u.data) {
-        const users = extractArray(u);
-        setRecentRegistrations(users.slice(0, 4).map((user: any) => [
-          'Samrat', user.branch?.name || 'Noida', user.name || user.username || 'N/A', user.role || 'USER', 
-          user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Today'
-        ]));
+      if (saRes.ok && saRes.data?.stats) {
+        const saData = saRes.data.stats;
+        setStats({
+          hospitals: saData.totalHospitals || extractArray(bRes).length,
+          users: saData.totalUsers || extractArray(uRes).length,
+          patients: saData.totalPatients || extractArray(pRes).length,
+          assets: saData.totalAssets || extractArray(aRes).length,
+          revenue: saData.revenue || '₹0',
+          appointments: saData.appointments || extractArray(appRes).length,
+          activeBeds: saData.activeBeds || '0/0',
+          staffOnDuty: saData.staffOnDuty || extractArray(staffRes).filter((s: any) => s.isActive).length,
+        });
+      } else {
+          // Fallback if saRes fails
+          setStats({
+              hospitals: extractArray(bRes).length,
+              users: extractArray(uRes).length,
+              patients: extractArray(pRes).length,
+              assets: extractArray(aRes).length,
+              revenue: '₹' + extractArray(billRes).reduce((acc: number, b: any) => acc + (b.amount || 0), 0),
+              appointments: extractArray(appRes).length,
+              activeBeds: '0/' + extractArray(ipdRes).length,
+              staffOnDuty: extractArray(staffRes).filter((s: any) => s.isActive).length,
+          });
       }
 
-    } catch (e: any) { 
+      setRecentPatients(extractArray(pRes).slice(0, 5).map((p: any) => [
+        p.uhid || 'N/A', p.patientName || p.name || 'N/A', p.gender || '-', p.mobile || '-', p.age || '-'
+      ]));
+
+      setRecentAppointments(extractArray(appRes).slice(0, 5).map((a: any) => [
+        a.appointmentNo || a.id?.slice(-6) || 'N/A', a.patientName || 'N/A', a.doctorName || 'N/A', a.status || 'Pending'
+      ]));
+
+      setRecentStaff(extractArray(staffRes).slice(0, 5).map((s: any) => [
+        s.employeeId || s.id?.slice(-6) || 'N/A', s.name || s.fullName || 'N/A', s.department || 'N/A', s.status || 'Active'
+      ]));
+
+    } catch (e) {
       console.error('[Dashboard] Error fetching data:', e);
-      setError(e.message || "An unexpected error occurred");
       toast.error("Failed to load dashboard data");
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
-
-  useEffect(() => { 
-    fetchDashboardData(); 
-  }, []);
 
   useEffect(() => {
-    if (user?.role) {
-      const normalizedRole = user.role.toUpperCase() as UserRole;
-      const validRoles: UserRole[] = ['SUPER_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN'];
-      setRole(validRoles.includes(normalizedRole) ? normalizedRole : 'RECEPTIONIST');
-    }
-  }, [user]);
-
-  const SuperAdminDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Total Hospitals" value={loading ? '...' : stats.hospitals} icon={Building} trend={{ value: '+0', up: true }} />
-        <StatCard label="Total Users" value={loading ? '...' : stats.users} icon={Users} trend={{ value: '+0', up: true }} />
-        <StatCard label="Total Patients" value={loading ? '...' : stats.patients} icon={Users} trend={{ value: '+0', up: true }} />
-        <StatCard label="Total Assets" value={loading ? '...' : stats.assets} icon={Package} trend={{ value: '+0', up: true }} />
-        <StatCard label="Revenue (M)" value={`₹${stats.revenue}L`} icon={DollarSign} trend={{ value: '+0%', up: true }} />
-        <StatCard label="Appointments" value={loading ? '...' : stats.appointments} icon={Calendar} trend={{ value: '+0', up: true }} />
-        <StatCard label="Active Beds" value={`${stats.activeBeds}/50`} icon={BedDouble} color="text-green-600" />
-        <StatCard label="Staff On Duty" value={stats.staffOnDuty} icon={UserCog} color="text-blue-600" />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Recent Registrations" 
-            icon={UserPlus}
-            headers={['Hospital', 'Branch', 'User', 'Role', 'Date']}
-            rows={recentRegistrations.length > 0 ? recentRegistrations : [
-              ['Samrat', 'Noida', 'Loading...', '...', '...'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="System Health" 
-            icon={Server}
-            headers={['Service', 'Status', 'Uptime', 'Load']}
-            rows={[
-              ['API Server', <span className="text-green-600">Online</span>, '99.9%', '45%'],
-              ['Database', <span className="text-green-600">Healthy</span>, '99.8%', '32%'],
-              ['Storage', <span className="text-yellow-600">Warning</span>, '100%', '78%'],
-              ['Backup', <span className="text-green-600">Completed</span>, '-', '-'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="Branch Performance" 
-            icon={Building2}
-            headers={['Branch', 'Patients', 'Revenue', 'Status']}
-            rows={[
-              ['Noida', '4,521', '₹4.2L', <Star size={10} className="text-yellow-500" />],
-              ['Delhi', '3,890', '₹3.8L', <Star size={10} className="text-yellow-500" />],
-              ['Gurgaon', '2,450', '₹2.5L', ''],
-              ['Ghaziabad', '1,589', '₹2.0L', ''],
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-6">
-          <MiniTable 
-            title="Audit Logs" 
-            icon={Shield}
-            headers={['Time', 'User', 'Action', 'IP']}
-            rows={[
-              ['09:45 AM', 'admin', 'Login', '192.168.1.10'],
-              ['09:42 AM', 'dr.sharma', 'Update Patient', '192.168.1.15'],
-              ['09:40 AM', 'reception', 'Register Patient', '192.168.1.20'],
-              ['09:35 AM', 'pharma', 'Dispense Medicine', '192.168.1.25'],
-              ['09:30 AM', 'lab', 'Upload Report', '192.168.1.30'],
-            ]}
-          />
-        </div>
-        <div className="col-span-6">
-          <MiniTable 
-            title="Financial Summary" 
-            icon={CreditCard}
-            headers={['Type', 'Today', 'This Week', 'This Month']}
-            rows={[
-              ['OPD', '₹24,500', '₹1,56,800', '₹6,24,500'],
-              ['IPD', '₹89,200', '₹5,42,100', '₹21,56,800'],
-              ['Pharmacy', '₹12,450', '₹78,200', '₹3,12,400'],
-              ['Lab', '₹8,900', '₹56,400', '₹2,24,500'],
-            ]}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  const DoctorDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Today's Appointments" value="24" icon={Calendar} trend={{ value: '+4', up: true }} />
-        <StatCard label="Pending Prescriptions" value="8" icon={FileText} color="text-orange-600" />
-        <StatCard label="Admitted Patients" value="5" icon={BedDouble} />
-        <StatCard label="Surgeries Today" value="2" icon={Activity} color="text-red-600" />
-        <StatCard label="Completed" value="12" icon={CheckCircle} color="text-green-600" />
-        <StatCard label="In Queue" value="10" icon={Clock} />
-        <StatCard label="Reports Pending" value="6" icon={FileText} color="text-blue-600" />
-        <StatCard label="Avg Wait Time" value="18m" icon={Clock} />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-6">
-          <MiniTable 
-            title="Today's Appointments" 
-            icon={CalendarCheck}
-            headers={['Time', 'UHID', 'Patient', 'Age', 'Status']}
-            rows={[
-              ['09:00 AM', 'UH1234', 'Rajesh Kumar', '45', <span className="text-green-600">Completed</span>],
-              ['09:30 AM', 'UH1235', 'Priya Singh', '32', <span className="text-green-600">Completed</span>],
-              ['10:00 AM', 'UH1236', 'Amit Patel', '28', <span className="text-blue-600">In-Consultation</span>],
-              ['10:30 AM', 'UH1237', 'Neha Sharma', '35', <span className="text-yellow-600">Waiting</span>],
-              ['11:00 AM', 'UH1238', 'Rohan Verma', '52', <span className="text-yellow-600">Waiting</span>],
-              ['11:30 AM', 'UH1239', 'Meera Joshi', '41', <span className="text-yellow-600">Waiting</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-6">
-          <MiniTable 
-            title="Admitted Patients" 
-            icon={BedDouble}
-            headers={['Bed', 'Patient', 'Age', 'Condition', 'Days']}
-            rows={[
-              ['ICU A1', 'Suresh Yadav', '62', <span className="text-red-600 font-bold">Critical</span>, '3'],
-              ['General B3', 'Meera Joshi', '41', <span className="text-green-600">Stable</span>, '2'],
-              ['ICU A2', 'Ramesh Gupta', '55', <span className="text-orange-600">Serious</span>, '1'],
-              ['Private C1', 'Anita Singh', '38', <span className="text-green-600">Stable</span>, '4'],
-              ['General D2', 'Vikram Sharma', '29', <span className="text-green-600">Improving</span>, '5'],
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Pending Reports" 
-            icon={FileText}
-            headers={['UHID', 'Patient', 'Test', 'Priority']}
-            rows={[
-              ['UH1234', 'Rajesh Kumar', 'Blood Count', <span className="text-orange-600">Normal</span>],
-              ['UH1235', 'Priya Singh', 'CT Scan', <span className="text-red-600">Urgent</span>],
-              ['UH1237', 'Neha Sharma', 'X-Ray', <span className="text-orange-600">Normal</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="Today's Surgeries" 
-            icon={Scissors}
-            headers={['Time', 'OT', 'Patient', 'Procedure']}
-            rows={[
-              ['10:00 AM', 'OT 1', 'Ramesh Gupta', 'Appendectomy'],
-              ['02:00 PM', 'OT 2', 'Suresh Yadav', 'Angioplasty'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Bell size={12} />
-                <span className="font-semibold">Quick Actions</span>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              <button className="w-full hms-btn-primary text-xs py-1 text-left">📝 New Prescription</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📋 Patient List</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">🔍 Search Patient</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📊 View Reports</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const NurseDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Patients to Monitor" value="12" icon={HeartPulse} />
-        <StatCard label="Vitals Due" value="6" icon={Activity} color="text-orange-600" />
-        <StatCard label="Medications Due" value="18" icon={Pill} color="text-red-600" />
-        <StatCard label="Notes Pending" value="4" icon={ClipboardList} />
-        <StatCard label="Vitals Taken" value="36" icon={CheckCircle} color="text-green-600" />
-        <StatCard label="Medications Given" value="42" icon={Pill} color="text-green-600" />
-        <StatCard label="Dressings Due" value="3" icon={Bandage} color="text-blue-600" />
-        <StatCard label="IV Bags Due" value="2" icon={Droplets} color="text-purple-600" />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-7">
-          <MiniTable 
-            title="IPD Patients - Vitals Schedule" 
-            icon={Thermometer}
-            headers={['Bed', 'Patient', 'Last Vitals', 'Next Due', 'BP', 'Temp', 'SpO2', 'Status']}
-            rows={[
-              ['ICU A1', 'Suresh Yadav', '1hr ago', 'Now', '140/90', '101.2', '94%', <span className="text-red-600">Overdue</span>],
-              ['General B3', 'Meera Joshi', '3hr ago', '1hr', '120/80', '98.6', '98%', <span className="text-yellow-600">Upcoming</span>],
-              ['General C2', 'Rohan Verma', '30min ago', '3hr', '118/76', '98.4', '99%', <span className="text-green-600">On-time</span>],
-              ['Private C1', 'Anita Singh', '2hr ago', '2hr', '125/82', '99.1', '97%', <span className="text-yellow-600">Upcoming</span>],
-              ['ICU A2', 'Ramesh Gupta', '15min ago', '15min', '135/88', '100.5', '95%', <span className="text-red-600">Critical</span>],
-              ['General D2', 'Vikram Sharma', '4hr ago', 'Now', '115/75', '98.2', '99%', <span className="text-red-600">Overdue</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-5">
-          <MiniTable 
-            title="Medications Due" 
-            icon={Pill}
-            headers={['Time', 'Patient', 'Bed', 'Medication', 'Dose']}
-            rows={[
-              ['Now', 'Suresh Yadav', 'ICU A1', 'Paracetamol', '500mg'],
-              ['Now', 'Vikram Sharma', 'General D2', 'Vitamin D3', '1 tab'],
-              ['10:00 AM', 'Meera Joshi', 'General B3', 'Antibiotic', '250mg'],
-              ['10:30 AM', 'Anita Singh', 'Private C1', 'Painkiller', '1 tab'],
-              ['11:00 AM', 'Ramesh Gupta', 'ICU A2', 'Insulin', '10 units'],
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Today's Tasks" 
-            icon={ClipboardList}
-            headers={['Task', 'Patient', 'Priority', 'Status']}
-            rows={[
-              ['Change Dressing', 'Suresh Yadav', <span className="text-red-600">High</span>, 'Pending'],
-              ['Take Vitals', 'Vikram Sharma', <span className="text-orange-600">Medium</span>, 'Pending'],
-              ['Assist Doctor', 'Meera Joshi', <span className="text-blue-600">Low</span>, 'Done'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="OPD Queue" 
-            icon={Users}
-            headers={['Token', 'Patient', 'Doctor', 'Status']}
-            rows={[
-              ['T001', 'Rajesh Kumar', 'Dr. Sharma', <span className="text-blue-600">In-Consultation</span>],
-              ['T002', 'Priya Singh', 'Dr. Gupta', <span className="text-yellow-600">Waiting</span>],
-              ['T003', 'Amit Patel', 'Dr. Sharma', <span className="text-yellow-600">Waiting</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Zap size={12} />
-                <span className="font-semibold">Quick Actions</span>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              <button className="w-full hms-btn-primary text-xs py-1 text-left">📊 Record Vitals</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">💊 Give Medication</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📝 Add Notes</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">🚨 Call Doctor</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const ReceptionistDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Today's Walk-ins" value="32" icon={UserPlus} trend={{ value: '+8', up: true }} />
-        <StatCard label="Appointments" value="45" icon={Calendar} />
-        <StatCard label="Registered" value="18" icon={Users} trend={{ value: '+5', up: true }} />
-        <StatCard label="Token Queue" value="12" icon={Clock} />
-        <StatCard label="Bills Generated" value="28" icon={FileText} color="text-green-600" />
-        <StatCard label="Payments Received" value="₹45,200" icon={DollarSign} />
-        <StatCard label="Pending Payments" value="3" icon={AlertCircle} color="text-orange-600" />
-        <StatCard label="Avg Wait Time" value="12m" icon={Clock} />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-5">
-          <MiniTable 
-            title="Current Queue" 
-            icon={Users}
-            headers={['Token', 'Patient', 'Age', 'Doctor', 'Time', 'Status']}
-            rows={[
-              ['T001', 'Rajesh Kumar', '45', 'Dr. Sharma', '09:00', <span className="text-blue-600">In-Consultation</span>],
-              ['T002', 'Priya Singh', '32', 'Dr. Gupta', '09:15', <span className="text-yellow-600">Waiting</span>],
-              ['T003', 'Amit Patel', '28', 'Dr. Sharma', '09:30', <span className="text-yellow-600">Waiting</span>],
-              ['T004', 'Neha Sharma', '35', 'Dr. Verma', '09:45', <span className="text-yellow-600">Waiting</span>],
-              ['T005', 'Rohan Verma', '52', 'Dr. Gupta', '10:00', <span className="text-yellow-600">Waiting</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-7">
-          <MiniTable 
-            title="Today's Appointments" 
-            icon={Calendar}
-            headers={['Time', 'Patient', 'Age', 'Gender', 'Doctor', 'Dept', 'Status']}
-            rows={[
-              ['09:00 AM', 'Rajesh Kumar', '45', 'M', 'Dr. Sharma', 'Gen Med', <span className="text-green-600">Completed</span>],
-              ['09:30 AM', 'Priya Singh', '32', 'F', 'Dr. Gupta', 'Gyne', <span className="text-green-600">Completed</span>],
-              ['10:00 AM', 'Amit Patel', '28', 'M', 'Dr. Sharma', 'Gen Med', <span className="text-blue-600">In-Consultation</span>],
-              ['10:30 AM', 'Neha Sharma', '35', 'F', 'Dr. Verma', 'Cardio', <span className="text-yellow-600">Waiting</span>],
-              ['11:00 AM', 'Rohan Verma', '52', 'M', 'Dr. Gupta', 'Ortho', <span className="text-yellow-600">Waiting</span>],
-              ['11:30 AM', 'Meera Joshi', '41', 'F', 'Dr. Sharma', 'Gen Med', <span className="text-yellow-600">Waiting</span>],
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Recent Registrations" 
-            icon={UserPlus}
-            headers={['UHID', 'Patient', 'Age', 'Gender', 'Time']}
-            rows={[
-              ['UH1250', 'Vikram Singh', '29', 'M', '09:45 AM'],
-              ['UH1249', 'Anita Patel', '38', 'F', '09:30 AM'],
-              ['UH1248', 'Ramesh Yadav', '55', 'M', '09:15 AM'],
-              ['UH1247', 'Sunita Sharma', '42', 'F', '09:00 AM'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="Today's Payments" 
-            icon={CreditCard}
-            headers={['UHID', 'Patient', 'Amount', 'Mode', 'Status']}
-            rows={[
-              ['UH1234', 'Rajesh Kumar', '₹500', 'Cash', <span className="text-green-600">Paid</span>],
-              ['UH1235', 'Priya Singh', '₹1,200', 'UPI', <span className="text-green-600">Paid</span>],
-              ['UH1236', 'Amit Patel', '₹800', 'Card', <span className="text-orange-600">Pending</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Zap size={12} />
-                <span className="font-semibold">Quick Actions</span>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              <button className="w-full hms-btn-primary text-xs py-1 text-left">➕ New Patient</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📅 Book Appointment</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">🎫 Generate Token</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">💳 Generate Bill</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const PharmacistDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Prescriptions" value="15" icon={FileText} trend={{ value: '+3', up: true }} />
-        <StatCard label="Dispensed" value="42" icon={Pill} trend={{ value: '+8', up: true }} />
-        <StatCard label="Low Stock" value="8" icon={AlertCircle} color="text-orange-600" />
-        <StatCard label="Sales Today" value="₹8,450" icon={DollarSign} />
-        <StatCard label="Returns" value="2" icon={XCircle} color="text-red-600" />
-        <StatCard label="Pending Orders" value="3" icon={Package} color="text-blue-600" />
-        <StatCard label="Expiring Soon" value="5" icon={Calendar} color="text-orange-600" />
-        <StatCard label="Avg Dispense" value="2m" icon={Clock} />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-6">
-          <MiniTable 
-            title="Pending Prescriptions" 
-            icon={FileText}
-            headers={['Rx ID', 'UHID', 'Patient', 'Doctor', 'Priority', 'Time']}
-            rows={[
-              ['RX001', 'UH1234', 'Rajesh Kumar', 'Dr. Sharma', <span className="text-orange-600">Normal</span>, '09:15 AM'],
-              ['RX002', 'UH1235', 'Priya Singh', 'Dr. Gupta', <span className="text-red-600">Urgent</span>, '09:30 AM'],
-              ['RX003', 'UH1236', 'Amit Patel', 'Dr. Sharma', <span className="text-orange-600">Normal</span>, '09:45 AM'],
-              ['RX004', 'UH1237', 'Neha Sharma', 'Dr. Verma', <span className="text-red-600">Urgent</span>, '10:00 AM'],
-              ['RX005', 'UH1238', 'Rohan Verma', 'Dr. Gupta', <span className="text-orange-600">Normal</span>, '10:15 AM'],
-            ]}
-          />
-        </div>
-        <div className="col-span-6">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <AlertCircle size={12} />
-                <span className="font-semibold">Low Stock Alert</span>
-              </div>
-            </div>
-            <table className="hms-table">
-              <thead>
-                <tr>
-                  <th className="py-1 px-1.5">Medicine</th>
-                  <th className="py-1 px-1.5">Stock</th>
-                  <th className="py-1 px-1.5">Reorder</th>
-                  <th className="py-1 px-1.5">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="py-1 px-1.5">Paracetamol 500mg</td>
-                  <td className="py-1 px-1.5">12</td>
-                  <td className="py-1 px-1.5">100</td>
-                  <td className="py-1 px-1.5"><span className="text-red-600">Critical</span></td>
-                </tr>
-                <tr>
-                  <td className="py-1 px-1.5">Amoxicillin 250mg</td>
-                  <td className="py-1 px-1.5">8</td>
-                  <td className="py-1 px-1.5">50</td>
-                  <td className="py-1 px-1.5"><span className="text-red-600">Critical</span></td>
-                </tr>
-                <tr>
-                  <td className="py-1 px-1.5">Insulin Injection</td>
-                  <td className="py-1 px-1.5">5</td>
-                  <td className="py-1 px-1.5">20</td>
-                  <td className="py-1 px-1.5"><span className="text-red-600">Critical</span></td>
-                </tr>
-                <tr>
-                  <td className="py-1 px-1.5">Vitamin D3</td>
-                  <td className="py-1 px-1.5">10</td>
-                  <td className="py-1 px-1.5">50</td>
-                  <td className="py-1 px-1.5"><span className="text-orange-600">Low</span></td>
-                </tr>
-                <tr>
-                  <td className="py-1 px-1.5">Cough Syrup</td>
-                  <td className="py-1 px-1.5">15</td>
-                  <td className="py-1 px-1.5">30</td>
-                  <td className="py-1 px-1.5"><span className="text-orange-600">Low</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Today's Dispenses" 
-            icon={CheckCircle}
-            headers={['Rx ID', 'Patient', 'Amount', 'Time']}
-            rows={[
-              ['RX000', 'Suresh Yadav', '₹450', '09:00 AM'],
-              ['RX001', 'Meera Joshi', '₹850', '09:15 AM'],
-              ['RX002', 'Rohan Verma', '₹320', '09:30 AM'],
-              ['RX003', 'Anita Singh', '₹1,200', '09:45 AM'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="Expiring Soon" 
-            icon={Calendar}
-            headers={['Medicine', 'Batch', 'Expiry', 'Qty']}
-            rows={[
-              ['Aspirin 100mg', 'B1234', 'May 2026', '45'],
-              ['Vitamin C', 'B5678', 'Jun 2026', '23'],
-              ['Antacid Gel', 'B9012', 'Jul 2026', '15'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Zap size={12} />
-                <span className="font-semibold">Quick Actions</span>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              <button className="w-full hms-btn-primary text-xs py-1 text-left">💊 Dispense Medicine</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📦 Receive Stock</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">🔍 Search Medicine</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📊 Sales Report</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const LabTechnicianDashboard = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-8 gap-2">
-        <StatCard label="Samples Received" value="28" icon={FlaskConical} trend={{ value: '+5', up: true }} />
-        <StatCard label="Tests Pending" value="12" icon={ClipboardList} color="text-orange-600" />
-        <StatCard label="Reports" value="8" icon={FileText} color="text-blue-600" />
-        <StatCard label="Completed" value="35" icon={CheckCircle} color="text-green-600" />
-        <StatCard label="In Progress" value="15" icon={Activity} />
-        <StatCard label="Critical Results" value="3" icon={AlertCircle} color="text-red-600" />
-        <StatCard label="QC Passed" value="98%" icon={CheckCircle} color="text-green-600" />
-        <StatCard label="Avg TAT" value="45m" icon={Clock} />
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-6">
-          <MiniTable 
-            title="Pending Tests" 
-            icon={FlaskConical}
-            headers={['Sample ID', 'UHID', 'Patient', 'Test', 'Priority', 'Collected', 'Status']}
-            rows={[
-              ['S001', 'UH1234', 'Rajesh Kumar', 'Blood Count', <span className="text-orange-600">Normal</span>, '09:00 AM', <span className="text-blue-600">Processing</span>],
-              ['S002', 'UH1235', 'Priya Singh', 'CT Scan', <span className="text-red-600">Urgent</span>, '09:15 AM', <span className="text-yellow-600">Queued</span>],
-              ['S003', 'UH1236', 'Amit Patel', 'X-Ray Chest', <span className="text-orange-600">Normal</span>, '09:30 AM', <span className="text-yellow-600">Queued</span>],
-              ['S004', 'UH1237', 'Neha Sharma', 'Blood Sugar', <span className="text-red-600">Urgent</span>, '09:45 AM', <span className="text-blue-600">Processing</span>],
-              ['S005', 'UH1238', 'Rohan Verma', 'Urine Test', <span className="text-orange-600">Normal</span>, '10:00 AM', <span className="text-yellow-600">Queued</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-6">
-          <MiniTable 
-            title="Reports to Approve" 
-            icon={FileText}
-            headers={['Report ID', 'UHID', 'Patient', 'Test', 'Result', 'Action']}
-            rows={[
-              ['R001', 'UH1239', 'Rohan Verma', 'Blood Sugar', '120 mg/dL', <button className="hms-btn-primary text-xs py-0 px-2">Approve</button>],
-              ['R002', 'UH1240', 'Meera Joshi', 'Urine Test', 'Normal', <button className="hms-btn-primary text-xs py-0 px-2">Approve</button>],
-              ['R003', 'UH1241', 'Vikram Singh', 'Blood Count', <span className="text-red-600">Abnormal</span>, <button className="hms-btn-primary text-xs py-0 px-2">Review</button>],
-              ['R004', 'UH1242', 'Anita Patel', 'ECG', 'Normal', <button className="hms-btn-primary text-xs py-0 px-2">Approve</button>],
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-2">
-        <div className="col-span-4">
-          <MiniTable 
-            title="Today's Completed" 
-            icon={CheckCircle}
-            headers={['Sample', 'Patient', 'Test', 'Time']}
-            rows={[
-              ['S000', 'Suresh Yadav', 'Lipid Profile', '08:45 AM'],
-              ['S001', 'Meera Joshi', 'LFT', '09:00 AM'],
-              ['S002', 'Rohan Verma', 'KFT', '09:15 AM'],
-              ['S003', 'Anita Singh', 'CBC', '09:30 AM'],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <MiniTable 
-            title="Critical Results" 
-            icon={AlertCircle}
-            headers={['Sample', 'Patient', 'Test', 'Value']}
-            rows={[
-              ['S010', 'Ramesh Gupta', 'Troponin', <span className="text-red-600">Elevated</span>],
-              ['S015', 'Suresh Yadav', 'WBC Count', <span className="text-red-600">High</span>],
-              ['S020', 'Priya Singh', 'Platelets', <span className="text-red-600">Low</span>],
-            ]}
-          />
-        </div>
-        <div className="col-span-4">
-          <div className="border border-border bg-card">
-            <div className="hms-section-header flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Zap size={12} />
-                <span className="font-semibold">Quick Actions</span>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              <button className="w-full hms-btn-primary text-xs py-1 text-left">🧪 Run Test</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📝 Enter Results</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">✅ Approve Report</button>
-              <button className="w-full hms-btn-secondary text-xs py-1 text-left">📊 QC Check</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderDashboard = () => {
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return <SuperAdminDashboard />;
-      case 'DOCTOR':
-        return <DoctorDashboard />;
-      case 'NURSE':
-        return <NurseDashboard />;
-      case 'RECEPTIONIST':
-        return <ReceptionistDashboard />;
-      case 'PHARMACIST':
-        return <PharmacistDashboard />;
-      case 'LAB_TECHNICIAN':
-        return <LabTechnicianDashboard />;
-      default:
-        return <ReceptionistDashboard />;
-    }
-  };
+    fetchData();
+  }, []);
 
   return (
-    <div>
-      <div className="mb-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">{role.replace('_', ' ')} Dashboard</h2>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </span>
+    <div className="flex flex-col h-full space-y-3 overflow-y-auto pb-4 pr-1">
+      {/* Header */}
+      <div className="flex items-center justify-between bg-card border border-border p-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="bg-primary/10 p-1.5 rounded-lg">
+            <LayoutDashboard size={20} className="text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-foreground">Super Admin Command Center</h1>
+            <p className="text-[10px] text-muted-foreground">Real-time HMS Analytics & Oversight</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Welcome, {user?.name || 'User'}</span>
-          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-            {(user?.name || 'U').charAt(0).toUpperCase()}
+          <div className="flex flex-col items-end mr-2">
+            <span className="text-[10px] font-bold text-primary">System Health: 98.2%</span>
+            <span className="text-[9px] text-muted-foreground">{new Date().toLocaleDateString()}</span>
+          </div>
+          <button onClick={fetchData} className="hms-btn-secondary p-1.5 rounded-full" title="Refresh Dashboard">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* Primary KPI Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+        <StatCard label="Total Hospitals" value={stats.hospitals} icon={Building} trend={{ value: '12%', up: true }} />
+        <StatCard label="Active Users" value={stats.users} icon={Users} trend={{ value: '5%', up: true }} />
+        <StatCard label="Total Patients" value={stats.patients} icon={HeartPulse} trend={{ value: '18%', up: true }} />
+        <StatCard label="Total Assets" value={stats.assets} icon={Warehouse} color="text-amber-600" />
+        <StatCard label="Daily Revenue" value={stats.revenue} icon={DollarSign} color="text-green-600" trend={{ value: '24%', up: true }} />
+        <StatCard label="Appointments" value={stats.appointments} icon={CalendarCheck} color="text-blue-600" />
+        <StatCard label="Active Beds" value={stats.activeBeds} icon={BedDouble} color="text-purple-600" />
+        <StatCard label="Staff on Duty" value={stats.staffOnDuty} icon={UserCog} color="text-cyan-600" />
+      </div>
+
+      {/* Main Dashboard Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Left Column: Recent Activity */}
+        <div className="lg:col-span-2 space-y-3">
+          <MiniTable 
+            title="Recent Patient Registrations" 
+            headers={['UHID', 'Name', 'Gender', 'Contact', 'Age']} 
+            rows={recentPatients}
+            icon={UserPlus}
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <MiniTable 
+              title="Today's Appointments" 
+              headers={['ID', 'Patient', 'Doctor', 'Status']} 
+              rows={recentAppointments}
+              icon={Clock}
+            />
+            <MiniTable 
+              title="Active Staff Members" 
+              headers={['ID', 'Name', 'Dept', 'Status']} 
+              rows={recentStaff}
+              icon={UserCog}
+            />
+          </div>
+        </div>
+
+        {/* Right Column: Alerts & Status */}
+        <div className="space-y-3">
+           {/* Critical Alerts */}
+           <div className="bg-card border border-destructive/30 rounded shadow-sm overflow-hidden">
+            <div className="bg-destructive text-destructive-foreground px-3 py-1.5 text-[10px] font-bold uppercase flex items-center gap-2">
+              <AlertCircle size={12} /> System Critical Alerts
+            </div>
+            <div className="p-2 space-y-2">
+              <div className="flex items-start gap-2 p-2 bg-destructive/5 border-l-2 border-destructive">
+                <Siren size={14} className="text-destructive mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-destructive">ICU Bed Shortage</p>
+                  <p className="text-[9px] text-muted-foreground">Only 2 beds available in Branch 01</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-2 bg-hms-warning/5 border-l-2 border-hms-warning">
+                <Activity size={14} className="text-hms-warning mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-hms-warning">Equipment Maintenance Due</p>
+                  <p className="text-[9px] text-muted-foreground">3 CT Scanners require calibration</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Module Health */}
+          <div className="bg-card border border-border rounded shadow-sm p-3">
+            <h3 className="text-xs font-bold mb-3 flex items-center gap-2">
+              <Shield size={14} className="text-primary" /> Module Integration Status
+            </h3>
+            <div className="space-y-2.5">
+              {[
+                { label: 'OPD / IPD', status: 'Healthy', val: 98 },
+                { label: 'Pharmacy', status: 'Healthy', val: 95 },
+                { label: 'Lab / Radiology', status: 'Warning', val: 76, color: 'bg-hms-warning' },
+                { label: 'Billing & Finance', status: 'Healthy', val: 92 },
+                { label: 'Ambulance GPS', status: 'Offline', val: 0, color: 'bg-destructive' },
+              ].map((m, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between text-[9px] font-bold uppercase">
+                    <span className="text-muted-foreground">{m.label}</span>
+                    <span className={m.val > 80 ? 'text-hms-success' : m.val > 50 ? 'text-hms-warning' : 'text-destructive'}>{m.status}</span>
+                  </div>
+                  <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
+                    <div className={`${m.color || 'bg-hms-success'} h-full transition-all duration-500`} style={{ width: `${m.val}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      {renderDashboard()}
     </div>
   );
 };
 
-const Building2 = ({ size = 24 }: { size?: number }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
-    <path d="M9 22v-4h6v4"/>
-    <path d="M8 6h.01"/>
-    <path d="M16 6h.01"/>
-    <path d="M12 6h.01"/>
-    <path d="M12 10h.01"/>
-    <path d="M12 14h.01"/>
-    <path d="M16 10h.01"/>
-    <path d="M16 14h.01"/>
-    <path d="M8 10h.01"/>
-    <path d="M8 14h.01"/>
-  </svg>
-);
-
-const Bandage = ({ size = 24 }: { size?: number }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10 10.5a2 2 0 0 1 2 2 2 2 0 0 1 2-2 2 2 0 0 1-2-2 2 2 0 0 1-2 2"/>
-    <rect x="5" y="8" width="14" height="8" rx="2"/>
-    <line x1="4" x2="6" y1="8" y2="8"/>
-    <line x1="4" x2="6" y1="16" y2="16"/>
-    <line x1="18" x2="20" y1="8" y2="8"/>
-    <line x1="18" x2="20" y1="16" y2="16"/>
-  </svg>
-);
+import { LayoutDashboard } from 'lucide-react';
 
 export default Dashboard;

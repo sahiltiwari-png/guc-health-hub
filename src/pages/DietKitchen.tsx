@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { UtensilsCrossed, Eye, Edit, Printer, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react';
-
-const tabs = ['Dashboard','Diet Plans','Meal Orders','Kitchen Schedule','Menu Master','Patient Diet Chart','Nutritional Analysis','Inventory'];
+import { extractArray, getDietPlans, getKitchenDashboard } from "@/api/apiService";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const colors: Record<string, string> = { 'Active': 'bg-green-700 text-white', 'Delivered': 'bg-green-700 text-white', 'Preparing': 'bg-blue-700 text-white', 'Pending': 'bg-yellow-600 text-white', 'Cancelled': 'bg-red-700 text-white', 'NPO': 'bg-red-700 text-white', 'Regular': 'bg-green-700 text-white', 'Diabetic': 'bg-yellow-600 text-white', 'Renal': 'bg-orange-600 text-white', 'Cardiac': 'bg-blue-700 text-white', 'Liquid': 'bg-purple-700 text-white', 'Soft': 'bg-teal-700 text-white' };
@@ -39,7 +38,24 @@ const kitchenSchedule = [
 ];
 
 const DietKitchen = () => {
+  const tabs = ['Dashboard','Diet Plans','Meal Orders','Kitchen Schedule','Menu Master','Patient Diet Chart','Nutritional Analysis','Inventory'];
   const [tab, setTab] = useState('Dashboard');
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [dietPlansList, setDietPlansList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [d, p] = await Promise.all([getKitchenDashboard(), getDietPlans()]);
+      if (d.ok) setDashboard(d.data);
+      if (p.ok) setDietPlansList(extractArray(p));
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><UtensilsCrossed size={14} /> Diet & Kitchen Management</div>

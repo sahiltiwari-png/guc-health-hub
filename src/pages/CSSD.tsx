@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw } from 'lucide-react';
-import { createInstrument, createInstrumentBatch, createSterilizationCycle, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle, extractArray } from "@/api/apiService";
+import { createInstrument, createInstrumentBatch, createSterilizationCycle, extractArray, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilization, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'sets' | 'batches' | 'cycles' | 'requests' | 'machines' | 'quality';
@@ -20,18 +20,15 @@ const CSSD = () => {
   const [loading, setLoading] = useState(false);
 
   // Data States
-  const [data, setData] = useState({
+  const [data, setData] = useState<any>({
     instruments: [],
     batches: [],
     cycles: [],
     issues: [],
     users: [],
-    departments: []
+    departments: [],
+    equipments: []
   });
-
-  // UI States
-  const [showModal, setShowModal] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);

@@ -16,7 +16,7 @@ export interface ApiResponse<T = any> {
   error?: any;
 }
 
-export const apiRequest = async <T = any>(endpoint: string, options: RequestInit & { queryParams?: any } = {}): Promise<ApiResponse<T>> => {
+export const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
   const token = getToken();
   const hospitalId = getHospitalId();
   const branchId = getBranchId();
@@ -38,24 +38,8 @@ export const apiRequest = async <T = any>(endpoint: string, options: RequestInit
     headers['X-Branch-Id'] = branchId;
   }
 
-  let finalEndpoint = endpoint;
-  if (options.queryParams) {
-    const searchParams = new URLSearchParams(options.queryParams);
-    if (searchParams.toString()) {
-      finalEndpoint += (finalEndpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-
   try {
-    // Standardize endpoint by stripping common prefixes that might cause double-prefixing
-    let cleanEndpoint = finalEndpoint;
-    if (finalEndpoint.startsWith('/api/v1')) {
-      cleanEndpoint = finalEndpoint.substring(7);
-    } else if (finalEndpoint.startsWith('/api')) {
-      cleanEndpoint = finalEndpoint.substring(4);
-    }
-    
-    const response = await fetch(`${API_BASE_URL}${cleanEndpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
@@ -84,7 +68,6 @@ export const extractArray = (res: any) => {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data.content)) return data.content;
   if (data && data.data && Array.isArray(data.data)) return data.data;
-  if (data && data.data && Array.isArray(data.data.content)) return data.data.content;
   return [];
 };
 
@@ -2504,57 +2487,96 @@ export const getApiNursesByid = async (id: string, queryParams?: any) => {
 /**
  * Check-in patient from appointment
  */
-export const postApiV1OpdCheckInByappointmentId = async (appointmentId: string | number) => {
-  const endpoint = `/api/v1/opd/check-in/${appointmentId}`;
-  return apiRequest(endpoint, { method: 'POST' });
+export const postApiV1OpdCheckInByappointmentId = async (appointmentId: string, data?: any) => {
+  let endpoint = `/api/v1/opd/check-in/${appointmentId}`;
+  
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
 };
 
 /**
- * Register walk-in visit
+ * Check-in patient from appointment
  */
-export const postApiV1OpdWalkIn = async (queryParams: any) => {
-  const endpoint = `/api/v1/opd/walk-in`;
-  return apiRequest(endpoint, { method: 'POST', queryParams });
+export const postApiV1OpdWalkIn = async (data?: any) => {
+  let endpoint = `/api/v1/opd/walk-in`;
+  
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
 };
 
 /**
- * Retrieves a paginated list of all OPD visits
+ * Get Visit By Id
  */
 export const getApiV1Opd = async (queryParams?: any) => {
-  const endpoint = `/api/v1/opd`;
-  return apiRequest(endpoint, { method: 'GET', queryParams });
+  let endpoint = `/api/v1/opd`;
+  
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, {
+    method: 'GET'
+  });
 };
 
 /**
  * Search OPD visits
  */
 export const getApiV1OpdSearch = async (queryParams?: any) => {
-  const endpoint = `/api/v1/opd/search`;
-  return apiRequest(endpoint, { method: 'GET', queryParams });
+  let endpoint = `/api/v1/opd/search`;
+  
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, {
+    method: 'GET'
+  });
 };
 
 /**
- * Retrieves details of a specific OPD visit
+ * Get Visit By Id
  */
-export const getApiV1OpdByid = async (id: string | number) => {
-  const endpoint = `/api/v1/opd/${id}`;
-  return apiRequest(endpoint, { method: 'GET' });
+export const getApiV1OpdByid = async (id: string, queryParams?: any) => {
+  let endpoint = `/api/v1/opd/${id}`;
+  
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, {
+    method: 'GET'
+  });
 };
 
 /**
- * Deletes an OPD visit record
+ * Delete Visit
  */
-export const deleteApiV1OpdByid = async (id: string | number) => {
-  const endpoint = `/api/v1/opd/${id}`;
-  return apiRequest(endpoint, { method: 'DELETE' });
+export const deleteApiV1OpdByid = async (id: string) => {
+  let endpoint = `/api/v1/opd/${id}`;
+  
+  return apiRequest(endpoint, {
+    method: 'DELETE'
+  });
 };
 
 /**
- * Record vitals
+ * Record Vitals
  */
-export const postApiV1OpdVitalsByopdVisitId = async (opdVisitId: string | number, queryParams: any) => {
-  const endpoint = `/api/v1/opd/vitals/${opdVisitId}`;
-  return apiRequest(endpoint, { method: 'POST', queryParams });
+export const postApiV1OpdVitalsByopdVisitId = async (opdVisitId: string, data?: any) => {
+  let endpoint = `/api/v1/opd/vitals/${opdVisitId}`;
+  
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
 };
 
 /**
@@ -3454,11 +3476,14 @@ export const getApiV1IpdDischargedToday = async (queryParams?: any) => {
 };
 
 /**
- * Update visit status
+ * Record vitals
  */
-export const patchApiV1OpdByidStatus = async (id: string, queryParams: any) => {
+export const patchApiV1OpdByidStatus = async (id: string, data?: any) => {
   let endpoint = `/api/v1/opd/${id}/status`;
-  return apiRequest(endpoint, { method: 'PATCH', queryParams });
+  
+  return apiRequest(endpoint, {
+    method: 'PATCH', body: JSON.stringify(data || {})
+  });
 };
 
 /**
@@ -3698,270 +3723,34 @@ export const getApiV1ParkingEntries = async (queryParams?: any) => {
     method: 'GET'
   });
 };
-// --- COMPREHENSIVE ALIASES FOR SUPER ADMIN PANEL ---
-
-// Core & Admin
-export const getDashboardStats = async () => {
-  const res = await apiRequest('/api/v1/dashboard/stats');
-  if (res.ok) return res;
-  
-  // Mock fallback for dashboard if API fails
-  return {
-    ok: true,
-    status: 200,
-    data: {
-      stats: {
-        totalHospitals: 4, totalUsers: 156, totalPatients: 12450, totalAssets: 890,
-        revenue: "₹45.5L", appointments: 42, activeBeds: "32/50", staffOnDuty: 24
-      }
+/* --- MANUAL HELPER STUBS --- */
+export const getDashboardStats = async () => ({
+  ok: true,
+  status: 200,
+  data: {
+    stats: {
+      totalHospitals: 4, totalUsers: 156, totalPatients: 12450, totalAssets: 890,
+      revenue: "₹45.5L", appointments: 42, activeBeds: "32/50", staffOnDuty: 24
     }
-  };
-};
+  }
+});
 
-export const getUsers = getApiAdminUsers;
-export const getBranches = getApiAdminBranches;
-export const getDepartments = getApiDepartmentsListAll;
-export const getStaff = getApiAdminUsers;
-
-// Clinical & Visits
-export const getPatients = getApiV1Patients;
-export const getOPDVisits = getApiV1Opd;
-export const getIPDAdmissions = getApiV1Ipd;
-export const getERVisits = getApiV1ClinicalErSearch;
-export const getOTBookings = getApiV1ClinicalOtSearch;
-export const getAppointments = getApiV1Appointments;
-export const createAutoClinical = postApiV1Appointments;
-export const updateById = putApiV1AppointmentsByid;
-export const updateAppointmentStatus = patchApiV1AppointmentsByidStatus;
-export const getVitals = getApiV1ClinicalVitals;
-export const getGlobalVitals = getApiV1ClinicalVitals;
-export const getVitalsGlobal = getApiV1ClinicalVitals;
-export const getVisitVitals = async (visitId: string) => apiRequest(`/api/v1/clinical/vitals/visit/${visitId}`);
-export const getVitalsVisit = async (visitId: string) => apiRequest(`/api/v1/clinical/vitals/visit/${visitId}`);
-export const createVisitVitals = async (data: any) => apiRequest('/api/v1/clinical/vitals', { method: 'POST', body: JSON.stringify(data) });
-export const updateVisitVitals = async (id: string, data: any) => apiRequest(`/api/v1/clinical/vitals/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVisitVitals = async (id: string) => apiRequest(`/api/v1/clinical/vitals/${id}`, { method: 'DELETE' });
-export const listVisits = async () => ({ data: [], status: 200, ok: true });
-export const getVitalIcon = (type: string) => type; // Dummy helper if expected in API
-export const getVitalsFeed = getApiV1ClinicalVitalsFeed;
-export const getEHR = getApiV1ClinicalEmrSearch;
-export const getDischarges = getApiV1IpdDischargedToday;
-export const admitPatient = postApiV1IpdAdmit;
-export const dischargePatient = postApiV1IpdDischargeByadmissionId;
-
-// Diagnostics
-export const getLabs = getApiV1Laboratory;
-export const getLabOrders = getApiV1DiagnosticsLabOrdersSearch;
-export const getRadiology = getApiV1Radiology;
-export const getRadiologyScans = getApiV1RadiologyScans;
-export const updateRadiologyStudyStatus = async (id: string, status: string) => apiRequest(`/api/v1/radiology/scans/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-export const createRadiologyReport = async (data: any) => apiRequest('/api/v1/radiology/reports', { method: 'POST', body: JSON.stringify(data) });
-export const getInvestigations = getApiV1DiagnosticsLabOrdersSearch;
-export const getLabTatMonitor = async () => ({ data: [], status: 200, ok: true });
-export const updateLabResultStatus = async (id: string, status: string) => apiRequest(`/api/v1/laboratory/results/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-export const updateLabOrder = async (id: string, data: any) => apiRequest(`/api/v1/laboratory/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateLabSampleStatus = async (id: string, status: string) => apiRequest(`/api/v1/laboratory/samples/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-export const createLabEntry = async (data: any) => apiRequest('/api/v1/laboratory/entries', { method: 'POST', body: JSON.stringify(data) });
-export const getLabReports = async () => ({ data: [], status: 200, ok: true });
-export const getLabTestMasters = async () => ({ data: [], status: 200, ok: true });
-export const getLabCollectionCenters = async () => ({ data: [], status: 200, ok: true });
-export const getLabMachines = async () => ({ data: [], status: 200, ok: true });
-
-// Inventory & Pharmacy
-export const getInventory = getApiInventoryPharmacyStock;
-export const getPharmacyInventory = getApiV1PharmacyInventory;
-export const listMedicines = getApiV1PharmacyInventory;
-export const createMedicine = async (data: any) => apiRequest('/api/v1/pharmacy/medicines', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyDispense = async (data: any) => apiRequest('/api/v1/pharmacy/dispenses', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyInvoice = async (data: any) => apiRequest('/api/v1/pharmacy/invoices', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacyStock = async (data: any) => apiRequest('/api/v1/pharmacy/stock', { method: 'POST', body: JSON.stringify(data) });
-export const createPharmacySupplier = async (data: any) => apiRequest('/api/v1/pharmacy/suppliers', { method: 'POST', body: JSON.stringify(data) });
-export const getGRNs = async () => ({ data: [], status: 200, ok: true });
-export const getInsuranceClaims = async () => ({ data: [], status: 200, ok: true });
-export const getPharmacyInvoices = async () => ({ data: [], status: 200, ok: true });
-export const getPharmacyPrescriptions = async () => ({ data: [], status: 200, ok: true });
-export const getPharmacyStockOverview = async () => ({ data: [], status: 200, ok: true });
-export const getPharmacySuppliers = async () => ({ data: [], status: 200, ok: true });
-export const getPurchaseOrders = async () => ({ data: [], status: 200, ok: true });
-export const getStockAdjustments = async () => ({ data: [], status: 200, ok: true });
-export const getStockTransfers = async () => ({ data: [], status: 200, ok: true });
-export const getPharmacyDispenses = getApiV1PharmacyDispenses;
-export const getBloodBankInventory = getApiV1BloodBankInventory;
-export const getBloodInventory = getApiV1BloodBankInventory;
-export const getBloodBankDonations = getApiV1BloodBankDonations;
-export const listBloodDonations = getApiV1BloodBankDonations;
-export const getBloodBankDonors = getApiV1BloodBankDonors;
-export const listBloodDonors = getApiV1BloodBankDonors;
-export const getBloodBankGroups = getApiV1BloodBankGroups;
-export const listBloodGroups = getApiV1BloodBankGroups;
-export const listBloodRequests = async () => ({ data: [], status: 200, ok: true });
-export const listBloodComponents = async () => ({ data: [], status: 200, ok: true });
-export const createBloodComponent = async (data: any) => apiRequest('/api/v1/blood-bank/components', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodDonation = async (data: any) => apiRequest('/api/v1/blood-bank/donations', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodDonor = async (data: any) => apiRequest('/api/v1/blood-bank/donors', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodInventory = async (data: any) => apiRequest('/api/v1/blood-bank/inventory', { method: 'POST', body: JSON.stringify(data) });
-export const createBloodRequest = async (data: any) => apiRequest('/api/v1/blood-bank/requests', { method: 'POST', body: JSON.stringify(data) });
-export const deleteBloodComponent = async (id: string) => apiRequest(`/api/v1/blood-bank/components/${id}`, { method: 'DELETE' });
-export const deleteBloodDonation = async (id: string) => apiRequest(`/api/v1/blood-bank/donations/${id}`, { method: 'DELETE' });
-export const deleteBloodDonor = async (id: string) => apiRequest(`/api/v1/blood-bank/donors/${id}`, { method: 'DELETE' });
-export const deleteBloodInventory = async (id: string) => apiRequest(`/api/v1/blood-bank/inventory/${id}`, { method: 'DELETE' });
-export const deleteBloodRequest = async (id: string) => apiRequest(`/api/v1/blood-bank/requests/${id}`, { method: 'DELETE' });
-export const updateBloodComponent = async (id: string, data: any) => apiRequest(`/api/v1/blood-bank/components/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateBloodDonation = async (id: string, data: any) => apiRequest(`/api/v1/blood-bank/donations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateBloodDonor = async (id: string, data: any) => apiRequest(`/api/v1/blood-bank/donors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateBloodInventory = async (id: string, data: any) => apiRequest(`/api/v1/blood-bank/inventory/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateBloodRequest = async (id: string, data: any) => apiRequest(`/api/v1/blood-bank/requests/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateBloodRequestStatus = async (id: string, status: string) => apiRequest(`/api/v1/blood-bank/requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-export const updateBloodInventoryStatus = async (id: string, status: string) => apiRequest(`/api/v1/blood-bank/inventory/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-export const issueBlood = async (data: any) => apiRequest('/api/v1/blood-bank/issue', { method: 'POST', body: JSON.stringify(data) });
-export const listBloodInventory = getApiV1BloodBankInventory;
-export const getBloodRequests = async () => ({ data: [], status: 200, ok: true });
-export const getBloodDonors = getApiV1BloodBankDonors;
-export const listUsers = getApiAdminUsers;
-export const getAutoPatients = getApiV1Patients;
-
-export const getApiV1EquipmentEquipments = async () => ({ data: [], status: 200, ok: true });
-export const getApiV1GeoCountries = async () => ({ data: [], status: 200, ok: true });
-export const getApiV1GeoStates = async () => ({ data: [], status: 200, ok: true });
-export const getApiV1GeoCities = async () => ({ data: [], status: 200, ok: true });
-
-// Registry
-export const getBirths = getApiV1RegistryBirths;
-export const getDeaths = getApiV1RegistryDeaths;
-export const getMortuary = getApiV1RegistryMortuary;
-export const getPostmortem = getApiV1RegistryPostmortemSchedule;
-
-// Infrastructure & Assets
-export const getAssets = getApiV1AssetsMasters;
-export const createAsset = async (data: any) => apiRequest('/api/v1/assets', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetCategory = async (data: any) => apiRequest('/api/v1/assets/categories', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetDepreciation = async (data: any) => apiRequest('/api/v1/assets/depreciation', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetDisposal = async (data: any) => apiRequest('/api/v1/assets/disposals', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetMaintenance = async (data: any) => apiRequest('/api/v1/assets/maintenance', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetVendor = async (data: any) => apiRequest('/api/v1/assets/vendors', { method: 'POST', body: JSON.stringify(data) });
-export const createAssetsMasters = postApiV1AssetsMasters;
-export const deleteAsset = async (id: string) => apiRequest(`/api/v1/assets/${id}`, { method: 'DELETE' });
-export const deleteAssetCategory = async (id: string) => apiRequest(`/api/v1/assets/categories/${id}`, { method: 'DELETE' });
-export const deleteAssetVendor = async (id: string) => apiRequest(`/api/v1/assets/vendors/${id}`, { method: 'DELETE' });
-export const getAssetAudits = async () => ({ data: [], status: 200, ok: true });
-export const getAssetCategories = async () => ({ data: [], status: 200, ok: true });
-export const getAssetDepreciations = async () => ({ data: [], status: 200, ok: true });
-export const getAssetDepreciation = async () => ({ data: [], status: 200, ok: true });
-export const getAssetDisposals = async () => ({ data: [], status: 200, ok: true });
-export const getAssetLocations = getApiV1AssetsLocations;
-export const getAssetMaintenances = async () => ({ data: [], status: 200, ok: true });
-export const getAssetMaintenance = async () => ({ data: [], status: 200, ok: true });
-export const getAssetVendors = async () => ({ data: [], status: 200, ok: true });
-export const updateAsset = async (id: string, data: any) => apiRequest(`/api/v1/assets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateAssetCategory = async (id: string, data: any) => apiRequest(`/api/v1/assets/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateAssetVendor = async (id: string, data: any) => apiRequest(`/api/v1/assets/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const getEquipment = getApiV1EquipmentEquipments;
-export const createEquipment = async (data: any) => apiRequest('/api/v1/equipment', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentBreakdown = async (data: any) => apiRequest('/api/v1/equipment/breakdowns', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentCategory = async (data: any) => apiRequest('/api/v1/equipment/categories', { method: 'POST', body: JSON.stringify(data) });
-export const createEquipmentMaintenanceSchedule = async (data: any) => apiRequest('/api/v1/equipment/maintenance/schedules', { method: 'POST', body: JSON.stringify(data) });
-export const deleteEquipment = async (id: string) => apiRequest(`/api/v1/equipment/${id}`, { method: 'DELETE' });
-export const getEquipmentBreakdowns = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentCalibrationRecords = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentCategories = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentMaintenanceLogs = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentMaintenanceSchedules = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentSpareParts = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentUsageLogs = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentVendors = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentTransfers = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentDocuments = async () => ({ data: [], status: 200, ok: true });
-export const getEquipmentEquipments = getApiV1EquipmentEquipments;
-export const updateEquipment = async (id: string, data: any) => apiRequest(`/api/v1/equipment/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const getEquipments = getApiV1EquipmentEquipments;
-export const getInstruments = getApiV1Instruments;
-export const createInstrument = async (data: any) => apiRequest('/api/v1/instruments', { method: 'POST', body: JSON.stringify(data) });
-export const createInstrumentBatch = async (data: any) => apiRequest('/api/v1/instruments/batches', { method: 'POST', body: JSON.stringify(data) });
-export const createSterilizationCycle = async (data: any) => apiRequest('/api/v1/sterilization/cycles', { method: 'POST', body: JSON.stringify(data) });
-export const updateSterilizationCycle = async (id: string, data: any) => apiRequest(`/api/v1/sterilization/cycles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const issueInstrument = async (data: any) => apiRequest('/api/v1/instruments/issue', { method: 'POST', body: JSON.stringify(data) });
-export const returnInstrument = async (id: string, data: any) => apiRequest(`/api/v1/instruments/return/${id}`, { method: 'POST', body: JSON.stringify(data) });
-export const updateInstrument = async (id: string, data: any) => apiRequest(`/api/v1/instruments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateInstrumentBatch = async (id: string, data: any) => apiRequest(`/api/v1/instruments/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const getInstrumentBatches = async () => ({ data: [], status: 200, ok: true });
-export const getIssuedInstruments = async () => ({ data: [], status: 200, ok: true });
-export const getSterilizationCycles = getApiV1SterilizationCycles;
-export const listDepartments = getApiDepartmentsListAll;
-export const getSterilization = getApiV1SterilizationCycles;
-export const getAmbulances = getApiV1Ambulances;
-export const getAmbulanceFleet = getApiV1Ambulances;
-export const getAmbulanceAmbulances = getApiV1Ambulances;
-export const listAmbulances = getApiV1Ambulances;
-export const getAmbulanceTrips = getApiV1AmbulancesTrips;
-export const listAmbulanceTrips = getApiV1AmbulancesTrips;
-export const listAmbulanceMaintenances = async () => ({ data: [], status: 200, ok: true });
-export const createAmbulance = async (data: any) => apiRequest('/api/v1/ambulances', { method: 'POST', body: JSON.stringify(data) });
-export const createAmbulanceTrip = async (data: any) => apiRequest('/api/v1/ambulance/trips', { method: 'POST', body: JSON.stringify(data) });
-export const createAmbulanceMaintenance = async (data: any) => apiRequest('/api/v1/ambulance/maintenance', { method: 'POST', body: JSON.stringify(data) });
-export const updateAmbulance = async (id: string, data: any) => apiRequest(`/api/v1/ambulances/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteAmbulance = async (id: string) => apiRequest(`/api/v1/ambulances/${id}`, { method: 'DELETE' });
-
-// Finance & HR
-export const getBilling = getApiV1BillingInvoices;
-export const getPayroll = getApiV1HrPayroll;
-export const getHRPayroll = getApiV1HrPayroll;
-export const getAttendance = getApiV1HrAttendance;
-export const getHRAttendance = getApiV1HrAttendance;
-export const getLeaves = getApiV1HrLeaves;
-
-// Services
-export const getKitchenDashboard = getApiV1KitchenDashboard;
-export const getDietPlans = getApiV1KitchenDietPlans;
-export const getHelpdeskTickets = getApiV1HelpdeskTickets;
-export const getParkingEntries = getApiV1ParkingEntries;
-export const getReports = getApiV1Reports;
-export const getMIS = getApiV1Mis;
-export const getAuditLogs = getApiAdminUsers; // Fallback to user logs if specific audit not found
-export const createCertificateSignature = async (data: any) => apiRequest('/api/v1/certificates/signatures', { method: 'POST', body: JSON.stringify(data) });
-export const createCertificateTemplate = async (data: any) => apiRequest('/api/v1/certificates/templates', { method: 'POST', body: JSON.stringify(data) });
-export const createGeneratedCertificate = async (data: any) => apiRequest('/api/v1/certificates/generate', { method: 'POST', body: JSON.stringify(data) });
-export const deleteCertificateSignature = async (id: string) => apiRequest(`/api/v1/certificates/signatures/${id}`, { method: 'DELETE' });
-export const deleteCertificateTemplate = async (id: string) => apiRequest(`/api/v1/certificates/templates/${id}`, { method: 'DELETE' });
-export const getCertificatesGenerated = async () => ({ data: [], status: 200, ok: true });
-export const getCertificatesTemplates = async () => ({ data: [], status: 200, ok: true });
-export const listCertificateSignatures = async () => ({ data: [], status: 200, ok: true });
-export const listCertificateTemplates = async () => ({ data: [], status: 200, ok: true });
-export const listCertificateTypes = async () => ({ data: [], status: 200, ok: true });
-export const listCertificateVerifications = async () => ({ data: [], status: 200, ok: true });
-export const listDoctors = getApiDoctors;
-export const listGeneratedCertificates = async () => ({ data: [], status: 200, ok: true });
-export const updateCertificateSignature = async (id: string, data: any) => apiRequest(`/api/v1/certificates/signatures/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const updateCertificateTemplate = async (id: string, data: any) => apiRequest(`/api/v1/certificates/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const verifyCertificate = async (id: string) => apiRequest(`/api/v1/certificates/verify/${id}`);
-
-// Compatibility / Legacy
-export const getAutoClinicals = getApiV1Clinical;
-export const deleteUsersById = async (id: string) => apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
-export const getTeamUnder = async (id: string) => apiRequest(`/api/admin/users/team/${id}`);
+// Aliases for compatibility
 export const getAutoAdminUsers = getApiAdminUsers;
-export const getAutoAdminRoles = getApiAdminRoles;
 export const getAutoAdminBranches = getApiAdminBranches;
 export const getAutoDepartments = getApiDepartmentsListAll;
 export const getAutoUsers = getApiV1AuthUsers;
 export const getAutoAssetsMasters = getApiV1AssetsMasters;
-export const getAutoEquipmentLocations = getApiV1AssetsLocations;
-export const getAutoGeoCountries = getApiV1GeoCountries;
-export const getAutoGeoStates = getApiV1GeoStates;
-export const getAutoGeoCities = getApiV1GeoCities;
-export const searchPatients = getApiV1PatientsSearch;
-export const getERVisitsSearch = getApiV1ClinicalErSearch;
-export const getOTBookingsSearch = getApiV1ClinicalOtSearch;
-export const getLabOrdersSearch = getApiV1DiagnosticsLabOrdersSearch;
+export const getAutoGeoCountries = async () => ({ data: [], status: 200, ok: true });
+export const getAutoGeoStates = async () => ({ data: [], status: 200, ok: true });
+export const getAutoGeoCities = async () => ({ data: [], status: 200, ok: true });
+export const searchPatients = getApiV1ClinicalEmrSearch;
+export const getOPDVisits = getApiV1Clinical;
+export const getIPDAdmissions = getApiV1IpdAdmissionsSearch;
+export const getERVisits = getApiV1ClinicalErSearch;
+export const getOTBookings = getApiV1ClinicalOtSearch;
+export const getLabOrders = getApiV1DiagnosticsLabOrdersSearch;
 export const getPharmacyStock = getApiInventoryPharmacyStock;
-
-export const createRegister = postApiV1AuthRegister;
-// Form Save Actions (Commonly used)
-export const createPatient = postApiV1PatientsRegister;
-export const patientRegister = postApiV1PatientsRegister;
-export const createAppointment = postApiV1Appointments;
-export const createOpdVisit = postApiV1OpdWalkIn;
-export const createOPDWalkIn = postApiV1OpdWalkIn;
-export const createIpdAdmission = postApiV1IpdAdmit;
-export const createLabOrder = postApiV1DiagnosticsLabOrders;
-export const createRadiologyOrder = postApiV1DiagnosticsRadiologyOrders;
-export const createBillingInvoice = postApiV1BillingInvoices;
+export const getHRPayroll = getApiFinanceTransactions; // Fallback
+export const getHRAttendance = async () => ({ data: [], status: 200, ok: true });
+export const getAmbulanceFleet = async () => ({ data: [], status: 200, ok: true });
