@@ -3,22 +3,27 @@ import {
   Calendar, Search, Plus, Edit, Trash2, Clock, CheckCircle2, 
   XCircle, User, UserPlus, Filter, RefreshCw, MoreVertical,
   CalendarDays, MapPin, Phone, AlertCircle, FileText, Printer,
-  ChevronRight, ArrowRight, Check, X
+  ChevronRight, ArrowRight, Check, X, Eye
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { 
-  getAppointments, searchPatients, getAutoUsers, createAutoClinical, updateById, extractArray, updateAppointmentStatus
+  getAppointments, searchPatients, getAutoUsers, createAutoClinical, updateById, extractArray, updateAppointmentStatus,
+  getApiV1Appointments, getApiV1AppointmentsByid, postApiV1Appointments, putApiV1AppointmentsByid, 
+  deleteApiV1AppointmentsByid, patchApiV1AppointmentsByidStatus, getApiV1AppointmentsDaily, 
+  getApiV1AppointmentsDoctorBydoctorId, getApiV1AppointmentsPatientBypatientId, getApiV1AppointmentsSearch
 } from "@/api/apiService";
 
 const statusColor = (s: string) => {
-  switch (s) {
-    case 'Booked': return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'Confirmed': return 'bg-green-100 text-green-700 border-green-200';
-    case 'CheckedIn': return 'bg-purple-100 text-purple-700 border-purple-200';
-    case 'In-Consultation': return 'bg-amber-100 text-amber-700 border-amber-200';
-    case 'Completed': return 'bg-hms-success text-hms-success-foreground border-transparent';
-    case 'Cancelled': return 'bg-destructive text-destructive-foreground border-transparent';
-    case 'No-Show': return 'bg-gray-100 text-gray-700 border-gray-200';
+  const status = s?.toUpperCase();
+  switch (status) {
+    case 'BOOKED': return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'CONFIRMED': return 'bg-green-100 text-green-700 border-green-200';
+    case 'WAITING': return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'CHECKEDIN': return 'bg-purple-100 text-purple-700 border-purple-200';
+    case 'IN_CONSULTATION': return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'COMPLETED': return 'bg-hms-success text-hms-success-foreground border-transparent';
+    case 'CANCELLED': return 'bg-destructive text-destructive-foreground border-transparent';
+    case 'NO-SHOW': return 'bg-gray-100 text-gray-700 border-gray-200';
     default: return 'bg-muted text-muted-foreground border-transparent';
   }
 };
@@ -46,19 +51,22 @@ const Appointments = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const queryParams: any = {};
+      const queryParams: any = { page: pagination.page, size: pagination.size };
       if (tab === 'today') queryParams.date = new Date().toISOString().split('T')[0];
-      if (tab === 'completed') queryParams.status = 'Completed';
-      if (tab === 'cancelled') queryParams.status = 'Cancelled';
+      if (tab === 'completed') queryParams.status = 'COMPLETED';
+      if (tab === 'cancelled') queryParams.status = 'CANCELLED';
       
       const [aRes, pRes, dRes] = await Promise.all([
-        getAppointments(queryParams),
+        getApiV1Appointments(queryParams),
         searchPatients(),
         getAutoUsers({ role: 'DOCTOR' })
       ]);
 
       if (aRes.ok) {
-        setAppointments(extractArray(aRes));
+        const content = aRes.data?.data?.content || aRes.data?.content || extractArray(aRes);
+        setAppointments(content);
+        const total = aRes.data?.data?.totalElements ?? aRes.data?.totalElements ?? 0;
+        setPagination(prev => ({ ...prev, total }));
       }
       if (pRes.ok) {
         setPatients(extractArray(pRes));
@@ -79,16 +87,18 @@ const Appointments = () => {
     }
   };
 
+  const [pagination, setPagination] = useState({ page: 0, size: 10, total: 0 });
+
   useEffect(() => {
     fetchData();
-  }, [tab]);
+  }, [tab, pagination.page]);
 
   const handleSaveAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
       if (selectedItem.id) {
-        const res = await updateById(selectedItem.id, selectedItem);
+        const res = await putApiV1AppointmentsByid(selectedItem.id, selectedItem);
         if (res.ok) {
           toast({ title: 'Success', description: 'Appointment updated successfully' });
           fetchData();
@@ -96,7 +106,7 @@ const Appointments = () => {
           throw new Error(res.data?.message || 'Update failed');
         }
       } else {
-        const res = await createAutoClinical(selectedItem);
+        const res = await postApiV1Appointments(selectedItem);
         if (res.ok) {
           toast({ title: 'Success', description: 'Appointment booked successfully' });
           fetchData();
@@ -114,7 +124,7 @@ const Appointments = () => {
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      const res = await updateAppointmentStatus(id, status);
+      const res = await patchApiV1AppointmentsByidStatus(id, { status });
       if (res.ok) {
         toast({ title: 'Status Updated', description: `Appointment marked as ${status}` });
         fetchData();
@@ -134,7 +144,10 @@ const Appointments = () => {
     }
     setIsSubmitting(true);
     try {
-      const res = await updateAppointmentStatus(selectedItem.id, 'Cancelled');
+      const res = await patchApiV1AppointmentsByidStatus(selectedItem.id, { 
+        status: 'CANCELLED', 
+        cancellationReason: selectedItem.cancellationReason 
+      });
       if (res.ok) {
         toast({ title: 'Cancelled', description: 'Appointment has been cancelled' });
         fetchData();
@@ -152,17 +165,46 @@ const Appointments = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this appointment record?')) return;
     try {
-      setAppointments(appointments.filter(a => a.id !== id));
-      toast({ title: 'Deleted', description: 'Appointment record removed' });
+      const res = await deleteApiV1AppointmentsByid(id);
+      if (res.ok) {
+        toast({ title: 'Deleted', description: 'Appointment record removed' });
+        fetchData();
+      } else {
+        throw new Error(res.data?.message || 'Delete failed');
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Delete failed', variant: 'destructive' });
     }
   };
 
+  const handleSearch = async () => {
+    if (!search) {
+      fetchData();
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await getApiV1AppointmentsSearch({ 
+        patientName: search, // or other filters
+        page: 0, 
+        size: pagination.size 
+      });
+      if (res.ok) {
+        const content = res.data?.data?.content || res.data?.content || extractArray(res);
+        setAppointments(content);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredAppointments = Array.isArray(appointments) ? appointments.filter(a => 
-    a.patientId?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    a.appointmentNumber?.toLowerCase().includes(search.toLowerCase()) ||
-    a.doctorId?.name?.toLowerCase().includes(search.toLowerCase())
+    (a.patientName?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (a.tokenNumber?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (a.doctorName?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (a.id?.toString() || '').includes(search.toLowerCase())
   ) : [];
 
   return (
@@ -178,6 +220,7 @@ const Appointments = () => {
               placeholder="Search by UHID, Name or ID..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
             />
           </div>
           <button 
@@ -204,11 +247,11 @@ const Appointments = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: 'Total Today', value: Array.isArray(appointments) ? appointments.filter(a => new Date(a.appointmentDate).toDateString() === new Date().toDateString()).length : 0, color: 'text-primary', icon: CalendarDays },
-          { label: 'Confirmed', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Confirmed').length : 0, color: 'text-hms-success', icon: CheckCircle2 },
-          { label: 'Pending', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Booked').length : 0, color: 'text-amber-500', icon: Clock },
-          { label: 'Checked In', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'CheckedIn').length : 0, color: 'text-purple-500', icon: UserPlus },
-          { label: 'Cancelled', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'Cancelled').length : 0, color: 'text-destructive', icon: XCircle },
+          { label: 'Total Today', value: Array.isArray(appointments) ? appointments.filter(a => a.visitTime && new Date(a.visitTime).toDateString() === new Date().toDateString()).length : 0, color: 'text-primary', icon: CalendarDays },
+          { label: 'Confirmed', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'CONFIRMED').length : 0, color: 'text-hms-success', icon: CheckCircle2 },
+          { label: 'Pending', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'WAITING').length : 0, color: 'text-amber-500', icon: Clock },
+          { label: 'Completed', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'COMPLETED').length : 0, color: 'text-purple-500', icon: Check },
+          { label: 'Cancelled', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'CANCELLED').length : 0, color: 'text-destructive', icon: XCircle },
         ].map((stat, i) => (
           <div key={i} className="bg-card border border-border p-3 flex items-center gap-4 shadow-sm hover:border-primary/50 transition-colors">
             <div className={`p-2 rounded-lg bg-muted/30 ${stat.color}`}><stat.icon size={20} /></div>
@@ -234,14 +277,14 @@ const Appointments = () => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 bg-card border border-border overflow-auto min-h-[400px]">
+      <div className="flex-1 bg-card border border-border overflow-auto min-h-[400px] flex flex-col shadow-sm rounded-sm">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50">
+          <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50 flex-1">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs font-bold uppercase tracking-widest">Syncing Appointments...</span>
           </div>
         ) : tab === 'availability' ? (
-          <div className="p-4">
+          <div className="p-4 flex-1">
             <div className="grid grid-cols-3 gap-4">
               {availability.map((avail: any) => (
                 <div key={avail.id} className="border border-border p-4 rounded-lg bg-muted/5 hover:border-primary transition-all group">
@@ -276,107 +319,146 @@ const Appointments = () => {
             </div>
           </div>
         ) : (
-          <table className="hms-table w-full">
-            <thead>
-              <tr className="bg-muted/50">
-                <th className="w-10">S.No</th>
-                <th>Appt. ID</th>
-                <th>Patient Details</th>
-                <th>Doctor</th>
-                <th>Date & Time</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAppointments.map((apt, i) => (
-                <tr key={apt.id} className="group hover:bg-muted/30 transition-colors">
-                  <td className="text-center text-muted-foreground font-mono">{i + 1}</td>
-                  <td>
-                    <div className="font-bold text-primary font-mono text-[11px]">{apt.appointmentNumber}</div>
-                    <div className="text-[9px] text-muted-foreground uppercase font-bold">Ref: {apt.id.slice(-6).toUpperCase()}</div>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold">
-                        {apt.patientId?.name?.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm">{apt.patientId?.name || 'N/A'}</div>
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Phone size={8} /> {apt.patientId?.phone || 'No Contact'}
+          <div className="flex-1 overflow-auto">
+            <table className="hms-table w-full border-collapse">
+              <thead>
+                <tr className="bg-[#cc0000] text-white">
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">S.No.</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Appt. ID</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Patient Details</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Doctor</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Date & Time</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Type</th>
+                  <th className="text-white font-semibold py-1 px-2 border-r border-white/20 text-left text-[11px]">Status</th>
+                  <th className="text-white font-semibold py-1 px-2 text-left text-[11px]">Process</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px]">
+                {filteredAppointments.map((apt, i) => (
+                  <tr key={apt.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td className="py-1 px-2 border-r border-border text-center text-muted-foreground font-mono">
+                      {pagination.page * pagination.size + i + 1}
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="font-bold text-primary font-mono text-[11px]">{apt.tokenNumber || `APT-${apt.id}`}</div>
+                      <div className="text-[9px] text-muted-foreground uppercase font-bold">Ref: #{apt.id}</div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary">
+                          {apt.patientName?.charAt(0) || 'P'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-[11px] uppercase truncate max-w-[120px]">{apt.patientName || 'Unknown'}</div>
+                          <div className="text-[9px] text-muted-foreground flex items-center gap-1">
+                            <Phone size={8} /> {apt.mobile || '-'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="font-semibold text-sm">{apt.doctorId?.name}</div>
-                    <div className="text-[10px] text-muted-foreground uppercase font-bold">{apt.doctorId?.role || 'Consultant'}</div>
-                  </td>
-                  <td>
-                    <div className="font-bold text-sm flex items-center gap-1"><Calendar size={12} className="text-muted-foreground" /> {new Date(apt.appointmentDate).toLocaleDateString()}</div>
-                    <div className="text-[11px] text-primary font-bold flex items-center gap-1"><Clock size={12} /> {apt.startTime} - {apt.endTime}</div>
-                  </td>
-                  <td>
-                    <span className="text-[10px] border border-border px-2 py-0.5 rounded font-bold uppercase tracking-wider">{apt.consultationType}</span>
-                  </td>
-                  <td>
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase border ${statusColor(apt.status)}`}>
-                      {apt.status}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {apt.status === 'Booked' && (
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="font-semibold text-[11px]">{apt.doctorName || '-'}</div>
+                      <div className="text-[9px] text-muted-foreground uppercase font-bold">{apt.departmentName || 'General'}</div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <div className="font-bold text-[11px] flex items-center gap-1 text-muted-foreground">
+                        <Calendar size={10} /> 
+                        {apt.visitTime ? new Date(apt.visitTime).toLocaleDateString() : 'N/A'}
+                      </div>
+                      <div className="text-[10px] text-primary font-bold flex items-center gap-1">
+                        <Clock size={10} /> 
+                        {apt.visitTime ? new Date(apt.visitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (apt.slot || 'N/A')}
+                      </div>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <span className="text-[9px] border border-border px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{apt.visitType || 'OPD'}</span>
+                    </td>
+                    <td className="py-1 px-2 border-r border-border">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase border ${statusColor(apt.status)}`}>
+                        {apt.status || 'BOOKED'}
+                      </span>
+                    </td>
+                    <td className="py-0.5 px-2">
+                      <div className="flex items-center gap-1">
+                        {apt.status === 'WAITING' && (
+                          <button 
+                            className="w-5 h-5 flex items-center justify-center bg-green-600 text-white rounded-sm shadow-sm hover:bg-green-700 transition-colors" 
+                            title="Confirm"
+                            onClick={() => handleStatusUpdate(apt.id, 'CONFIRMED')}
+                          >
+                            <CheckCircle2 size={10} />
+                          </button>
+                        )}
                         <button 
-                          className="p-1.5 text-hms-success hover:bg-hms-success/10 rounded" 
-                          title="Confirm"
-                          onClick={() => handleStatusUpdate(apt.id, 'Confirmed')}
+                          className="w-5 h-5 flex items-center justify-center bg-[#ff0000] text-white rounded-sm shadow-sm hover:bg-[#cc0000] transition-colors" 
+                          title="View"
+                          onClick={() => { setSelectedItem(apt); setShowModal('appointment'); }}
                         >
-                          <CheckCircle2 size={14} />
+                          <Eye size={10} />
                         </button>
-                      )}
-                      {apt.status === 'Confirmed' && (
                         <button 
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded" 
-                          title="Check In"
-                          onClick={() => handleStatusUpdate(apt.id, 'CheckedIn')}
+                          className="w-5 h-5 flex items-center justify-center bg-[#17a2b8] text-white rounded-sm shadow-sm hover:bg-[#138496] transition-colors" 
+                          title="Edit"
+                          onClick={() => { setSelectedItem(apt); setShowModal('appointment'); }}
                         >
-                          <UserPlus size={14} />
+                          <Edit size={10} />
                         </button>
-                      )}
-                      <button 
-                        className="p-1.5 text-primary hover:bg-primary/10 rounded" 
-                        title="Edit"
-                        onClick={() => { setSelectedItem(apt); setShowModal('appointment'); }}
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button 
-                        className="p-1.5 text-destructive hover:bg-destructive/10 rounded" 
-                        title="Cancel"
-                        onClick={() => { setSelectedItem(apt); setShowModal('cancel'); }}
-                      >
-                        <XCircle size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredAppointments.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Calendar size={48} className="opacity-10" />
-                      <p className="text-sm font-semibold italic">No appointments found for this selection</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                        <button className="w-5 h-5 flex items-center justify-center bg-[#28a745] text-white rounded-sm shadow-sm" title="Print"><Printer size={10} /></button>
+                        <button 
+                          className="w-5 h-5 flex items-center justify-center bg-[#dc3545] text-white rounded-sm shadow-sm hover:bg-[#c82333] transition-colors" 
+                          title="Cancel"
+                          onClick={() => { setSelectedItem(apt); setShowModal('cancel'); }}
+                        >
+                          <XCircle size={10} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredAppointments.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <Calendar size={48} className="opacity-10" />
+                        <p className="text-sm font-semibold italic">No appointments found for this selection</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
+      </div>
+
+      {/* Pagination */}
+      <div className="bg-card border border-border p-2 flex items-center justify-between text-[10px] font-bold">
+        <div className="text-muted-foreground uppercase tracking-wider">Total Appointments: {pagination.total}</div>
+        <div className="flex gap-2">
+          <button 
+            disabled={pagination.page === 0} 
+            onClick={() => {
+              const newPage = pagination.page - 1;
+              setPagination(prev => ({ ...prev, page: newPage }));
+              fetchData();
+            }}
+            className="px-3 py-1 bg-muted hover:bg-primary hover:text-white transition-colors disabled:opacity-50 uppercase tracking-tighter"
+          >
+            Previous
+          </button>
+          <span className="flex items-center px-4 bg-primary/10 text-primary rounded-sm">Page {pagination.page + 1}</span>
+          <button 
+            disabled={(pagination.page + 1) * pagination.size >= pagination.total} 
+            onClick={() => {
+              const newPage = pagination.page + 1;
+              setPagination(prev => ({ ...prev, page: newPage }));
+              fetchData();
+            }}
+            className="px-3 py-1 bg-muted hover:bg-primary hover:text-white transition-colors disabled:opacity-50 uppercase tracking-tighter"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Appointment Modal */}

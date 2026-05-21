@@ -407,141 +407,6 @@ export const getApiDepartmentsSearch = async (queryParams?: any) => {
 };
 
 /**
- * Create Appointment V1
- */
-export const getApiV1Appointments = async (queryParams?: any) => {
-  let endpoint = `/api/v1/appointments`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Create a new appointment
- */
-export const postApiV1Appointments = async (data?: any) => {
-  let endpoint = `/api/v1/appointments`;
-  
-  return apiRequest(endpoint, {
-    method: 'POST', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Get Appointment By Id
- */
-export const getApiV1AppointmentsByid = async (id: string, queryParams?: any) => {
-  let endpoint = `/api/v1/appointments/${id}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Update Appointment V1
- */
-export const putApiV1AppointmentsByid = async (id: string, data?: any) => {
-  let endpoint = `/api/v1/appointments/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'PUT', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Update appointment
- */
-export const deleteApiV1AppointmentsByid = async (id: string) => {
-  let endpoint = `/api/v1/appointments/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'DELETE'
-  });
-};
-
-/**
- * Update appointment status
- */
-export const getApiV1AppointmentsDaily = async (queryParams?: any) => {
-  let endpoint = `/api/v1/appointments/daily`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Method Summary
- */
-export const getApiV1AppointmentsPatientBypatientId = async (patientId: string, queryParams?: any) => {
-  let endpoint = `/api/v1/appointments/patient/${patientId}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Method Summary
- */
-export const getApiV1AppointmentsDoctorBydoctorId = async (doctorId: string, queryParams?: any) => {
-  let endpoint = `/api/v1/appointments/doctor/${doctorId}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Method Summary
- */
-export const getApiV1AppointmentsSearch = async (queryParams?: any) => {
-  let endpoint = `/api/v1/appointments/search`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
  * List Assets - Masters
  */
 export const getApiV1AssetsMasters = async (queryParams?: any) => {
@@ -2600,6 +2465,86 @@ export const deleteApiV1PatientsByid = async (id: string) => {
 };
 
 /**
+ * Retrieves a paginated list of all appointments with filters
+ */
+export const getApiV1Appointments = async (queryParams?: any) => {
+  const endpoint = `/api/v1/appointments`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Create a new appointment
+ */
+export const postApiV1Appointments = async (queryParams: any) => {
+  const endpoint = `/api/v1/appointments`;
+  return apiRequest(endpoint, { method: 'POST', queryParams });
+};
+
+/**
+ * Retrieves details of a specific appointment
+ */
+export const getApiV1AppointmentsByid = async (id: string | number) => {
+  const endpoint = `/api/v1/appointments/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Update appointment
+ */
+export const putApiV1AppointmentsByid = async (id: string | number, data: any) => {
+  const endpoint = `/api/v1/appointments/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Deletes an appointment record
+ */
+export const deleteApiV1AppointmentsByid = async (id: string | number) => {
+  const endpoint = `/api/v1/appointments/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
+};
+
+/**
+ * Update appointment status
+ */
+export const patchApiV1AppointmentsByidStatus = async (id: string | number, queryParams: any) => {
+  const endpoint = `/api/v1/appointments/${id}/status`;
+  return apiRequest(endpoint, { method: 'PATCH', queryParams });
+};
+
+/**
+ * Retrieves all appointments scheduled for a specific date
+ */
+export const getApiV1AppointmentsDaily = async (queryParams: any) => {
+  const endpoint = `/api/v1/appointments/daily`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Retrieves all appointments for a specific doctor
+ */
+export const getApiV1AppointmentsDoctorBydoctorId = async (doctorId: string | number, queryParams?: any) => {
+  const endpoint = `/api/v1/appointments/doctor/${doctorId}`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Retrieves all appointments for a specific patient
+ */
+export const getApiV1AppointmentsPatientBypatientId = async (patientId: string | number, queryParams?: any) => {
+  const endpoint = `/api/v1/appointments/patient/${patientId}`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Filters appointments by patient, doctor, department, date range, and status
+ */
+export const getApiV1AppointmentsSearch = async (queryParams?: any) => {
+  const endpoint = `/api/v1/appointments/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
  * Update patient
  */
 export const getApiV1PatientsSearchByPhone = async (queryParams?: any) => {
@@ -2770,17 +2715,6 @@ export const postApiTelemedicineInitiate = async (data?: any) => {
   
   return apiRequest(endpoint, {
     method: 'POST', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Method Summary
- */
-export const patchApiV1AppointmentsByidStatus = async (id: string, data?: any) => {
-  let endpoint = `/api/v1/appointments/${id}/status`;
-  
-  return apiRequest(endpoint, {
-    method: 'PATCH', body: JSON.stringify(data || {})
   });
 };
 
