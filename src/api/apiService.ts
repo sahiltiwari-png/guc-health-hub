@@ -2255,62 +2255,6 @@ export const deleteApiInventoryPharmacyStockByid = async (id: string) => {
 };
 
 /**
- * Get Ipd By Id V1
- */
-export const getApiV1Ipd = async (queryParams?: any) => {
-  let endpoint = `/api/v1/ipd`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Get Ipd By Id V1
- */
-export const getApiV1IpdByid = async (id: string, queryParams?: any) => {
-  let endpoint = `/api/v1/ipd/${id}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Update Ipd V1
- */
-export const putApiV1IpdByid = async (id: string, data?: any) => {
-  let endpoint = `/api/v1/ipd/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'PUT', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Update admission
- */
-export const deleteApiV1IpdByid = async (id: string) => {
-  let endpoint = `/api/v1/ipd/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'DELETE'
-  });
-};
-
-/**
  * Create Ward
  */
 export const postApiV1IpdWards = async (data?: any) => {
@@ -2388,34 +2332,6 @@ export const getApiV1IpdBedsAvailable = async (queryParams?: any) => {
  */
 export const getApiV1IpdBedsBybedId = async (bedId: string, queryParams?: any) => {
   let endpoint = `/api/v1/ipd/beds/${bedId}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Admit Patient
- */
-export const postApiV1IpdAdmit = async (data?: any) => {
-  let endpoint = `/api/v1/ipd/admit`;
-  
-  return apiRequest(endpoint, {
-    method: 'POST', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Admit patient
- */
-export const getApiV1IpdAdmissionsSearch = async (queryParams?: any) => {
-  let endpoint = `/api/v1/ipd/admissions/search`;
   
   if (queryParams) {
     const searchParams = new URLSearchParams(queryParams);
@@ -2555,6 +2471,54 @@ export const deleteApiV1OpdByid = async (id: string | number) => {
 export const postApiV1OpdVitalsByopdVisitId = async (opdVisitId: string | number, queryParams: any) => {
   const endpoint = `/api/v1/opd/vitals/${opdVisitId}`;
   return apiRequest(endpoint, { method: 'POST', queryParams });
+};
+
+/**
+ * Retrieves a paginated list of all IPD admissions
+ */
+export const getApiV1Ipd = async (queryParams?: any) => {
+  const endpoint = `/api/v1/ipd`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Retrieves details of a specific IPD admission
+ */
+export const getApiV1IpdByid = async (id: string | number) => {
+  const endpoint = `/api/v1/ipd/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Update admission
+ */
+export const putApiV1IpdByid = async (id: string | number, data: any) => {
+  const endpoint = `/api/v1/ipd/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Deletes an IPD admission record
+ */
+export const deleteApiV1IpdByid = async (id: string | number) => {
+  const endpoint = `/api/v1/ipd/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
+};
+
+/**
+ * Search admissions
+ */
+export const getApiV1IpdAdmissionsSearch = async (queryParams?: any) => {
+  const endpoint = `/api/v1/ipd/admissions/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Admit patient
+ */
+export const postApiV1IpdAdmit = async (data: any) => {
+  const endpoint = `/api/v1/ipd/admit`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
 };
 
 /**

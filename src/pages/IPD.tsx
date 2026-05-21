@@ -4,7 +4,8 @@ import { Search, Edit, Eye, Printer, Plus, UserSearch, Bed, ClipboardList, LogOu
 import { 
   getIPDAdmissions, admitPatient, dischargePatient, 
   getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities, 
-  getAutoDepartments, getAutoUsers, extractArray, searchPatients
+  getAutoDepartments, getAutoUsers, extractArray, searchPatients,
+  getApiV1Ipd, getApiV1IpdByid, putApiV1IpdByid, postApiV1IpdAdmit, getApiV1IpdAdmissionsSearch
 } from "@/api/apiService";
 
 const IPD = () => {
@@ -13,6 +14,8 @@ const IPD = () => {
   const [searchUhid, setSearchUhid] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [pagination, setPagination] = useState({ page: 0, size: 10, total: 0 });
+  const [tableSearch, setTableSearch] = useState('');
 
   // Dynamic Lists
   const [departments, setDepartments] = useState([]);
@@ -47,21 +50,52 @@ const IPD = () => {
     fetchData();
   }, []);
 
+  const fetchIPDList = async (page = 0) => {
+    setLoading(true);
+    try {
+      const res = await getApiV1Ipd({ page, size: pagination.size });
+      if (res.ok) {
+        // Handle nested data.data.content for paginated response
+        const content = res.data?.data?.content || res.data?.content || extractArray(res);
+        setIpdList(content);
+        
+        const total = res.data?.data?.totalElements ?? res.data?.totalElements ?? 0;
+        setPagination(prev => ({ ...prev, page, total }));
+      } else {
+        setMessage({ type: 'error', text: 'Failed to fetch IPD list.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error loading IPD list.' });
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (activeTab === 'list') {
-      const fetchIPDList = async () => {
-        setLoading(true);
-        try {
-          const res = await getIPDAdmissions();
-          setIpdList(extractArray(res));
-        } catch (error) {
-          setMessage({ type: 'error', text: 'Failed to fetch IPD list.' });
-        }
-        setLoading(false);
-      };
-      fetchIPDList();
+      fetchIPDList(pagination.page);
     }
   }, [activeTab]);
+
+  const handleTableFilter = async () => {
+    setLoading(true);
+    try {
+      const res = await getApiV1IpdAdmissionsSearch({ 
+        filter: tableSearch, 
+        page: 0, 
+        size: pagination.size 
+      });
+      if (res.ok) {
+        const content = res.data?.data?.content || res.data?.content || extractArray(res);
+        setIpdList(content);
+        const total = res.data?.data?.totalElements ?? res.data?.totalElements ?? 0;
+        setPagination(prev => ({ ...prev, page: 0, total }));
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     uhid: '',
@@ -180,6 +214,35 @@ const IPD = () => {
     }
   };
 
+  const handleViewIPD = async (id: string | number) => {
+    setLoading(true);
+    try {
+      const res = await getApiV1IpdByid(id);
+      if (res.ok && res.data) {
+        const p = res.data;
+        setFormData(prev => ({
+          ...prev,
+          uhid: p.patient?.uhid || '',
+          patientName: p.patient?.fullName || '',
+          mobile: p.patient?.phoneNumber || '',
+          ageY: p.patient?.dateOfBirth ? (new Date().getFullYear() - new Date(p.patient.dateOfBirth).getFullYear()).toString() : '',
+          gender: p.patient?.gender || 'Male',
+          address: p.patient?.address || '',
+          doctorId: p.admittingDoctor?.id || '',
+          departmentId: p.department?.id || '',
+          provisionalDiagnosis: p.diagnosis || '',
+          admissionNumber: p.ipdNumber || '',
+        }));
+        setActiveTab('admit');
+        setMessage({ type: 'success', text: 'Details loaded!' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error fetching details.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAdmit = async () => {
     if (!formData.patientName) {
       setMessage({ type: 'error', text: 'Patient Name is required.' });
@@ -187,9 +250,29 @@ const IPD = () => {
     }
     setLoading(true);
     try {
-      await admitPatient(formData);
-      setMessage({ type: 'success', text: 'IPD Admission successful!' });
-      setActiveTab('list');
+      // Map form data to API format
+      const admitData = {
+        patientId: patient?.id, // assuming patient state is set from search
+        doctorId: formData.doctorId,
+        bedId: 1, // Example bedId
+        departmentId: formData.departmentId,
+        caseType: 'NORMAL',
+        triage: 'GREEN',
+        guardianName: formData.guardianName,
+        guardianPhone: formData.guardianMobile,
+        guardianRelation: formData.guardianRelation,
+        diagnosis: formData.provisionalDiagnosis,
+        admissionReason: formData.procedureTreatment,
+        advanceAmount: parseFloat(formData.fileCharge) || 0
+      };
+      
+      const res = await postApiV1IpdAdmit(admitData);
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'IPD Admission successful!' });
+        setActiveTab('list');
+      } else {
+        setMessage({ type: 'error', text: res.data?.message || 'Failed to create IPD admission.' });
+      }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Failed to create IPD admission.' });
     } finally {
@@ -242,11 +325,11 @@ const IPD = () => {
             <div className="flex flex-wrap items-center gap-3 bg-card p-3 border border-border rounded-md shadow-sm">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input className="hms-input pl-9 w-64" placeholder="Search by Name / UHID / IPD ID..." />
+                <input className="hms-input pl-9 w-64" placeholder="Search by Name / UHID / IPD ID..." value={tableSearch} onChange={e => setTableSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleTableFilter()} />
               </div>
               <select className="hms-select w-40"><option>All Wards</option><option>Ward-A</option><option>Ward-B</option><option>Ward-C</option><option>ICU</option><option>NICU</option></select>
               <select className="hms-select w-40"><option>All Status</option><option>Admitted</option><option>Critical</option><option>Stable</option><option>Discharged</option></select>
-              <button className="hms-btn-primary flex items-center gap-2">
+              <button className="hms-btn-primary flex items-center gap-2" onClick={handleTableFilter}>
                 <Search size={14} /> Filter
               </button>
             </div>
@@ -257,13 +340,13 @@ const IPD = () => {
                   <tr>
                     <th>S.No.</th>
                     <th>IPD ID</th>
-                    <th>UHID</th>
                     <th>Patient Name</th>
-                    <th>Age/Sex</th>
                     <th>Ward/Bed</th>
-                    <th>Doctor</th>
-                    <th>Department</th>
-                    <th>DOA</th>
+                    <th>Admission Date</th>
+                    <th>Triage</th>
+                    <th>Case Type</th>
+                    <th>Diagnosis</th>
+                    <th>Advance</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -271,27 +354,57 @@ const IPD = () => {
                 <tbody>
                   {Array.isArray(ipdList) && ipdList.length > 0 ? (
                     ipdList.map((p: any, index) => (
-                      <tr key={p.id}>
-                        <td>{index + 1}</td>
-                        <td className="font-medium text-primary">{p.admissionNumber}</td>
-                        <td>{p.uhid || 'N/A'}</td>
-                        <td className="font-semibold">{p.patientName || 'N/A'}</td>
-                        <td>{p.age || 'N/A'}/{p.gender ? p.gender[0] : 'N/A'}</td>
-                        <td>{p.bedId?.ward ? `${p.bedId.ward}/ ` : ''}<span className="font-medium">{p.bedId?.bedNumber || 'N/A'}</span></td>
-                        <td>{p.doctorName || 'N/A'}</td>
-                        <td>{p.departmentName || 'N/A'}</td>
-                        <td>{p.admissionDate ? new Date(p.admissionDate).toLocaleDateString() : 'N/A'}</td>
+                      <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                        <td>{pagination.page * pagination.size + index + 1}</td>
+                        <td className="font-bold text-primary">{p.ipdNumber}</td>
+                        <td className="font-semibold uppercase">
+                          <div className="flex flex-col">
+                            <span>{p.patient?.fullName || 'Walk-in / N/A'}</span>
+                            {p.guardianName && <span className="text-[9px] text-muted-foreground normal-case">G: {p.guardianName} ({p.guardianRelation})</span>}
+                          </div>
+                        </td>
                         <td>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            p.status === 'Discharged' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
+                          {p.bed ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium">{p.bed.bedNumber}</span>
+                              <span className="text-[9px] text-muted-foreground">{p.bed.ward?.name || 'General'}</span>
+                            </div>
+                          ) : <span className="text-muted-foreground italic text-[10px]">Unassigned</span>}
+                        </td>
+                        <td>
+                          <div className="flex flex-col">
+                            <span>{p.admissionDate ? new Date(p.admissionDate).toLocaleDateString('en-IN') : 'N/A'}</span>
+                            <span className="text-[9px] text-muted-foreground">{p.admissionDate ? new Date(p.admissionDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase shadow-sm border ${
+                            p.triage === 'RED' ? 'bg-red-50 border-red-200 text-red-700' : 
+                            p.triage === 'YELLOW' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 
+                            'bg-green-50 border-green-200 text-green-700'
+                          }`}>
+                            {p.triage || 'GREEN'}
+                          </span>
+                        </td>
+                        <td className="text-xs font-medium">{p.caseType || 'NORMAL'}</td>
+                        <td className="max-w-[150px] truncate text-[10px]" title={p.diagnosis}>{p.diagnosis || '-'}</td>
+                        <td>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-green-700">₹{p.advanceAmount?.toLocaleString('en-IN') || 0}</span>
+                            {p.insuranceProvider && <span className="text-[8px] text-blue-600 font-medium">INS: {p.insuranceProvider}</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                            p.status === 'DISCHARGED' ? 'bg-gray-100 text-gray-600' : 'bg-blue-600 text-white shadow-sm'
                           }`}>
                             {p.status}
                           </span>
                         </td>
-                        <td className="flex gap-2">
-                          <button title="View Profile" className="p-1 hover:bg-secondary rounded text-primary"><Eye size={14} /></button>
-                          <button title="Edit Details" className="p-1 hover:bg-secondary rounded text-primary"><Edit size={14} /></button>
-                          <button title="Print Admission Form" className="p-1 hover:bg-secondary rounded text-primary"><Printer size={14} /></button>
+                        <td className="flex gap-1.5 py-1">
+                          <button onClick={() => handleViewIPD(p.id)} title="View Profile" className="w-6 h-6 flex items-center justify-center bg-primary/10 text-primary rounded hover:bg-primary hover:text-white transition-colors"><Eye size={12} /></button>
+                          <button onClick={() => handleViewIPD(p.id)} title="Edit Details" className="w-6 h-6 flex items-center justify-center bg-green-50 text-green-600 rounded hover:bg-green-600 hover:text-white transition-colors"><Edit size={12} /></button>
+                          <button title="Print Form" className="w-6 h-6 flex items-center justify-center bg-blue-50 text-blue-600 rounded hover:bg-blue-600 hover:text-white transition-colors"><Printer size={12} /></button>
                         </td>
                       </tr>
                     ))
@@ -304,6 +417,28 @@ const IPD = () => {
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination */}
+              <div className="bg-muted/30 p-2 flex items-center justify-between border-t border-border text-[10px]">
+                <div>Total Records: {pagination.total}</div>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={pagination.page === 0} 
+                    onClick={() => fetchIPDList(pagination.page - 1)}
+                    className="px-2 py-1 bg-card border border-border disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="flex items-center px-2">Page {pagination.page + 1}</span>
+                  <button 
+                    disabled={(pagination.page + 1) * pagination.size >= pagination.total} 
+                    onClick={() => fetchIPDList(pagination.page + 1)}
+                    className="px-2 py-1 bg-card border border-border disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
