@@ -1700,73 +1700,6 @@ export const getApiDashboardPatientByuhid = async (uhid: string, queryParams?: a
 };
 
 /**
- * List V1 - labRoute
- */
-export const getApiV1DiagnosticsLab = async (queryParams?: any) => {
-  let endpoint = `/api/v1/diagnostics/lab`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * List V1 - labRoute
- */
-export const postApiV1DiagnosticsLab = async (data?: any) => {
-  let endpoint = `/api/v1/diagnostics/lab`;
-  
-  return apiRequest(endpoint, {
-    method: 'POST', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Get Lab By Id V1
- */
-export const getApiV1DiagnosticsLabByid = async (id: string, queryParams?: any) => {
-  let endpoint = `/api/v1/diagnostics/lab/${id}`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Update Lab V1
- */
-export const putApiV1DiagnosticsLabByid = async (id: string, data?: any) => {
-  let endpoint = `/api/v1/diagnostics/lab/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'PUT', body: JSON.stringify(data || {})
-  });
-};
-
-/**
- * Update V1 - labRoute
- */
-export const deleteApiV1DiagnosticsLabByid = async (id: string) => {
-  let endpoint = `/api/v1/diagnostics/lab/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'DELETE'
-  });
-};
-
-/**
  * Create Radiology V1
  */
 export const getApiV1DiagnosticsRadiology = async (queryParams?: any) => {
@@ -2542,6 +2475,70 @@ export const getApiV1AppointmentsPatientBypatientId = async (patientId: string |
 export const getApiV1AppointmentsSearch = async (queryParams?: any) => {
   const endpoint = `/api/v1/appointments/search`;
   return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * List V1 - labRoute
+ */
+export const getApiV1DiagnosticsLab = async (queryParams?: any) => {
+  const endpoint = `/api/v1/diagnostics/lab`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Create V1 - labRoute
+ */
+export const postApiV1DiagnosticsLab = async (data: any, queryParams: any) => {
+  const endpoint = `/api/v1/diagnostics/lab`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data), queryParams });
+};
+
+/**
+ * Get Lab Detail By Id
+ */
+export const getApiV1DiagnosticsLabByid = async (id: string | number) => {
+  const endpoint = `/api/v1/diagnostics/lab/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Update V1 - labRoute
+ */
+export const putApiV1DiagnosticsLabByid = async (id: string | number, data: any) => {
+  const endpoint = `/api/v1/diagnostics/lab/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Delete V1 - labRoute
+ */
+export const deleteApiV1DiagnosticsLabByid = async (id: string | number) => {
+  const endpoint = `/api/v1/diagnostics/lab/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
+};
+
+/**
+ * Search lab orders
+ */
+export const getApiV1DiagnosticsLabSearch = async (queryParams?: any) => {
+  const endpoint = `/api/v1/diagnostics/lab/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Record lab sample collection
+ */
+export const postApiV1DiagnosticsLabSampleByorderId = async (orderId: string | number, data: any) => {
+  const endpoint = `/api/v1/diagnostics/lab/sample/${orderId}`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * Record lab test result
+ */
+export const postApiV1DiagnosticsLabResultByorderId = async (orderId: string | number, data: any) => {
+  const endpoint = `/api/v1/diagnostics/lab/result/${orderId}`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
 };
 
 /**
