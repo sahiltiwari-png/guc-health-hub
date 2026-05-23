@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Heart, Thermometer, Wind, Droplets, Plus, X, Search, RefreshCw, Eye, History, AlertTriangle } from 'lucide-react';
+import { Activity, Heart, Thermometer, Wind, Droplets, Plus, X, Search, RefreshCw, Eye, History, AlertTriangle, Trash2, Printer } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { Trash2, Printer } from 'lucide-react';
-import { createVisitVitals, deleteVisitVitals, getGlobalVitals, getVisitVitals, getVitalIcon, getVitalsGlobal, getVitalsVisit, listDepartments, listVisits, updateVisitVitals } from "@/api/apiService";
+import { 
+  getApiV1ClinicalVitals, 
+  postApiV1ClinicalVitals, 
+  getApiV1ClinicalVitalsHistoryBypatientId,
+  deleteVisitVitals, 
+  getGlobalVitals, 
+  listDepartments, 
+  listVisits, 
+  updateVisitVitals 
+} from "@/api/apiService";
 
 type Tab = 'current' | 'history' | 'alerts' | 'configuration';
 
@@ -10,7 +18,6 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'current', label: 'Patient Vitals' },
   { key: 'history', label: 'Historical Trends' },
   { key: 'alerts', label: 'Abnormal Readings' },
-  { key: 'configuration', label: 'Global Vitals' },
 ];
 
 const Vitals = () => {
@@ -24,36 +31,41 @@ const Vitals = () => {
     globalVitals: [],
     visitVitals: [],
     visits: [],
-    departments: []
+    departments: [],
+    history: []
   });
 
   // UI States
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [globalRes, visitVitalsRes, visitsRes, deptsRes] = await Promise.all([
+      const [globalRes, clinicalVitalsRes, visitsRes, deptsRes] = await Promise.all([
         getGlobalVitals(),
-        getVisitVitals(),
+        getApiV1ClinicalVitals(),
         listVisits({ limit: 50 }),
         listDepartments()
       ]);
 
       const getArr = (res: any, key: string) => {
         if (!res.ok) return [];
-        const d = res.data?.data || res.data;
+        // The new API pattern usually returns { success, data: { content: [] } } or { success, data: [] }
+        const d = res.data?.content || res.data?.data || res.data;
         if (Array.isArray(d)) return d;
         if (d && typeof d === 'object') return d[key] || d.data || [];
         return [];
       };
 
-      setData({
+      setData(prev => ({
+        ...prev,
         globalVitals: getArr(globalRes, 'vitals'),
-        visitVitals: getArr(visitVitalsRes, 'visitVitals'),
+        visitVitals: getArr(clinicalVitalsRes, 'vitals'),
         visits: getArr(visitsRes, 'visits'),
         departments: getArr(deptsRes, 'departments')
-      });
+      }));
     } catch (error) {
       console.error('Error fetching vitals data:', error);
       toast({ title: 'Error', description: 'Failed to sync vitals data', variant: 'destructive' });
@@ -61,6 +73,24 @@ const Vitals = () => {
       setLoading(false);
     }
   };
+
+  const fetchHistory = async (patientId: string) => {
+    try {
+      const res = await getApiV1ClinicalVitalsHistoryBypatientId(patientId);
+      if (res.ok) {
+        const historyData = res.data?.content || res.data?.data || res.data || [];
+        setData(prev => ({ ...prev, history: Array.isArray(historyData) ? historyData : [] }));
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'history' && selectedPatientId) {
+      fetchHistory(selectedPatientId);
+    }
+  }, [tab, selectedPatientId]);
 
   useEffect(() => {
     fetchData();
@@ -73,7 +103,7 @@ const Vitals = () => {
         await updateVisitVitals(selectedItem.id, selectedItem);
         toast({ title: 'Success', description: 'Vitals updated' });
       } else {
-        await createVisitVitals(selectedItem);
+        await postApiV1ClinicalVitals(selectedItem);
         toast({ title: 'Success', description: 'Vitals recorded' });
       }
       setShowModal(null);
@@ -104,10 +134,50 @@ const Vitals = () => {
   };
 
   const isAbnormal = (name: string, value: any) => {
-    const config: any = data.globalVitals.find((v: any) => v.name === name);
-    if (!config || config.dataType !== 'number') return false;
     const val = parseFloat(value);
-    return val < config.normalMin || val > config.normalMax;
+    if (isNaN(val)) return false;
+
+    // Default ranges if no global config exists
+    const defaults: any = {
+      'weight': { min: 30, max: 150 },
+      'temperature': { min: 36, max: 38 },
+      'pulseRate': { min: 60, max: 100 },
+      'respiratoryRate': { min: 12, max: 20 },
+      'spo2': { min: 94, max: 100 },
+      'bloodPressure': { pattern: /^\d{2,3}\/\d{2,3}$/ }
+    };
+
+    if (name === 'bloodPressure' && typeof value === 'string') {
+      const parts = value.split('/');
+      if (parts.length === 2) {
+        const sys = parseInt(parts[0]);
+        const dia = parseInt(parts[1]);
+        return sys < 90 || sys > 140 || dia < 60 || dia > 90;
+      }
+      return false;
+    }
+
+    const config = data.globalVitals.find((v: any) => v.name?.toLowerCase().includes(name?.toLowerCase() || '')) || defaults[name];
+    if (!config) return false;
+    
+    const min = config.normalMin !== undefined ? config.normalMin : config.min;
+    const max = config.normalMax !== undefined ? config.normalMax : config.max;
+    
+    if (min !== undefined && val < min) return true;
+    if (max !== undefined && val > max) return true;
+    
+    return false;
+  };
+
+  const getAbnormalVitals = (vv: any) => {
+    const alerts = [];
+    if (isAbnormal('weight', vv.weight)) alerts.push(`Weight: ${vv.weight}`);
+    if (isAbnormal('temperature', vv.temperature)) alerts.push(`Temp: ${vv.temperature}`);
+    if (isAbnormal('pulseRate', vv.pulseRate)) alerts.push(`Pulse: ${vv.pulseRate}`);
+    if (isAbnormal('respiratoryRate', vv.respiratoryRate)) alerts.push(`Resp: ${vv.respiratoryRate}`);
+    if (isAbnormal('spo2', vv.spo2)) alerts.push(`SpO2: ${vv.spo2}`);
+    if (isAbnormal('bloodPressure', vv.bloodPressure)) alerts.push(`BP: ${vv.bloodPressure}`);
+    return alerts;
   };
 
   return (
@@ -120,7 +190,20 @@ const Vitals = () => {
             <input className="hms-input pl-7 w-48" placeholder="Search patient..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button className="hms-btn-primary flex items-center gap-1" onClick={() => {
-            setSelectedItem({ visitId: '', departmentId: '', vitals: {} });
+            setSelectedItem({ 
+              patientId: '', 
+              recordedAt: new Date().toISOString(),
+              weight: 0,
+              height: 0,
+              bloodPressure: '',
+              temperature: 0,
+              pulseRate: 0,
+              respiratoryRate: 0,
+              spo2: 0,
+              remark: '',
+              opdVisitId: null,
+              admissionId: null
+            });
             setShowModal('vitals');
           }}><Plus size={14} /> Record Vitals</button>
           <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
@@ -130,9 +213,9 @@ const Vitals = () => {
       <div className="grid grid-cols-6 gap-2 my-1">
         {[
           { label: 'Today Recorded', value: Array.isArray(data.visitVitals) ? data.visitVitals.length : 0, color: 'text-primary' },
-          { label: 'Abnormal Readings', value: Array.isArray(data.visitVitals) ? data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).length : 0, color: 'text-destructive' },
-          { label: 'Active Monitors', value: Array.isArray(data.globalVitals) ? data.globalVitals.length : 0, color: 'text-hms-success' },
-          { label: 'Critical Alerts', value: 0, color: 'text-destructive' },
+          { label: 'Abnormal Readings', value: Array.isArray(data.visitVitals) ? data.visitVitals.filter((vv: any) => getAbnormalVitals(vv).length > 0).length : 0, color: 'text-destructive' },
+          { label: 'Active Monitors', value: 7, color: 'text-hms-success' },
+          { label: 'Critical Alerts', value: Array.isArray(data.visitVitals) ? data.visitVitals.filter((vv: any) => (vv.spo2 > 0 && vv.spo2 < 90) || (vv.pulseRate > 0 && (vv.pulseRate < 40 || vv.pulseRate > 140))).length : 0, color: 'text-destructive' },
           { label: 'Patients in Queue', value: Array.isArray(data.visits) ? data.visits.filter((v: any) => v.visitStatus === 'Active').length : 0, color: 'text-hms-info' },
           { label: 'Compliance Rate', value: '98%', color: 'text-primary' },
         ].map((k, i) => (
@@ -162,36 +245,56 @@ const Vitals = () => {
           <>
             {tab === 'current' && (
               <table className="hms-table">
-                <thead><tr><th>Patient</th><th>Department</th><th>Recorded At</th><th>Vitals Summary</th><th>Recorded By</th><th>Actions</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Recorded At</th>
+                    <th>Weight</th>
+                    <th>Height</th>
+                    <th>BP</th>
+                    <th>Temp</th>
+                    <th>Pulse</th>
+                    <th>Resp</th>
+                    <th>SpO2</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {(Array.isArray(data.visitVitals) ? data.visitVitals : []).filter((vv: any) => vv.visitId?.patientId?.patientName?.toLowerCase().includes(search.toLowerCase())).map((vv: any) => (
+                  {(Array.isArray(data.visitVitals) ? data.visitVitals : []).filter((vv: any) => {
+                    const patientName = vv.patientId?.patientName || '';
+                    const uhid = vv.patientId?.uhid || '';
+                    const searchStr = search.toLowerCase();
+                    return patientName.toLowerCase().includes(searchStr) || 
+                           uhid.toLowerCase().includes(searchStr);
+                  }).map((vv: any) => (
                     <tr key={vv.id}>
                       <td>
-                        <div className="font-bold">{vv.visitId?.patientId?.patientName}</div>
-                        <div className="text-[10px] text-muted-foreground">UHID: {vv.visitId?.patientId?.uhid}</div>
+                        <div className="font-bold">{vv.patientId?.patientName || 'N/A'}</div>
+                        <div className="text-[10px] text-muted-foreground">UHID: {vv.patientId?.uhid || 'N/A'}</div>
                       </td>
-                      <td>{vv.departmentId?.name}</td>
-                      <td>{new Date(vv.createdAt).toLocaleString()}</td>
+                      <td>{vv.recordedAt ? new Date(vv.recordedAt).toLocaleString() : 'N/A'}</td>
+                      <td>{vv.weight} <span className="text-[10px] text-muted-foreground">kg</span></td>
+                      <td>{vv.height} <span className="text-[10px] text-muted-foreground">cm</span></td>
                       <td>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(vv.vitals || {}).map(([name, value]: [string, any]) => (
-                            <div key={name} className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${isAbnormal(name, value) ? 'bg-destructive/10 text-destructive border border-destructive/20' : 'bg-muted text-muted-foreground'}`}>
-                              {getVitalIcon(name)}
-                              <span>{name}: {value}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isAbnormal('Blood Pressure', vv.bloodPressure) ? 'bg-destructive/10 text-destructive' : 'bg-muted'}`}>
+                          {vv.bloodPressure || '-'}
+                        </span>
                       </td>
-                      <td>{vv.recordedBy?.name || 'Staff'}</td>
+                      <td>{vv.temperature}°C</td>
+                      <td>{vv.pulseRate} <span className="text-[10px] text-muted-foreground">bpm</span></td>
+                      <td>{vv.respiratoryRate}</td>
+                      <td>{vv.spo2}%</td>
                       <td>
                         <div className="flex gap-2">
-                          <button className="text-primary hover:bg-primary/10 p-1 rounded" onClick={() => {
+                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="View/Edit" onClick={() => {
                             setSelectedItem(vv);
                             setShowModal('vitals');
                           }}><Eye size={14} /></button>
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" onClick={() => handleDeleteVitals(vv.id)}><Trash2 size={14} /></button>
-                          <button className="text-muted-foreground hover:bg-muted p-1 rounded" onClick={() => window.print()}><Printer size={14} /></button>
-                          <button className="text-muted-foreground hover:bg-muted p-1 rounded"><History size={14} /></button>
+                          <button className="text-hms-info hover:bg-hms-info/10 p-1 rounded" title="History" onClick={() => {
+                            setSelectedPatientId(vv.patientId?.id || vv.patientId);
+                            setTab('history');
+                          }}><History size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteVitals(vv.id)}><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -200,37 +303,68 @@ const Vitals = () => {
               </table>
             )}
 
-            {tab === 'configuration' && (
-              <table className="hms-table">
-                <thead><tr><th>Vital Name</th><th>Unit</th><th>Data Type</th><th>Normal Range</th><th>Status</th></tr></thead>
-                <tbody>
-                  {(Array.isArray(data.globalVitals) ? data.globalVitals : []).map((gv: any) => (
-                    <tr key={gv.id}>
-                      <td className="font-bold flex items-center gap-2">
-                        {getVitalIcon(gv.name)} {gv.name}
-                      </td>
-                      <td>{gv.unit}</td>
-                      <td><span className="text-[10px] font-mono uppercase">{gv.dataType}</span></td>
-                      <td>{gv.normalMin} - {gv.normalMax}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${gv.isActive ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted'}`}>{gv.isActive ? 'Active' : 'Inactive'}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {tab === 'history' && (
+              <div className="p-4">
+                {!selectedPatientId ? (
+                  <div className="text-center py-10 text-muted-foreground text-xs uppercase font-bold tracking-widest">
+                    Select a patient from the list to view historical trends
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-muted/30 p-3 border border-border">
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Historical Vitals for Patient ID: {selectedPatientId}</h4>
+                      <button className="hms-btn-secondary text-[10px]" onClick={() => setSelectedPatientId(null)}>Clear Selection</button>
+                    </div>
+                    <table className="hms-table">
+                      <thead>
+                        <tr>
+                          <th>Date & Time</th>
+                          <th>Weight</th>
+                          <th>Height</th>
+                          <th>BP</th>
+                          <th>Temp</th>
+                          <th>Pulse</th>
+                          <th>Resp</th>
+                          <th>SpO2</th>
+                          <th>Recorded By</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.history.map((h: any) => (
+                          <tr key={h.id}>
+                            <td>{new Date(h.recordedAt).toLocaleString()}</td>
+                            <td>{h.weight} kg</td>
+                            <td>{h.height} cm</td>
+                            <td>{h.bloodPressure}</td>
+                            <td>{h.temperature}°C</td>
+                            <td>{h.pulseRate}</td>
+                            <td>{h.respiratoryRate}</td>
+                            <td>{h.spo2}%</td>
+                            <td>{h.recordedBy || 'System'}</td>
+                          </tr>
+                        ))}
+                        {data.history.length === 0 && (
+                          <tr><td colSpan={9} className="text-center py-4">No history found</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
 
             {tab === 'alerts' && (
               <div className="p-4 space-y-4">
-                {data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).map((vv: any) => (
+                {(Array.isArray(data.visitVitals) ? data.visitVitals : []).filter((vv: any) => getAbnormalVitals(vv).length > 0).map((vv: any) => (
                   <div key={vv.id} className="border border-destructive/20 bg-destructive/5 p-3 rounded flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="text-destructive" size={20} />
                       <div>
-                        <div className="font-bold text-sm">{vv.visitId?.patientId?.patientName} (UHID: {vv.visitId?.patientId?.uhid})</div>
-                        <div className="text-xs text-muted-foreground">Department: {vv.departmentId?.name} | Recorded: {new Date(vv.createdAt).toLocaleString()}</div>
+                        <div className="font-bold text-sm">{vv.patientId?.patientName} (UHID: {vv.patientId?.uhid})</div>
+                        <div className="text-xs text-muted-foreground">Recorded: {new Date(vv.recordedAt).toLocaleString()}</div>
                         <div className="flex gap-2 mt-1">
-                          {Object.entries(vv.vitals || {}).filter(([k, v]) => isAbnormal(k, v)).map(([k, v]) => (
-                            <span key={k} className="text-[10px] font-bold text-destructive underline decoration-dotted decoration-destructive/50">{k}: {v}</span>
+                          {getAbnormalVitals(vv).map((alert: string) => (
+                            <span key={alert} className="text-[10px] font-bold text-destructive underline decoration-dotted decoration-destructive/50">{alert}</span>
                           ))}
                         </div>
                       </div>
@@ -238,7 +372,7 @@ const Vitals = () => {
                     <button className="hms-btn-secondary text-[10px]">Acknowledge</button>
                   </div>
                 ))}
-                {data.visitVitals.filter((vv: any) => Object.entries(vv.vitals || {}).some(([k, v]) => isAbnormal(k, v))).length === 0 && (
+                {data.visitVitals.filter((vv: any) => getAbnormalVitals(vv).length > 0).length === 0 && (
                   <div className="text-center py-10 text-muted-foreground text-xs uppercase font-bold tracking-widest">No abnormal readings detected</div>
                 )}
               </div>
@@ -259,43 +393,75 @@ const Vitals = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Patient Visit</label>
-                  <select className="hms-select w-full" required value={selectedItem?.visitId?.id || selectedItem?.visitId} onChange={e => setSelectedItem({...selectedItem, visitId: e.target.value})} disabled={!!selectedItem?.id}>
-                    <option value="">-- Select Patient Visit --</option>
+                  <select 
+                    className="hms-select w-full" 
+                    required 
+                    value={selectedItem?.patientId?.id || selectedItem?.patientId || ''} 
+                    onChange={e => {
+                      const visit = data.visits.find((v: any) => v.patientId?.id === e.target.value || v.patientId === e.target.value);
+                      setSelectedItem({
+                        ...selectedItem, 
+                        patientId: e.target.value,
+                        opdVisitId: visit?.id,
+                        // If it's an IPD visit, we might set admissionId instead, 
+                        // but for now we'll assume visit is the primary link
+                      })
+                    }} 
+                    disabled={!!selectedItem?.id}
+                  >
+                    <option value="">-- Select Patient --</option>
                     {data.visits.map((v: any) => (
-                      <option key={v.id} value={v.id}>{v.patientId?.patientName} (UHID: {v.patientId?.uhid}) - {new Date(v.visitDate).toLocaleDateString()}</option>
+                      <option key={v.id} value={v.patientId?.id || v.patientId}>
+                        {v.patientId?.patientName} (UHID: {v.patientId?.uhid}) - {new Date(v.visitDate).toLocaleDateString()}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Department</label>
-                  <select className="hms-select w-full" required value={selectedItem?.departmentId?.id || selectedItem?.departmentId} onChange={e => setSelectedItem({...selectedItem, departmentId: e.target.value})} disabled={!!selectedItem?.id}>
-                    <option value="">-- Select Department --</option>
-                    {data.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Recorded At</label>
+                  <input 
+                    type="datetime-local" 
+                    className="hms-input w-full" 
+                    required 
+                    value={selectedItem?.recordedAt ? new Date(selectedItem.recordedAt).toISOString().slice(0, 16) : ''} 
+                    onChange={e => setSelectedItem({...selectedItem, recordedAt: new Date(e.target.value).toISOString()})} 
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-6 gap-y-4 bg-muted/10 p-4 rounded border border-border">
-                {data.globalVitals.map((gv: any) => (
-                  <div key={gv.id}>
-                    <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 flex items-center justify-between">
-                      <span>{gv.name} ({gv.unit})</span>
-                      {selectedItem?.vitals?.[gv.name] && isAbnormal(gv.name, selectedItem.vitals[gv.name]) && (
-                        <span className="text-[8px] text-destructive flex items-center gap-0.5"><AlertTriangle size={10} /> Abnormal</span>
-                      )}
-                    </label>
-                    <input 
-                      type={gv.dataType === 'number' ? 'number' : 'text'}
-                      step="any"
-                      className={`hms-input w-full ${selectedItem?.vitals?.[gv.name] && isAbnormal(gv.name, selectedItem.vitals[gv.name]) ? 'border-destructive/50 bg-destructive/5' : ''}`}
-                      value={selectedItem?.vitals?.[gv.name] || ''}
-                      onChange={e => setSelectedItem({
-                        ...selectedItem,
-                        vitals: { ...selectedItem.vitals, [gv.name]: e.target.value }
-                      })}
-                    />
-                  </div>
-                ))}
+              <div className="grid grid-cols-3 gap-4 bg-muted/10 p-4 rounded border border-border">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Weight (kg)</label>
+                  <input type="number" step="0.1" className="hms-input w-full" value={selectedItem?.weight || ''} onChange={e => setSelectedItem({...selectedItem, weight: parseFloat(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Height (cm)</label>
+                  <input type="number" step="0.1" className="hms-input w-full" value={selectedItem?.height || ''} onChange={e => setSelectedItem({...selectedItem, height: parseFloat(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Blood Pressure</label>
+                  <input type="text" className="hms-input w-full" placeholder="120/80" value={selectedItem?.bloodPressure || ''} onChange={e => setSelectedItem({...selectedItem, bloodPressure: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Temperature (°C)</label>
+                  <input type="number" step="0.1" className="hms-input w-full" value={selectedItem?.temperature || ''} onChange={e => setSelectedItem({...selectedItem, temperature: parseFloat(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Pulse Rate (bpm)</label>
+                  <input type="number" className="hms-input w-full" value={selectedItem?.pulseRate || ''} onChange={e => setSelectedItem({...selectedItem, pulseRate: parseInt(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Resp. Rate</label>
+                  <input type="number" className="hms-input w-full" value={selectedItem?.respiratoryRate || ''} onChange={e => setSelectedItem({...selectedItem, respiratoryRate: parseInt(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">SpO2 (%)</label>
+                  <input type="number" className="hms-input w-full" value={selectedItem?.spo2 || ''} onChange={e => setSelectedItem({...selectedItem, spo2: parseInt(e.target.value)})} />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Remark</label>
+                  <input type="text" className="hms-input w-full" value={selectedItem?.remark || ''} onChange={e => setSelectedItem({...selectedItem, remark: e.target.value})} />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">

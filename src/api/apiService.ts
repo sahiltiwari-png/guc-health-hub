@@ -2959,6 +2959,22 @@ export const getApiDashboardSuperAdmin = async (queryParams?: any) => {
 };
 
 /**
+ * List billing packages
+ */
+export const getApiV1BillingPackages = async (queryParams?: any) => {
+  const endpoint = `/api/v1/billing/packages`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * List billing groups
+ */
+export const getApiV1BillingGroups = async (queryParams?: any) => {
+  const endpoint = `/api/v1/billing/groups`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
  * Search lab orders
  */
 export const patchApiV1DiagnosticsLabOrdersByidResult = async (id: string, data?: any) => {
@@ -3077,7 +3093,7 @@ export const getApiV1RadiologyScans = async (queryParams?: any) => {
 };
 
 /**
- * Frontend radiology feed
+ * Frontend pharmacy inventory feed
  */
 export const getApiV1PharmacyInventory = async (queryParams?: any) => {
   let endpoint = `/api/v1/pharmacy/inventory`;
@@ -3094,7 +3110,7 @@ export const getApiV1PharmacyInventory = async (queryParams?: any) => {
 };
 
 /**
- * Frontend pharmacy inventory feed
+ * Frontend pharmacy dispense feed
  */
 export const getApiV1PharmacyDispenses = async (queryParams?: any) => {
   let endpoint = `/api/v1/pharmacy/dispenses`;

@@ -3,6 +3,16 @@ import { FlaskConical, Eye, Printer, Plus, Clock, X, Search, RefreshCw, Microsco
 import { useToast } from '@/components/ui/use-toast';
 import { getLabOrders, extractArray, getAutoAssetsMasters, getLabTatMonitor, listUsers, updateLabResultStatus, updateLabSampleStatus, createLabEntry } from "@/api/apiService";
 
+type Tab = 'samples' | 'reports' | 'tat' | 'equipment' | 'testmaster';
+
+const tabs: { key: Tab; label: string }[] = [
+  { key: 'samples', label: 'Samples' },
+  { key: 'reports', label: 'Reports' },
+  { key: 'tat', label: 'TAT Monitor' },
+  { key: 'equipment', label: 'Equipments' },
+  { key: 'testmaster', label: 'Test Masters' },
+];
+
 const Laboratory = () => {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('samples');

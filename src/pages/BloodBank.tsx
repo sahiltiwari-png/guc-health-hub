@@ -37,11 +37,41 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'camps', label: 'Donation Camps' },
 ];
 
+const Pagination = ({ current, total, onPageChange }: { current: number, total: number, onPageChange: (p: number) => void }) => {
+  if (total <= 1) return null;
+  return (
+    <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-muted/10">
+      <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+        Page {current + 1} of {total}
+      </div>
+      <div className="flex gap-2">
+        <button 
+          disabled={current === 0} 
+          onClick={() => onPageChange(current - 1)}
+          className="hms-btn-secondary py-1 px-3 text-[10px] disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button 
+          disabled={current >= total - 1} 
+          onClick={() => onPageChange(current + 1)}
+          className="hms-btn-secondary py-1 px-3 text-[10px] disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const BloodBank = () => {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('stock');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [page, setPage] = useState(0);
 
   // Data States
   const [data, setData] = useState({
@@ -52,34 +82,59 @@ const BloodBank = () => {
     groups: [],
     components: [],
     patients: [],
-    doctors: []
+    doctors: [],
+    totalPages: {
+      inventory: 1,
+      requests: 1,
+      donors: 1,
+      donations: 1
+    }
   });
 
-  const fetchData = async () => {
+  const fetchData = async (targetPage = page) => {
     setLoading(true);
     try {
-      const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes, iRes, dRes] = await Promise.all([
-        getBloodInventory(),
-        listBloodRequests(),
-        listBloodDonors(),
-        listBloodDonations(),
+      const params = { page: targetPage, size: 50 };
+      const [invRes, reqRes, donorRes, donRes, grpRes, compRes, patRes, docRes] = await Promise.all([
+        getBloodBankInventory(params),
+        listBloodRequests(params),
+        getBloodDonors(params),
+        getBloodBankDonations(params),
         listBloodGroups(),
         listBloodComponents(),
         getAutoPatients({ limit: 100 }),
-        listUsers({ role: 'Doctor' }),
-        getBloodBankInventory(),
-        getBloodBankDonations()
+        listUsers({ role: 'Doctor' })
       ]);
 
+      const getArr = (res: any, key: string) => {
+        if (!res?.ok) return [];
+        const d = res.data?.data || res.data;
+        if (!d) return [];
+        if (Array.isArray(d)) return d;
+        return d[key] || d.content || d.items || d.data || [];
+      };
+
+      const getPages = (res: any) => {
+        if (!res?.ok) return 1;
+        const d = res.data?.data || res.data;
+        return d?.totalPages || 1;
+      };
+
       setData({
-        inventory: extractArray(invRes).length > 0 ? extractArray(invRes) : extractArray(iRes),
-        requests: extractArray(reqRes),
-        donors: extractArray(donorRes),
-        donations: extractArray(donRes).length > 0 ? extractArray(donRes) : extractArray(dRes),
-        groups: extractArray(grpRes),
-        components: extractArray(compRes),
-        patients: extractArray(patRes),
-        doctors: extractArray(docRes)
+        inventory: getArr(invRes, 'inventory'),
+        requests: getArr(reqRes, 'requests'),
+        donors: getArr(donorRes, 'donors'),
+        donations: getArr(donRes, 'donations'),
+        groups: getArr(grpRes, 'groups'),
+        components: getArr(compRes, 'components'),
+        patients: getArr(patRes, 'patients'),
+        doctors: getArr(docRes, 'doctors'),
+        totalPages: {
+          inventory: getPages(invRes),
+          requests: getPages(reqRes),
+          donors: getPages(donorRes),
+          donations: getPages(donRes)
+        }
       });
     } catch (error) {
       console.error('Error fetching blood bank data:', error);
@@ -90,8 +145,8 @@ const BloodBank = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(page);
+  }, [page]);
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,7 +322,7 @@ const BloodBank = () => {
       {/* Tabs */}
       <div className="flex border-b border-border bg-card">
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
+          <button key={t.key} onClick={() => { setTab(t.key); setPage(0); }}
             className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
             {t.label}
           </button>
@@ -286,188 +341,187 @@ const BloodBank = () => {
               <table className="hms-table">
                 <thead><tr><th>Blood Group</th><th>Whole Blood</th><th>PRBC</th><th>Platelets</th><th>FFP</th><th>Cryo</th><th>Total Units</th><th>Status</th></tr></thead>
                 <tbody>
-                  {stockByGroup.map(s => (
-                    <tr key={s.name}>
-                      <td className="font-bold text-lg text-primary">{s.name}</td>
-                      <td>{s.components['Whole Blood']}</td>
-                      <td>{s.components['PRBC']}</td>
-                      <td>{s.components['Platelets']}</td>
-                      <td>{s.components['FFP']}</td>
-                      <td>{s.components['Cryoprecipitate']}</td>
-                      <td className="font-bold text-sm">{s.total}</td>
+                  {data.groups.map((g: any) => (
+                    <tr key={g.group || g.id}>
+                      <td className="font-bold text-lg text-primary">{g.group || g.name}</td>
+                      <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                      <td className="font-bold text-sm">{g.units !== undefined ? g.units : 0}</td>
                       <td>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${s.total < criticalThreshold ? 'bg-destructive text-destructive-foreground' : 'bg-hms-success text-hms-success-foreground'}`}>
-                          {s.total < criticalThreshold ? 'Critical' : 'Adequate'}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${(g.units !== undefined ? g.units : 0) < criticalThreshold ? 'bg-destructive text-destructive-foreground' : 'bg-hms-success text-hms-success-foreground'}`}>
+                          {(g.units !== undefined ? g.units : 0) < criticalThreshold ? 'Critical' : 'Adequate'}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {data.groups.length === 0 && (
+                    <tr><td colSpan={8} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No group data available</td></tr>
+                  )}
                 </tbody>
               </table>
             )}
 
             {tab === 'inventory' && (
-              <table className="hms-table">
-                <thead><tr><th>Bag Number</th><th>Group</th><th>Component</th><th>Expiry Date</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.inventory.filter((i: any) => 
-                    i.bloodGroup?.name.toLowerCase().includes(search.toLowerCase()) || 
-                    i.componentId?.componentType.toLowerCase().includes(search.toLowerCase()) ||
-                    i.currentStatus.toLowerCase().includes(search.toLowerCase())
-                  ).map((i: any) => (
-                    <tr key={i.id}>
-                      <td className="font-mono text-xs font-bold">{i.componentId?.donationId?.bagNumber || 'N/A'}</td>
-                      <td className="font-bold text-primary">{i.bloodGroup?.name}</td>
-                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{i.componentId?.componentType}</span></td>
-                      <td>{new Date(i.componentId?.expiryDate).toLocaleDateString()}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.currentStatus)}`}>{i.currentStatus}</span></td>
-                      <td>
-                        <div className="flex gap-2">
-                          <select className="hms-select text-[10px] py-0.5" value={i.currentStatus} onChange={(e) => handleUpdateInventoryStatus(i.id, e.target.value)}>
-                            <option value="Available">Available</option>
-                            <option value="Reserved">Reserved</option>
-                            <option value="Issued">Issued</option>
-                            <option value="Expired">Expired</option>
-                            <option value="Discarded">Discarded</option>
-                          </select>
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => {
-                            if (confirm('Delete this inventory record?')) {
-                              deleteBloodInventory(i.id).then(() => fetchData());
-                            }
-                          }}><Trash2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="hms-table">
+                  <thead><tr><th>Bag ID</th><th>Group</th><th>Volume (ML)</th><th>Donation Date</th><th>Expiry Date</th><th>Donor</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {data.inventory.filter((i: any) => 
+                      (i.bloodGroup || '').toLowerCase().includes(search.toLowerCase()) || 
+                      (i.bagId || '').toLowerCase().includes(search.toLowerCase()) ||
+                      (i.donorName || '').toLowerCase().includes(search.toLowerCase())
+                    ).map((i: any) => (
+                      <tr key={i.id}>
+                        <td className="font-mono text-xs font-bold">{i.bagId}</td>
+                        <td className="font-bold text-primary">{i.bloodGroup}</td>
+                        <td>{i.volumeInMl} ML</td>
+                        <td>{new Date(i.donationDate).toLocaleDateString()}</td>
+                        <td>{new Date(i.expiryDate).toLocaleDateString()}</td>
+                        <td className="font-semibold">{i.donorName || 'Unknown'}</td>
+                        <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => {
+                              if (confirm('Delete this inventory record?')) {
+                                deleteBloodInventory(i.id).then(() => fetchData());
+                              }
+                            }}><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination current={page} total={data.totalPages.inventory} onPageChange={setPage} />
+              </>
             )}
 
             {tab === 'donations' && (
-              <table className="hms-table">
-                <thead><tr><th>Donation #</th><th>Donor</th><th>Bag #</th><th>Group</th><th>Date</th><th>Quantity</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.donations.filter((d: any) => 
-                    d.donationNumber.toLowerCase().includes(search.toLowerCase()) ||
-                    d.bagNumber.toLowerCase().includes(search.toLowerCase()) ||
-                    `${d.donorId?.firstName} ${d.donorId?.lastName}`.toLowerCase().includes(search.toLowerCase())
-                  ).map((d: any) => (
-                    <tr key={d.id}>
-                      <td className="font-mono text-xs font-bold">{d.donationNumber}</td>
-                      <td>{d.donorId?.firstName} {d.donorId?.lastName}</td>
-                      <td className="font-mono text-xs font-bold">{d.bagNumber}</td>
-                      <td className="font-bold text-primary">{d.bloodGroup?.name}</td>
-                      <td>{new Date(d.donationDate).toLocaleDateString()}</td>
-                      <td>{d.quantityML} ML</td>
-                      <td>
-                        <button className="hms-btn-primary text-[10px] px-2 py-0.5 flex items-center gap-1" onClick={() => {
-                          setSelectedItem({ donationId: d.id, bloodGroup: d.bloodGroup?.id, componentType: 'Whole Blood', quantityML: d.quantityML, expiryDate: new Date(Date.now() + 35*24*60*60*1000).toISOString().split('T')[0] });
-                          setShowModal('component');
-                        }}><Plus size={10} /> Add Component</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="hms-table">
+                  <thead><tr><th>Bag ID</th><th>Donor</th><th>Group</th><th>Volume (ML)</th><th>Donation Date</th><th>Expiry Date</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {data.donations.filter((d: any) => 
+                      (d.bagId || '').toLowerCase().includes(search.toLowerCase()) ||
+                      (d.donorName || '').toLowerCase().includes(search.toLowerCase())
+                    ).map((d: any) => (
+                      <tr key={d.id}>
+                        <td className="font-mono text-xs font-bold">{d.bagId}</td>
+                        <td className="font-semibold">{d.donorName}</td>
+                        <td className="font-bold text-primary">{d.bloodGroup}</td>
+                        <td>{d.volumeInMl} ML</td>
+                        <td>{new Date(d.donationDate).toLocaleDateString()}</td>
+                        <td>{new Date(d.expiryDate).toLocaleDateString()}</td>
+                        <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(d.status)}`}>{d.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination current={page} total={data.totalPages.donations} onPageChange={setPage} />
+              </>
             )}
 
             {tab === 'donors' && (
-              <table className="hms-table">
-                <thead><tr><th>Donor ID</th><th>Name</th><th>Sex</th><th>Group</th><th>Phone</th><th>Last Donation</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.donors.filter((d: any) => `${d.firstName} ${d.lastName}`.toLowerCase().includes(search.toLowerCase()) || d.donorId.toLowerCase().includes(search.toLowerCase())).map((d: any) => (
-                    <tr key={d.id}>
-                      <td className="font-mono text-xs font-bold">{d.donorId}</td>
-                      <td className="font-semibold">{d.firstName} {d.lastName}</td>
-                      <td>{d.gender}</td>
-                      <td className="font-bold text-primary">{d.bloodGroup?.name}</td>
-                      <td>{d.phone}</td>
-                      <td>{d.lastDonationDate ? new Date(d.lastDonationDate).toLocaleDateString() : 'Never'}</td>
-                      <td className="font-bold">{d.totalDonations}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(d.status)}`}>{d.status}</span></td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Edit" onClick={() => {
-                            setSelectedItem(d);
-                            setShowModal('donor');
-                          }}><Edit size={14} /></button>
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteDonor(d.id)}><Trash2 size={14} /></button>
-                          <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Record Donation" onClick={() => {
-                            setSelectedItem({ donorId: d.id, donationNumber: `DN-${Date.now().toString().slice(-4)}`, donationDate: new Date().toISOString().split('T')[0], bagNumber: '', bloodGroup: d.bloodGroup?.id });
-                            setShowModal('donation');
-                          }}><Plus size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="hms-table">
+                  <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Bag ID</th><th>Last Donation</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {data.donors.filter((d: any) => (d.name || '').toLowerCase().includes(search.toLowerCase()) || (d.bagId || '').toLowerCase().includes(search.toLowerCase())).map((d: any, idx: number) => (
+                      <tr key={d.id || idx}>
+                        <td className="font-mono text-xs font-bold">{d.id}</td>
+                        <td className="font-semibold">{d.name}</td>
+                        <td className="font-bold text-primary">{d.bloodGroup}</td>
+                        <td className="font-mono text-xs">{d.bagId}</td>
+                        <td>{d.lastDonationDate ? new Date(d.lastDonationDate).toLocaleDateString() : 'Never'}</td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Edit" onClick={() => {
+                              setSelectedItem(d);
+                              setShowModal('donor');
+                            }}><Edit size={14} /></button>
+                            <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteDonor(d.id)}><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination current={page} total={data.totalPages.donors} onPageChange={setPage} />
+              </>
             )}
 
             {tab === 'requests' && (
-              <table className="hms-table">
-                <thead><tr><th>Req ID</th><th>Patient</th><th>Group</th><th>Component</th><th>Units</th><th>Requested By</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.requests.filter((r: any) => 
-                    r.patientId?.patientName?.toLowerCase().includes(search.toLowerCase()) ||
-                    r.bloodGroup?.name.toLowerCase().includes(search.toLowerCase()) ||
-                    r.status.toLowerCase().includes(search.toLowerCase())
-                  ).map((r: any) => (
-                    <tr key={r.id}>
-                      <td className="font-mono text-[10px] font-bold">{r.id.slice(-6).toUpperCase()}</td>
-                      <td>
-                        <div className="font-bold text-sm">{r.patientId?.patientName || r.patientId?.name || 'Unknown'}</div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-bold">UHID: {r.patientId?.uhid || r.patientId?.patientID || 'N/A'}</div>
-                      </td>
-                      <td className="font-bold text-primary">{r.bloodGroup?.name}</td>
-                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{r.componentType}</span></td>
-                      <td className="font-bold">{r.quantityUnits}</td>
-                      <td>{r.requestedBy?.name || 'Doctor'}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${r.quantityUnits > 2 ? 'bg-destructive text-destructive-foreground' : 'bg-muted'}`}>{r.quantityUnits > 2 ? 'Urgent' : 'Routine'}</span></td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(r.status)}`}>{r.status}</span></td>
-                      <td>
-                        <div className="flex gap-2">
-                          {r.status === 'Pending' && (
-                            <>
-                              <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Approve" onClick={() => handleUpdateStatus(r.id, 'Approved')}><CheckCircle2 size={14} /></button>
-                              <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Reject" onClick={() => handleUpdateStatus(r.id, 'Rejected')}><X size={14} /></button>
-                            </>
-                          )}
-                          {r.status === 'Approved' && (
-                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
-                              const availableBags = data.inventory.filter((i: any) => i.bloodGroup?.id === r.bloodGroup?.id && i.componentId?.componentType === r.componentType && i.currentStatus === 'Available');
-                              if (availableBags.length === 0) {
-                                toast({ title: 'Stock Error', description: 'No available units matching this request', variant: 'destructive' });
-                                return;
-                              }
-                              setSelectedItem({ requestId: r.id, inventoryId: availableBags[0].id, componentId: availableBags[0].componentId?.id, units: r.quantityUnits, bloodGroup: r.bloodGroup?.id, componentType: r.componentType });
-                              setShowModal('issue');
-                            }}>Issue Blood</button>
-                          )}
-                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteRequest(r.id)}><Trash2 size={14} /></button>
-                          <Printer size={14} className="text-muted-foreground cursor-pointer hover:text-primary transition-colors" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="hms-table">
+                  <thead><tr><th>Req ID</th><th>Patient</th><th>Group</th><th>Component</th><th>Units</th><th>Requested By</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {data.requests.filter((r: any) => 
+                      (r.patientId?.patientName || '').toLowerCase().includes(search.toLowerCase()) ||
+                      (r.bloodGroup?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                      (r.status || '').toLowerCase().includes(search.toLowerCase())
+                    ).map((r: any) => (
+                      <tr key={r.id}>
+                        <td className="font-mono text-[10px] font-bold">{r.id.slice(-6).toUpperCase()}</td>
+                        <td>
+                          <div className="font-bold text-sm">{r.patientId?.patientName || r.patientId?.name || 'Unknown'}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-bold">UHID: {r.patientId?.uhid || r.patientId?.patientID || 'N/A'}</div>
+                        </td>
+                        <td className="font-bold text-primary">{r.bloodGroup?.name}</td>
+                        <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{r.componentType}</span></td>
+                        <td className="font-bold">{r.quantityUnits}</td>
+                        <td>{r.requestedBy?.name || 'Doctor'}</td>
+                        <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${r.quantityUnits > 2 ? 'bg-destructive text-destructive-foreground' : 'bg-muted'}`}>{r.quantityUnits > 2 ? 'Urgent' : 'Routine'}</span></td>
+                        <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(r.status)}`}>{r.status}</span></td>
+                        <td>
+                          <div className="flex gap-2">
+                            {r.status === 'Pending' && (
+                              <>
+                                <button className="text-hms-success hover:bg-hms-success/10 p-1 rounded" title="Approve" onClick={() => handleUpdateStatus(r.id, 'Approved')}><CheckCircle2 size={14} /></button>
+                                <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Reject" onClick={() => handleUpdateStatus(r.id, 'Rejected')}><X size={14} /></button>
+                              </>
+                            )}
+                            {r.status === 'Approved' && (
+                              <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
+                                const availableBags = data.inventory.filter((i: any) => i.bloodGroup?.id === r.bloodGroup?.id && i.componentId?.componentType === r.componentType && i.currentStatus === 'Available');
+                                if (availableBags.length === 0) {
+                                  toast({ title: 'Stock Error', description: 'No available units matching this request', variant: 'destructive' });
+                                  return;
+                                }
+                                setSelectedItem({ requestId: r.id, inventoryId: availableBags[0].id, componentId: availableBags[0].componentId?.id, units: r.quantityUnits, bloodGroup: r.bloodGroup?.id, componentType: r.componentType });
+                                setShowModal('issue');
+                              }}>Issue Blood</button>
+                            )}
+                            <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteRequest(r.id)}><Trash2 size={14} /></button>
+                            <Printer size={14} className="text-muted-foreground cursor-pointer hover:text-primary transition-colors" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination current={page} total={data.totalPages.requests} onPageChange={setPage} />
+              </>
             )}
 
             {tab === 'expiry' && (
               <table className="hms-table">
-                <thead><tr><th>Bag Number</th><th>Group</th><th>Component</th><th>Quantity</th><th>Expiry Date</th><th>Status</th></tr></thead>
+                <thead><tr><th>Bag Number</th><th>Group</th><th>Volume (ML)</th><th>Expiry Date</th><th>Status</th></tr></thead>
                 <tbody>
-                  {data.components.filter((c: any) => new Date(c.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).map((c: any) => (
-                    <tr key={c.id}>
-                      <td className="font-mono text-xs font-bold">{c.donationId?.bagNumber || 'N/A'}</td>
-                      <td className="font-bold text-primary">{c.donationId?.bloodGroup?.name || 'N/A'}</td>
-                      <td><span className="text-[10px] border border-border px-1.5 py-0.5 rounded font-bold uppercase">{c.componentType}</span></td>
-                      <td>{c.quantityML} ML</td>
-                      <td className="text-destructive font-bold">{new Date(c.expiryDate).toLocaleDateString()}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(c.status)}`}>{c.status}</span></td>
+                  {data.inventory.filter((i: any) => {
+                    const expiry = new Date(i.expiryDate);
+                    const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                    return expiry < weekFromNow;
+                  }).map((i: any) => (
+                    <tr key={i.id}>
+                      <td className="font-mono text-xs font-bold">{i.bagId}</td>
+                      <td className="font-bold text-primary">{i.bloodGroup}</td>
+                      <td>{i.volumeInMl} ML</td>
+                      <td className="text-destructive font-bold">{new Date(i.expiryDate).toLocaleDateString()}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
                     </tr>
                   ))}
+                  {data.inventory.filter((i: any) => new Date(i.expiryDate) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No expiring units found</td></tr>
+                  )}
                 </tbody>
               </table>
             )}

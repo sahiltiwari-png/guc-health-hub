@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, createPharmacySupplier, extractArray, getGRNs, getInsuranceClaims, getPharmacyDispenses, getPharmacyInventory, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStock, getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, getStockTransfers, listMedicines } from "@/api/apiService";
-import {
+import { 
+  createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, 
+  createPharmacySupplier, extractArray, getGRNs, getInsuranceClaims, getPharmacyDispenses, 
+  getPharmacyInventory, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStock, 
+  getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, 
+  getStockTransfers, listMedicines,
+  getApiInventoryPharmacyStock,
+  postApiInventoryPharmacyStock,
+  putApiInventoryPharmacyStockByid,
+  deleteApiInventoryPharmacyStockByid,
+  getApiInventoryPharmacyStockSearch,
+  getApiV1PharmacyDispenses,
+  getApiV1PharmacyInventory
+} from "@/api/apiService";
+import { 
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
   Users, FileText, Eye, Printer, Search, BarChart3, ShieldCheck,
   Truck, Activity, Bell, Clock, ChevronDown, Download, ArrowLeftRight,
-  BookOpen, Receipt, Layers, ShoppingCart, Wrench, UserCheck, Archive
+  BookOpen, Receipt, Layers, ShoppingCart, Wrench, UserCheck, Archive,
+  Plus, X, History
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 /* ───────── DUMMY DATA ───────── */
 
@@ -226,25 +241,31 @@ const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
   </div>
 );
 
-const StockPanel = ({ stocks }: { stocks: any[] }) => (
+const StockPanel = ({ stocks, onAddStock }: { stocks: any[], onAddStock: () => void }) => (
   <div>
-    <div className="hms-section-header">Pharmacy Stock Summary</div>
+    <div className="hms-section-header flex justify-between items-center">
+      <span>Pharmacy Stock Summary</span>
+      <button className="hms-btn-primary text-[10px] py-1" onClick={onAddStock}><Plus size={12} /> Add Stock</button>
+    </div>
     <table className="hms-table">
       <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th></tr></thead>
       <tbody>
         {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s.id}>
+          <tr key={s.id || i}>
             <td>{i + 1}</td>
-            <td className="font-semibold">{s.medicineName}</td>
+            <td>
+              <div className="font-semibold">{s.medicineName}</div>
+              <div className="text-[9px] text-muted-foreground font-mono">Batch: {s.batchNumber}</div>
+            </td>
             <td>{s.category || 'General'}</td>
-            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{s.availableQuantity}</td>
-            <td>{s.unit || 'Units'}</td>
-            <td>₹{s.purchasePrice || 0}</td>
-            <td>₹{s.sellingPrice || s.mrp || 0}</td>
-            <td>₹{(s.availableQuantity * (s.purchasePrice || 0)).toLocaleString()}</td>
+            <td className={s.quantity < (s.reorderLevel || 50) ? 'text-destructive font-bold' : 'text-hms-success'}>{s.quantity}</td>
+            <td>Units</td>
+            <td>₹{s.unitPrice || 0}</td>
+            <td>₹{s.mrp || 0}</td>
+            <td>₹{(s.quantity * (s.unitPrice || 0)).toLocaleString()}</td>
           </tr>
         )) : (
-          <tr><td colSpan={8} className="text-center py-4">No stock data found</td></tr>
+          <tr><td colSpan={8} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No stock data found</td></tr>
         )}
       </tbody>
     </table>
@@ -276,14 +297,42 @@ const StockBatchWisePanel = ({ stocks }: { stocks: any[] }) => (
   </div>
 );
 
-const DispensingPanel = () => (
+const DispensingPanel = ({ dispenses }: { dispenses: any[] }) => (
   <div>
-    <div className="hms-section-header">Dispensing Tracking</div>
+    <div className="hms-section-header">Medication Dispensing Feed</div>
     <table className="hms-table">
-      <thead><tr><th>ID</th><th>Rx ID</th><th>Patient</th><th>UHID</th><th>Medicine & Qty</th><th>Pharmacist</th><th>Time</th><th>Amount</th><th>Payment</th></tr></thead>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Rx ID</th>
+          <th>Patient</th>
+          <th>UHID</th>
+          <th>Medicine & Qty</th>
+          <th>Pharmacist</th>
+          <th>Time</th>
+          <th>Amount</th>
+          <th>Payment</th>
+        </tr>
+      </thead>
       <tbody>
-        {/* Mock data for dispensing log */}
-        <tr><td colSpan={9} className="text-center py-4">No dispensing logs found</td></tr>
+        {dispenses.length > 0 ? dispenses.map((d, i) => (
+          <tr key={d.id || i}>
+            <td>{i + 1}</td>
+            <td className="font-mono text-[10px]">{d.orderNumber || d.prescriptionId || 'N/A'}</td>
+            <td>{d.patientName || d.patient?.fullName || 'N/A'}</td>
+            <td className="font-mono text-[10px]">{d.uhid || d.patient?.uhid || 'N/A'}</td>
+            <td>
+              <div className="font-semibold">{d.medicineName}</div>
+              <div className="text-[10px] text-muted-foreground">Qty: {d.quantity}</div>
+            </td>
+            <td>{d.pharmacistName || d.dispensedBy || 'N/A'}</td>
+            <td>{d.dispensedAt ? new Date(d.dispensedAt).toLocaleString() : 'N/A'}</td>
+            <td>₹{d.totalAmount || 0}</td>
+            <td><StatusBadge status={d.paymentStatus || 'Paid'} /></td>
+          </tr>
+        )) : (
+          <tr><td colSpan={9} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No active dispenses found</td></tr>
+        )}
       </tbody>
     </table>
   </div>
@@ -595,6 +644,9 @@ const Pharmacy = () => {
   ];
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const { toast } = useToast();
   
   // Data States
   const [medicines, setMedicines] = useState<any[]>([]);
@@ -613,7 +665,7 @@ const Pharmacy = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes, invRes] = await Promise.all([
+      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes, invRes, pharmacyStockRes, dispenseFeedRes, inventoryFeedRes] = await Promise.all([
         listMedicines(),
         getPharmacyStock(),
         getPharmacyPrescriptions(),
@@ -625,21 +677,33 @@ const Pharmacy = () => {
         getPharmacySuppliers(),
         getStockTransfers(),
         getStockAdjustments(),
-        getPharmacyInventory()
+        getPharmacyInventory(),
+        getApiInventoryPharmacyStock({ page: 0, size: 100 }),
+        getApiV1PharmacyDispenses(),
+        getApiV1PharmacyInventory({ page: 0, size: 100 })
       ]);
 
-      setMedicines(extractArray(mRes));
-      setStocks(extractArray(sRes));
-      setPrescriptions(extractArray(pRes));
-      setDispenses(extractArray(dRes));
-      setInvoices(extractArray(iRes));
-      setClaims(extractArray(cRes));
-      setOrders(extractArray(poRes));
-      setGrns(extractArray(gRes));
-      setSuppliers(extractArray(supRes));
-      setTransfers(extractArray(tRes));
-      setAdjustments(extractArray(aRes));
-      setInventory(extractArray(invRes));
+      const getArr = (res: any, key: string) => {
+        if (!res.ok) return [];
+        // Extract data based on the provided JSON structures
+        const d = res.data?.data || res.data;
+        if (!d) return [];
+        if (Array.isArray(d)) return d;
+        return d[key] || d.content || d.items || d.data || [];
+      };
+
+      setMedicines(getArr(mRes, 'medicines'));
+      setStocks(getArr(inventoryFeedRes, 'stock'));
+      setPrescriptions(getArr(pRes, 'prescriptions'));
+      setDispenses(getArr(dispenseFeedRes, 'dispenses'));
+      setInvoices(getArr(iRes, 'invoices'));
+      setClaims(getArr(cRes, 'claims'));
+      setOrders(getArr(poRes, 'purchaseOrders'));
+      setGrns(getArr(gRes, 'grns'));
+      setSuppliers(getArr(supRes, 'suppliers'));
+      setTransfers(getArr(tRes, 'transfers'));
+      setAdjustments(getArr(aRes, 'adjustments'));
+      setInventory(getArr(inventoryFeedRes, 'inventory'));
 
     } catch (e) {
       console.error('Error syncing pharmacy data:', e);
@@ -661,9 +725,24 @@ const Pharmacy = () => {
     'rx-items': <RxItemsPanel />,
     'medicine-master': <MedicineMasterPanel medicines={medicines} />,
     inventory: <InventoryPanel stocks={stocks} />,
-    stock: <StockPanel stocks={stocks} />,
+    stock: <StockPanel stocks={stocks} onAddStock={() => {
+      setSelectedItem({
+        medicineName: '',
+        batchNumber: '',
+        genericName: '',
+        manufacturer: '',
+        unitPrice: 0,
+        mrp: 0,
+        quantity: 0,
+        expiryDate: new Date().toISOString().split('T')[0],
+        reorderLevel: 10,
+        category: 'General',
+        active: true
+      });
+      setShowModal('addStock');
+    }} />,
     'stock-batchwise': <StockBatchWisePanel stocks={stocks} />,
-    dispensing: <DispensingPanel />,
+    dispensing: <DispensingPanel dispenses={dispenses} />,
     'dispense-records': <DispenseRecordsPanel dispenses={dispenses} />,
     invoices: <InvoicesPanel invoices={invoices} />,
     billing: <BillingPanel />,
@@ -678,6 +757,18 @@ const Pharmacy = () => {
     expiring: <ExpiryPanel stocks={stocks} />,
     audit: <AuditPanel />,
     reports: <ReportsPanel />,
+  };
+
+  const handleAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await postApiInventoryPharmacyStock(selectedItem);
+      toast({ title: 'Success', description: 'Stock added successfully' });
+      setShowModal(null);
+      fetchData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to add stock', variant: 'destructive' });
+    }
   };
 
   return (
@@ -732,6 +823,71 @@ const Pharmacy = () => {
       <div className="mt-2">
         {panelMap[activeTab]}
       </div>
+
+      {/* Modals */}
+      {showModal === 'addStock' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-2xl shadow-2xl rounded-sm overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Pill size={16} className="text-primary" /> Register New Pharmacy Stock</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAddStock} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Medicine Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.medicineName} onChange={e => setSelectedItem({...selectedItem, medicineName: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Batch Number</label>
+                  <input className="hms-input w-full" required value={selectedItem?.batchNumber} onChange={e => setSelectedItem({...selectedItem, batchNumber: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Generic Name</label>
+                  <input className="hms-input w-full" value={selectedItem?.genericName} onChange={e => setSelectedItem({...selectedItem, genericName: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Manufacturer</label>
+                  <input className="hms-input w-full" value={selectedItem?.manufacturer} onChange={e => setSelectedItem({...selectedItem, manufacturer: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Unit Price (₹)</label>
+                  <input type="number" step="0.01" className="hms-input w-full" required value={selectedItem?.unitPrice} onChange={e => setSelectedItem({...selectedItem, unitPrice: parseFloat(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">MRP (₹)</label>
+                  <input type="number" step="0.01" className="hms-input w-full" required value={selectedItem?.mrp} onChange={e => setSelectedItem({...selectedItem, mrp: parseFloat(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity</label>
+                  <input type="number" className="hms-input w-full" required value={selectedItem?.quantity} onChange={e => setSelectedItem({...selectedItem, quantity: parseInt(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Reorder Level</label>
+                  <input type="number" className="hms-input w-full" value={selectedItem?.reorderLevel} onChange={e => setSelectedItem({...selectedItem, reorderLevel: parseInt(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Expiry Date</label>
+                  <input type="date" className="hms-input w-full" required value={selectedItem?.expiryDate} onChange={e => setSelectedItem({...selectedItem, expiryDate: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Category</label>
+                  <select className="hms-select w-full" value={selectedItem?.category} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})}>
+                    <option value="General">General</option>
+                    <option value="Schedule H">Schedule H</option>
+                    <option value="Critical">Critical</option>
+                    <option value="Injectables">Injectables</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Register Stock</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
