@@ -9082,7 +9082,7 @@
         }
       }
     },
-    "/api/v1/registry/births": {
+    "/api/v1/registry/s": {
       "get": {
         "tags": [
           "Birth & Death Registry"

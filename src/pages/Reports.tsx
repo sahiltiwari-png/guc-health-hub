@@ -3,41 +3,41 @@ import {
   FileText, Download, Printer, Search, Calendar, Filter, 
   BarChart3, PieChart, TrendingUp, RefreshCw, ChevronRight, FileSpreadsheet
 } from 'lucide-react';
-import { apiRequest, extractArray, getReports } from "@/api/apiService";
-import { useToast } from '@/components/ui/use-toast';
+import { apiRequest, extractArray, getReports, postApiReportingGenerate, getApiReportingList } from "@/api/apiService";
 
+// ... (reportCategories stay same)
 const reportCategories = [
   { 
     title: 'Revenue & Collection', 
     icon: TrendingUp,
     reports: [
-      { name: 'OPD Collection Report', endpoint: '/api/reports/revenue/opd' },
-      { name: 'IPD Collection Report', endpoint: '/api/reports/revenue/ipd' },
-      { name: 'Pharmacy Sales Report', endpoint: '/api/reports/revenue/pharmacy' },
-      { name: 'Daily Revenue Summary', endpoint: '/api/reports/revenue/daily' },
-      { name: 'TPA/Insurance Report', endpoint: '/api/reports/revenue/tpa' }
+      { name: 'OPD Collection Report', type: 'REVENUE' },
+      { name: 'IPD Collection Report', type: 'REVENUE' },
+      { name: 'Pharmacy Sales Report', type: 'REVENUE' },
+      { name: 'Daily Revenue Summary', type: 'REVENUE' },
+      { name: 'TPA/Insurance Report', type: 'REVENUE' }
     ]
   },
   { 
     title: 'Clinical Reports', 
     icon: BarChart3,
     reports: [
-      { name: 'Patient Visit History', endpoint: '/api/reports/clinical/visits' },
-      { name: 'Diagnosis Summary', endpoint: '/api/reports/clinical/diagnosis' },
-      { name: 'Lab Test Analytics', endpoint: '/api/reports/clinical/lab' },
-      { name: 'Radiology Report Summary', endpoint: '/api/reports/clinical/radiology' },
-      { name: 'Discharge Summary Analytics', endpoint: '/api/reports/clinical/discharge' }
+      { name: 'Patient Visit History', type: 'CLINICAL' },
+      { name: 'Diagnosis Summary', type: 'CLINICAL' },
+      { name: 'Lab Test Analytics', type: 'CLINICAL' },
+      { name: 'Radiology Report Summary', type: 'CLINICAL' },
+      { name: 'Discharge Summary Analytics', type: 'CLINICAL' }
     ]
   },
   { 
     title: 'Operational Reports', 
     icon: PieChart,
     reports: [
-      { name: 'Staff Attendance Report', endpoint: '/api/reports/ops/attendance' },
-      { name: 'Inventory Consumption', endpoint: '/api/reports/ops/inventory' },
-      { name: 'Bed Occupancy Report', endpoint: '/api/reports/ops/beds' },
-      { name: 'Ambulance Trip Log', endpoint: '/api/reports/ops/ambulance' },
-      { name: 'Help Desk Ticket Analysis', endpoint: '/api/reports/ops/helpdesk' }
+      { name: 'Staff Attendance Report', type: 'OPERATIONAL' },
+      { name: 'Inventory Consumption', type: 'OPERATIONAL' },
+      { name: 'Bed Occupancy Report', type: 'OPERATIONAL' },
+      { name: 'Ambulance Trip Log', type: 'OPERATIONAL' },
+      { name: 'Help Desk Ticket Analysis', type: 'OPERATIONAL' }
     ]
   }
 ];
@@ -51,7 +51,7 @@ const Reports = () => {
   const fetchReports = async () => {
     setLoadingReport('initial');
     try {
-      const res = await getReports();
+      const res = await getApiReportingList();
       if (res.ok) setReportsList(extractArray(res));
     } catch (e) { console.error(e); }
     finally { setLoadingReport(null); }
@@ -60,24 +60,26 @@ const Reports = () => {
   useEffect(() => { fetchReports(); }, []);
 
 
-  const handleDownload = async (reportName: string, endpoint: string) => {
-    setLoading(reportName);
+  const handleDownload = async (reportName: string, reportType: string) => {
+    setLoadingReport(reportName);
     try {
-      // In a real app, this would be a blob download
-      const res = await apiRequest(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ ...dateRange, format: 'PDF' })
+      const res = await postApiReportingGenerate({
+        name: reportName,
+        type: reportType,
+        format: 'PDF',
+        generatedBy: 'Admin'
       });
       
       if (res.ok) {
         toast({ title: 'Success', description: `${reportName} generated and ready for download.` });
+        fetchReports();
       } else {
         toast({ title: 'Info', description: `Mock: ${reportName} exported to downloads folder.` });
       }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to generate report', variant: 'destructive' });
     } finally {
-      setLoading(null);
+      setLoadingReport(null);
     }
   };
 
@@ -127,8 +129,8 @@ const Reports = () => {
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => handleDownload(report.name, report.endpoint)}
-                      disabled={loading === report.name}
+                      onClick={() => handleDownload(report.name, report.type)}
+                      disabled={loadingReport === report.name}
                       className="p-1 hover:text-primary"
                       title="Download PDF"
                     >

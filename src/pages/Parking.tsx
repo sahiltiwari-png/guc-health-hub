@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Car, RefreshCw } from 'lucide-react';
-import { extractArray, getParkingEntries } from "@/api/apiService";
+import { extractArray, getParkingEntries, getApiV1ParkingDashboard, getApiV1ParkingEntries } from "@/api/apiService";
 
 const Parking = () => {
   const [entries, setEntries] = useState<any[]>([]);
+  const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchParking = async () => {
     setLoading(true);
     try {
-      const res = await getParkingEntries();
-      if (res.ok) setEntries(extractArray(res));
+      const [dashRes, entRes] = await Promise.all([
+        getApiV1ParkingDashboard(),
+        getApiV1ParkingEntries()
+      ]);
+      if (dashRes.ok) setDashboard(dashRes.data?.data || dashRes.data);
+      if (entRes.ok) setEntries(extractArray(entRes));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

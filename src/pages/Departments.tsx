@@ -6,27 +6,26 @@ import {
   Syringe, Zap, MonitorCheck, Droplets, Building2, DoorOpen, Users,
   ChefHat, Truck, AlertTriangle, Clock, CheckCircle2, XCircle, Search,
   BedDouble, Utensils, ShoppingCart, Timer, CircleDollarSign, LayoutGrid,
-  RefreshCw
+  RefreshCw, Trash2, Edit, Save, Plus, X
 } from 'lucide-react';
-import { getAutoDepartments, extractArray } from "@/api/apiService";
+import { 
+  getApiDepartments, 
+  getApiDepartmentsSearch, 
+  postApiDepartments, 
+  putApiDepartmentsByid, 
+  deleteApiDepartmentsByid,
+  extractArray,
+  apiRequest
+} from "@/api/apiService";
+import { toast } from "@/hooks/use-toast";
 
 // ── Department Data ──
 const clinicalDepts = [
-  { name: 'General Medicine', icon: Stethoscope, hod: 'Dr. Rajesh Kumar', staff: 24, beds: 60, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'General Surgery', icon: Scissors, hod: 'Dr. Anita Sharma', staff: 18, beds: 40, opd: 'Mon-Fri', status: 'Active' },
-  { name: 'Orthopedics', icon: Bone, hod: 'Dr. Vikram Singh', staff: 12, beds: 30, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'Cardiology', icon: Heart, hod: 'Dr. Suresh Menon', staff: 15, beds: 20, opd: 'Mon-Fri', status: 'Active' },
-  { name: 'Neurology', icon: Brain, hod: 'Dr. Priya Nair', staff: 10, beds: 15, opd: 'Mon-Thu', status: 'Active' },
-  { name: 'Nephrology', icon: Activity, hod: 'Dr. Arun Joshi', staff: 8, beds: 12, opd: 'Tue-Sat', status: 'Active' },
-  { name: 'Gastroenterology', icon: CircleDot, hod: 'Dr. Meena Gupta', staff: 9, beds: 14, opd: 'Mon-Fri', status: 'Active' },
-  { name: 'Gynecology & Obstetrics', icon: Baby, hod: 'Dr. Kavita Rao', staff: 20, beds: 35, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'Pediatrics', icon: Baby, hod: 'Dr. Sanjay Verma', staff: 16, beds: 25, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'Dermatology', icon: SmilePlus, hod: 'Dr. Neha Kapoor', staff: 6, beds: 0, opd: 'Mon-Fri', status: 'Active' },
-  { name: 'ENT', icon: Ear, hod: 'Dr. Rakesh Bhatia', staff: 8, beds: 10, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'Ophthalmology', icon: Eye, hod: 'Dr. Sunita Devi', staff: 7, beds: 8, opd: 'Mon-Fri', status: 'Active' },
-  { name: 'Psychiatry', icon: Brain, hod: 'Dr. Amit Saxena', staff: 5, beds: 10, opd: 'Mon-Wed-Fri', status: 'Active' },
-  { name: 'Oncology', icon: Shield, hod: 'Dr. Ritu Agarwal', staff: 12, beds: 18, opd: 'Mon-Sat', status: 'Active' },
-  { name: 'Urology', icon: Activity, hod: 'Dr. Pankaj Mishra', staff: 7, beds: 10, opd: 'Tue-Sat', status: 'Active' },
+  { name: 'General Medicine', icon: Stethoscope, hod: 'Dr. Rajesh Kumar', staff: 24, beds: 60, opd: 'Mon-Sat', status: 'Active', type: 'CLINICAL' },
+  { name: 'General Surgery', icon: Scissors, hod: 'Dr. Anita Sharma', staff: 18, beds: 40, opd: 'Mon-Fri', status: 'Active', type: 'CLINICAL' },
+  { name: 'Orthopedics', icon: Bone, hod: 'Dr. Vikram Singh', staff: 12, beds: 30, opd: 'Mon-Sat', status: 'Active', type: 'CLINICAL' },
+  { name: 'Cardiology', icon: Heart, hod: 'Dr. Suresh Menon', staff: 15, beds: 20, opd: 'Mon-Fri', status: 'Active', type: 'CLINICAL' },
+  { name: 'Neurology', icon: Brain, hod: 'Dr. Priya Nair', staff: 10, beds: 15, opd: 'Mon-Thu', status: 'Active', type: 'CLINICAL' },
 ];
 
 const canteenOrders = [
@@ -57,6 +56,15 @@ const canteenMenu = [
   { item: 'Samosa (2 pcs)', price: 30, category: 'Snack', available: true },
 ];
 
+const canteenTables = [
+  { id: 'T-01', seats: 4, status: 'Occupied', guest: 'John Doe', orderNo: 'ORD-1045', since: '12:15 PM' },
+  { id: 'T-02', seats: 2, status: 'Available', guest: '-', orderNo: '-', since: '-' },
+  { id: 'T-03', seats: 4, status: 'Occupied', guest: 'Jane Smith', orderNo: 'ORD-1046', since: '12:20 PM' },
+  { id: 'T-04', seats: 6, status: 'Reserved', guest: 'Dr. Kumar', orderNo: '-', since: '1:00 PM' },
+  { id: 'T-05', seats: 4, status: 'Occupied', guest: 'Staff Group', orderNo: 'ORD-1044', since: '12:00 PM' },
+  { id: 'T-06', seats: 2, status: 'Available', guest: '-', orderNo: '-', since: '-' },
+];
+
 const Departments = () => {
   const tabs = [
     { id: 'clinical', label: 'Clinical', icon: Stethoscope },
@@ -74,32 +82,72 @@ const Departments = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [infraData, setInfraData] = useState({ rooms: [], wards: [], kitchens: [] });
   const [loading, setLoading] = useState(false);
+  
+  // Pagination & Modal state
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editingDept, setEditingDept] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    headOfDepartment: '',
+    location: '',
+    contactNumber: '',
+    email: '',
+    totalBeds: 0,
+    availableBeds: 0,
+    active: true
+  });
 
-  const fetchData = async () => {
+  const fetchData = async (p = page, q = search) => {
     setLoading(true);
     try {
-      const [deptRes, wardsRes, bedsRes, kitchenRes] = await Promise.all([
-        getAutoDepartments(),
+      let deptRes;
+      if (q) {
+        deptRes = await getApiDepartmentsSearch({ query: q, page: p, size });
+      } else {
+        deptRes = await getApiDepartments({ page: p, size });
+      }
+
+      const [wardsRes, bedsRes, kitchenRes] = await Promise.all([
         apiRequest('/api/v1/ipd/wards'),
         apiRequest('/api/v1/ipd/beds'),
         apiRequest('/api/v1/kitchen/schedule')
       ]);
 
-      if (deptRes.ok) setDepartments(extractArray(deptRes));
+      if (deptRes.ok) {
+        setDepartments(extractArray(deptRes));
+        if (deptRes.data?.data?.totalPages) {
+          setTotalPages(deptRes.data.data.totalPages);
+        }
+      }
       
       setInfraData({
         wards: wardsRes.ok ? extractArray(wardsRes) : [],
-        rooms: bedsRes.ok ? extractArray(bedsRes) : [], // Mapping beds to "rooms" for now
+        rooms: bedsRes.ok ? extractArray(bedsRes) : [],
         kitchens: kitchenRes.ok ? extractArray(kitchenRes) : []
       });
 
-      // Add default mock departments if empty to ensure UI has content
       if (!deptRes.ok || extractArray(deptRes).length === 0) {
-        setDepartments(clinicalDepts.map((d, i) => ({ id: `mock-${i}`, name: d.name, type: 'CLINICAL', status: d.status, head: d.hod, staffCount: d.staff, beds: d.beds })));
+        if (!q && p === 0) {
+          setDepartments(clinicalDepts.map((d, i) => ({ 
+            id: `mock-${i}`, 
+            name: d.name, 
+            code: d.name.substring(0, 3).toUpperCase(),
+            active: true, 
+            headOfDepartment: d.hod,
+            totalBeds: d.beds,
+            type: d.type
+          })));
+        }
       }
 
     } catch (e) { 
       console.error('Error fetching departments:', e); 
+      toast({ title: "Error", description: "Failed to fetch departments", variant: "destructive" });
     } finally { 
       setLoading(false); 
     }
@@ -107,7 +155,78 @@ const Departments = () => {
 
   useEffect(() => { 
     fetchData(); 
-  }, []);
+  }, [page, size]);
+
+  const handleSearch = () => {
+    setPage(0);
+    fetchData(0, search);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let res;
+      if (editingDept) {
+        res = await putApiDepartmentsByid(editingDept.id, formData);
+      } else {
+        res = await postApiDepartments(formData);
+      }
+
+      if (res.ok) {
+        toast({ title: "Success", description: `Department ${editingDept ? 'updated' : 'created'} successfully` });
+        setShowModal(false);
+        setEditingDept(null);
+        setFormData({
+          name: '', code: '', description: '', headOfDepartment: '',
+          location: '', contactNumber: '', email: '', totalBeds: 0, availableBeds: 0, active: true
+        });
+        fetchData();
+      } else {
+        toast({ title: "Error", description: res.data?.message || "Operation failed", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this department?")) return;
+    setLoading(true);
+    try {
+      const res = await deleteApiDepartmentsByid(id);
+      if (res.ok) {
+        toast({ title: "Deleted", description: "Department removed successfully" });
+        fetchData();
+      } else {
+        toast({ title: "Error", description: "Failed to delete department", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (dept: any) => {
+    setEditingDept(dept);
+    setFormData({
+      name: dept.name || '',
+      code: dept.code || '',
+      description: dept.description || '',
+      headOfDepartment: dept.headOfDepartment || '',
+      location: dept.location || '',
+      contactNumber: dept.contactNumber || '',
+      email: dept.email || '',
+      totalBeds: dept.totalBeds || 0,
+      availableBeds: dept.availableBeds || 0,
+      active: dept.active ?? true
+    });
+    setShowModal(true);
+  };
 
 
   return (
@@ -118,13 +237,32 @@ const Departments = () => {
           Department Management
         </div>
         <div className="flex items-center gap-2">
-          <input
-            className="hms-input w-48"
-            placeholder="Search..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <button className="hms-btn-primary">+ Add Department</button>
+          <div className="relative">
+            <input
+              className="hms-input w-48 pr-8"
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            />
+            <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+          </div>
+          <button 
+            className="hms-btn-primary flex items-center gap-1"
+            onClick={() => {
+              setEditingDept(null);
+              setFormData({
+                name: '', code: '', description: '', headOfDepartment: '',
+                location: '', contactNumber: '', email: '', totalBeds: 0, availableBeds: 0, active: true
+              });
+              setShowModal(true);
+            }}
+          >
+            <Plus size={14} /> Add Department
+          </button>
+          <button className="hms-btn-secondary p-2" onClick={() => fetchData()}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 
@@ -162,10 +300,10 @@ const Departments = () => {
 
       {/* Tab Content */}
       <div className="bg-card border border-border">
-        {activeTab === 'clinical' && <ClinicalTable data={departments.filter(d => d.type === 'CLINICAL' || !d.type)} search={search} />}
-        {activeTab === 'support' && <SupportTable data={departments.filter(d => d.type === 'SUPPORT')} search={search} />}
-        {activeTab === 'diagnostic' && <DiagnosticTable data={departments.filter(d => d.type === 'DIAGNOSTIC')} search={search} />}
-        {activeTab === 'admin' && <AdminTable data={departments.filter(d => d.type === 'ADMIN')} search={search} />}
+        {activeTab === 'clinical' && <ClinicalTable data={departments.filter(d => d.type === 'CLINICAL' || !d.type)} onEdit={openEdit} onDelete={handleDelete} />}
+        {activeTab === 'support' && <SupportTable data={departments.filter(d => d.type === 'SUPPORT')} onEdit={openEdit} onDelete={handleDelete} />}
+        {activeTab === 'diagnostic' && <DiagnosticTable data={departments.filter(d => d.type === 'DIAGNOSTIC')} onEdit={openEdit} onDelete={handleDelete} />}
+        {activeTab === 'admin' && <AdminTable data={departments.filter(d => d.type === 'ADMIN')} onEdit={openEdit} onDelete={handleDelete} />}
         {activeTab === 'infrastructure' && (
           <div>
             <div className="flex gap-0 border-b border-border">
@@ -183,6 +321,134 @@ const Departments = () => {
         {activeTab === 'kitchen' && <KitchenTable data={infraData.kitchens} />}
         {activeTab === 'canteen' && <CanteenDashboard view={canteenView} setView={setCanteenView} />}
       </div>
+
+      {/* Pagination */}
+      {['clinical', 'support', 'diagnostic', 'admin'].includes(activeTab) && totalPages > 1 && (
+        <div className="flex items-center justify-between p-2 border-t border-border bg-card">
+          <div className="text-[10px] text-muted-foreground">
+            Page {page + 1} of {totalPages}
+          </div>
+          <div className="flex gap-1">
+            <button 
+              disabled={page === 0} 
+              onClick={() => setPage(p => p - 1)}
+              className="hms-btn-secondary px-2 py-1 text-[10px] disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button 
+              disabled={page >= totalPages - 1} 
+              onClick={() => setPage(p => p + 1)}
+              className="hms-btn-secondary px-2 py-1 text-[10px] disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card border border-border w-[500px] shadow-lg animate-in fade-in zoom-in duration-200">
+            <div className="hms-section-header flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 size={16} />
+                {editingDept ? 'Edit Department' : 'Add New Department'}
+              </div>
+              <button onClick={() => setShowModal(false)} className="hover:text-primary"><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSave} className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Dept Name *</label>
+                  <input 
+                    required 
+                    className="hms-input w-full" 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Code (Auto-gen)</label>
+                  <input 
+                    className="hms-input w-full" 
+                    placeholder="e.g. CARD"
+                    value={formData.code} 
+                    onChange={e => setFormData({...formData, code: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">HOD Name</label>
+                  <input 
+                    className="hms-input w-full" 
+                    value={formData.headOfDepartment} 
+                    onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Email</label>
+                  <input 
+                    type="email"
+                    className="hms-input w-full" 
+                    value={formData.email} 
+                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Contact</label>
+                  <input 
+                    className="hms-input w-full" 
+                    value={formData.contactNumber} 
+                    onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Location</label>
+                  <input 
+                    className="hms-input w-full" 
+                    value={formData.location} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Total Beds</label>
+                  <input 
+                    type="number"
+                    className="hms-input w-full" 
+                    value={formData.totalBeds} 
+                    onChange={e => setFormData({...formData, totalBeds: parseInt(e.target.value) || 0})} 
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-4">
+                  <input 
+                    type="checkbox" 
+                    id="active"
+                    checked={formData.active} 
+                    onChange={e => setFormData({...formData, active: e.target.checked})} 
+                  />
+                  <label htmlFor="active" className="text-[11px] font-semibold">Active Status</label>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-muted-foreground">Description</label>
+                <textarea 
+                  className="hms-input w-full h-16 resize-none" 
+                  value={formData.description} 
+                  onChange={e => setFormData({...formData, description: e.target.value})} 
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <button type="button" onClick={() => setShowModal(false)} className="hms-btn-secondary px-4">Cancel</button>
+                <button type="submit" disabled={loading} className="hms-btn-primary px-4 flex items-center gap-1">
+                  {loading ? <RefreshCw size={12} className="animate-spin" /> : <Save size={14} />}
+                  {editingDept ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -194,23 +460,28 @@ const SummaryCard = ({ label, value }: { label: string; value: number }) => (
   </div>
 );
 
-const ClinicalTable = ({ data, search }: { data: any[]; search: string }) => {
-  const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+const ClinicalTable = ({ data, onEdit, onDelete }: { data: any[]; onEdit: (d: any) => void; onDelete: (id: string) => void }) => {
   return (
     <table className="hms-table">
       <thead><tr>
-        <th>#</th><th>Department</th><th>Code</th><th>HOD</th><th>Status</th><th>Actions</th>
+        <th>#</th><th>Department</th><th>Code</th><th>HOD</th><th>Beds</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
-        {filtered.map((d, i) => {
+        {data.map((d, i) => {
           return (
             <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Stethoscope size={13} className="text-primary" />{d.name}</div></td>
+              <td><div className="flex items-center gap-1.5 font-semibold text-primary"><Stethoscope size={13} />{d.name}</div></td>
               <td className="font-mono text-[10px]">{d.code}</td>
-              <td>{d.hodName || 'N/A'}</td>
-              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
-              <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
+              <td>{d.headOfDepartment || 'N/A'}</td>
+              <td>{d.totalBeds || 0}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
+              <td>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => onEdit(d)} className="hms-btn-secondary p-1 text-primary"><Edit size={12} /></button>
+                  <button onClick={() => onDelete(d.id)} className="hms-btn-secondary p-1 text-destructive"><Trash2 size={12} /></button>
+                </div>
+              </td>
             </tr>
           );
         })}
@@ -219,23 +490,27 @@ const ClinicalTable = ({ data, search }: { data: any[]; search: string }) => {
   );
 };
 
-const SupportTable = ({ data, search }: { data: any[]; search: string }) => {
-  const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+const SupportTable = ({ data, onEdit, onDelete }: { data: any[]; onEdit: (d: any) => void; onDelete: (id: string) => void }) => {
   return (
     <table className="hms-table">
       <thead><tr>
         <th>#</th><th>Unit</th><th>Code</th><th>Head</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
-        {filtered.map((d, i) => {
+        {data.map((d, i) => {
           return (
             <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Wrench size={13} className="text-primary" />{d.name}</div></td>
+              <td><div className="flex items-center gap-1.5 font-semibold text-primary"><Wrench size={13} />{d.name}</div></td>
               <td className="font-mono text-[10px]">{d.code}</td>
-              <td>{d.hodName || 'N/A'}</td>
-              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
-              <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
+              <td>{d.headOfDepartment || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
+              <td>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => onEdit(d)} className="hms-btn-secondary p-1 text-primary"><Edit size={12} /></button>
+                  <button onClick={() => onDelete(d.id)} className="hms-btn-secondary p-1 text-destructive"><Trash2 size={12} /></button>
+                </div>
+              </td>
             </tr>
           );
         })}
@@ -244,23 +519,27 @@ const SupportTable = ({ data, search }: { data: any[]; search: string }) => {
   );
 };
 
-const DiagnosticTable = ({ data, search }: { data: any[]; search: string }) => {
-  const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+const DiagnosticTable = ({ data, onEdit, onDelete }: { data: any[]; onEdit: (d: any) => void; onDelete: (id: string) => void }) => {
   return (
     <table className="hms-table">
       <thead><tr>
         <th>#</th><th>Department</th><th>Code</th><th>HOD</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
-        {filtered.map((d, i) => {
+        {data.map((d, i) => {
           return (
             <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Microscope size={13} className="text-primary" />{d.name}</div></td>
+              <td><div className="flex items-center gap-1.5 font-semibold text-primary"><Microscope size={13} />{d.name}</div></td>
               <td className="font-mono text-[10px]">{d.code}</td>
-              <td>{d.hodName || 'N/A'}</td>
-              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
-              <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
+              <td>{d.headOfDepartment || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
+              <td>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => onEdit(d)} className="hms-btn-secondary p-1 text-primary"><Edit size={12} /></button>
+                  <button onClick={() => onDelete(d.id)} className="hms-btn-secondary p-1 text-destructive"><Trash2 size={12} /></button>
+                </div>
+              </td>
             </tr>
           );
         })}
@@ -269,23 +548,27 @@ const DiagnosticTable = ({ data, search }: { data: any[]; search: string }) => {
   );
 };
 
-const AdminTable = ({ data, search }: { data: any[]; search: string }) => {
-  const filtered = data.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+const AdminTable = ({ data, onEdit, onDelete }: { data: any[]; onEdit: (d: any) => void; onDelete: (id: string) => void }) => {
   return (
     <table className="hms-table">
       <thead><tr>
         <th>#</th><th>Service</th><th>Code</th><th>Head</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
-        {filtered.map((d, i) => {
+        {data.map((d, i) => {
           return (
             <tr key={d.id}>
               <td>{i + 1}</td>
-              <td><div className="flex items-center gap-1.5"><Building2 size={13} className="text-primary" />{d.name}</div></td>
+              <td><div className="flex items-center gap-1.5 font-semibold text-primary"><Building2 size={13} />{d.name}</div></td>
               <td className="font-mono text-[10px]">{d.code}</td>
-              <td>{d.hodName || 'N/A'}</td>
-              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
-              <td><button className="hms-btn-secondary text-[10px] mr-1">Edit</button><button className="hms-btn-secondary text-[10px]">View</button></td>
+              <td>{d.headOfDepartment || 'N/A'}</td>
+              <td><span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${d.active ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted text-muted-foreground'}`}>{d.active ? 'Active' : 'Inactive'}</span></td>
+              <td>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => onEdit(d)} className="hms-btn-secondary p-1 text-primary"><Edit size={12} /></button>
+                  <button onClick={() => onDelete(d.id)} className="hms-btn-secondary p-1 text-destructive"><Trash2 size={12} /></button>
+                </div>
+              </td>
             </tr>
           );
         })}

@@ -1,19 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit, Eye, Printer, Plus, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getAutoPatients, patientRegister, getAutoGeoCountries, getAutoGeoStates, getAutoGeoCities, extractArray } from "@/api/apiService";
+import {
+  getAutoPatients,
+  patientRegister,
+  getAutoGeoCountries,
+  getAutoGeoStates,
+  getAutoGeoCities,
+  extractArray,
+  getApiV1PatientsVisits,
+  postApiV1PatientsVisitRegister
+} from "@/api/apiService";
 
 const PatientRegistration = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'list' | 'new'>('new');
+  const [activeTab, setActiveTab] = useState<'list' | 'new' | 'visits'>('new');
   const [mobile, setMobile] = useState('');
   const [patient, setPatient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
+  const [visits, setVisits] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
+
+  // Search filter
+  const [listSearch, setListSearch] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -78,22 +91,23 @@ const PatientRegistration = () => {
    }, [formData.stateId]);
 
   useEffect(() => {
-    const fetchPatients = async () => {
-      if (activeTab === 'list') {
-        setIsLoading(true);
-        try {
-          const res = await getAutoPatients();
-          if (res.ok) {
-            setPatients(extractArray(res));
-          }
-        } catch (e) {
-          console.error("Error fetching patients:", e);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        if (activeTab === 'list') {
+          const res = await getAutoPatients({ query: listSearch });
+          if (res.ok) setPatients(extractArray(res));
+        } else if (activeTab === 'visits') {
+          const res = await getApiV1PatientsVisits();
+          if (res.ok) setVisits(extractArray(res));
         }
-        setIsLoading(false);
+      } catch (e) {
+        console.error("Error fetching data:", e);
       }
+      setIsLoading(false);
     };
-    fetchPatients();
-  }, [activeTab]);
+    fetchData();
+  }, [activeTab, listSearch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -107,8 +121,9 @@ const PatientRegistration = () => {
     }
     setIsLoading(true);
     try {
-      const response = await getAutoPatients();
-      const foundPatient = response.data?.find((p: any) => p.mobile === mobile || p.phone === mobile);
+      const response = await getAutoPatients({ mobile });
+      const data = extractArray(response);
+      const foundPatient = data.find((p: any) => p.mobile === mobile || p.phone === mobile);
       if (foundPatient) {
         setPatient(foundPatient);
         toast({ title: "Patient Found", description: `Patient ${foundPatient.patientName || foundPatient.name} is already registered.` });
@@ -144,10 +159,22 @@ const PatientRegistration = () => {
     if (!patient) return;
     setIsLoading(true);
     try {
-      toast({ title: "Visit Created", description: `Successfully created ${visitType} visit for ${patient.patientName || patient.name}.` });
-      setMobile('');
-      setPatient(null);
-      setIsRegistered(false);
+      const visitData = {
+        patientId: patient.id,
+        visitType: visitType,
+        visitDate: new Date().toISOString(),
+        status: 'OPEN'
+      };
+      const res = await postApiV1PatientsVisitRegister(visitData);
+      if (res.ok) {
+        toast({ title: "Visit Created", description: `Successfully created ${visitType} visit for ${patient.patientName || patient.name}.` });
+        setMobile('');
+        setPatient(null);
+        setIsRegistered(false);
+        setActiveTab('visits');
+      } else {
+        throw new Error(res.data?.message || 'Visit creation failed');
+      }
     } catch (error: any) {
       toast({ title: "Visit Creation Failed", description: error.message, variant: "destructive" });
     }
@@ -159,13 +186,19 @@ const PatientRegistration = () => {
       <div className="flex gap-1 mb-2 border-b border-border pb-1">
         <button onClick={() => setActiveTab('list')} className={`px-3 py-1 text-xs font-semibold ${activeTab === 'list' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>Patient List</button>
         <button onClick={() => setActiveTab('new')} className={`px-3 py-1 text-xs font-semibold ${activeTab === 'new' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>New Registration / Visit</button>
+        <button onClick={() => setActiveTab('visits')} className={`px-3 py-1 text-xs font-semibold ${activeTab === 'visits' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>Recent Visits</button>
       </div>
 
       {activeTab === 'list' && (
         <div className="space-y-2">
           <div className="flex gap-2 mb-2">
-            <input className="hms-input w-64" placeholder="Search by UHID, Name, Mobile..." />
-            <button className="hms-btn-primary"><Search size={12} /> Search</button>
+            <input 
+              className="hms-input w-64" 
+              placeholder="Search by UHID, Name, Mobile..." 
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+            />
+            <button className="hms-btn-primary" onClick={() => setListSearch(listSearch)}><Search size={12} /> Search</button>
           </div>
           <table className="hms-table">
             <thead>
@@ -202,6 +235,48 @@ const PatientRegistration = () => {
               {patients.length === 0 && !isLoading && (
                 <tr>
                   <td colSpan={9} className="text-center py-4 text-muted-foreground">No patients found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'visits' && (
+        <div className="space-y-2">
+          <table className="hms-table">
+            <thead>
+              <tr>
+                <th>S.No.</th>
+                <th>Visit ID</th>
+                <th>Patient Name</th>
+                <th>UHID</th>
+                <th>Visit Type</th>
+                <th>Doctor</th>
+                <th>Date/Time</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visits.map((v, index) => (
+                <tr key={v.id}>
+                  <td>{index + 1}</td>
+                  <td className="font-bold">{v.visitId || v.id}</td>
+                  <td className="font-semibold">{v.patientName}</td>
+                  <td className="text-primary font-bold">{v.uhid}</td>
+                  <td><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${v.visitType === 'IPD' ? 'bg-hms-success text-hms-success-foreground' : 'bg-primary text-primary-foreground'}`}>{v.visitType}</span></td>
+                  <td>{v.doctorName || 'N/A'}</td>
+                  <td>{new Date(v.visitDate || v.createdAt).toLocaleString()}</td>
+                  <td><span className="text-[10px] font-bold uppercase">{v.status || 'OPEN'}</span></td>
+                  <td>
+                    <button className="hms-btn-secondary p-1" title="Print Slip"><Printer size={12} /></button>
+                  </td>
+                </tr>
+              ))}
+              {visits.length === 0 && !isLoading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-4 text-muted-foreground">No recent visits found.</td>
                 </tr>
               )}
             </tbody>

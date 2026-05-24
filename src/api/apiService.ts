@@ -2398,6 +2398,30 @@ export const deleteApiV1PatientsByid = async (id: string) => {
 };
 
 /**
+ * Get Patient Visits
+ */
+export const getApiV1PatientsVisits = async (queryParams?: any) => {
+  let endpoint = `/api/v1/patients/visits`;
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Register Patient Visit
+ */
+export const postApiV1PatientsVisitRegister = async (data?: any) => {
+  let endpoint = `/api/v1/patients/visit-register`;
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
+};
+
+/**
  * Retrieves a paginated list of all appointments with filters
  */
 export const getApiV1Appointments = async (queryParams?: any) => {
@@ -3805,10 +3829,11 @@ export const getAmbulanceAmbulances = getApiV1Ambulances;
 export const listAmbulances = getApiV1Ambulances;
 export const getAmbulanceTrips = getApiV1AmbulancesTrips;
 export const listAmbulanceTrips = getApiV1AmbulancesTrips;
-export const listAmbulanceMaintenances = async () => ({ data: [], status: 200, ok: true });
+export const getAmbulanceMaintenances = getApiV1AmbulancesMaintenances;
+export const listAmbulanceMaintenances = getApiV1AmbulancesMaintenances;
 export const createAmbulance = async (data: any) => apiRequest('/api/v1/ambulances', { method: 'POST', body: JSON.stringify(data) });
-export const createAmbulanceTrip = async (data: any) => apiRequest('/api/v1/ambulance/trips', { method: 'POST', body: JSON.stringify(data) });
-export const createAmbulanceMaintenance = async (data: any) => apiRequest('/api/v1/ambulance/maintenance', { method: 'POST', body: JSON.stringify(data) });
+export const createAmbulanceTrip = async (data: any) => apiRequest('/api/v1/ambulances/trips', { method: 'POST', body: JSON.stringify(data) });
+export const createAmbulanceMaintenance = async (data: any) => apiRequest('/api/v1/ambulances/maintenances', { method: 'POST', body: JSON.stringify(data) });
 export const updateAmbulance = async (id: string, data: any) => apiRequest(`/api/v1/ambulances/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteAmbulance = async (id: string) => apiRequest(`/api/v1/ambulances/${id}`, { method: 'DELETE' });
 
