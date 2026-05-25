@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Eye, Search, Plus, Users, Filter, X, Trash2, ChevronLeft, ChevronRight, RefreshCw, UserCheck, Shield, Network } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AddStaff from './AddStaff';
-import { deleteUsersById, extractArray, getAutoAdminRoles, getAutoUsers, getStaff, getTeamUnder } from "@/api/apiService";
+import { 
+  deleteUsersById, 
+  extractArray, 
+  getAutoAdminRoles, 
+  getAutoUsers, 
+  getStaff, 
+  getTeamUnder,
+  patchApiAdminUsersActive
+} from "@/api/apiService";
 
 type Tab = 'all' | 'doctors' | 'nurses' | 'hierarchy';
 
@@ -80,6 +88,20 @@ const Staff = () => {
       } catch (error: any) {
         toast({ title: "Error", description: error.message || "Failed to delete staff", variant: "destructive" });
       }
+    }
+  };
+
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await patchApiAdminUsersActive(id, !currentStatus);
+      if (res.ok) {
+        toast({ title: "Success", description: `User account ${!currentStatus ? 'activated' : 'deactivated'} successfully` });
+        fetchStaff();
+      } else {
+        throw new Error("Failed to update user status");
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
     }
   };
 
@@ -229,11 +251,14 @@ const Staff = () => {
                     </div>
                   </td>
                   <td>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                      s.status === 'Active' || !s.status ? 'bg-hms-success/10 text-hms-success' : 'bg-destructive/10 text-destructive'
-                    }`}>
-                      {s.status || 'Active'}
-                    </span>
+                    <button 
+                      onClick={() => handleToggleActive(s.id, s.active ?? true)}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase transition-colors ${
+                        (s.active ?? true) ? 'bg-hms-success/10 text-hms-success hover:bg-hms-success/20' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                      }`}
+                    >
+                      {(s.active ?? true) ? 'Active' : 'Inactive'}
+                    </button>
                   </td>
                   <td>
                     <div className="flex gap-1">
@@ -270,7 +295,11 @@ const Staff = () => {
                      <p className="text-xs text-muted-foreground">{viewingStaff.department_id?.name} Department</p>
                      <div className="flex gap-2 pt-2">
                         <span className="px-2 py-0.5 bg-muted rounded text-[10px] font-bold uppercase tracking-tighter">ID: {viewingStaff.employee_id}</span>
-                        <span className="px-2 py-0.5 bg-hms-success/10 text-hms-success rounded text-[10px] font-bold uppercase tracking-tighter">{viewingStaff.status || 'Active'}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter ${
+                          (viewingStaff.active ?? true) ? 'bg-hms-success/10 text-hms-success' : 'bg-destructive/10 text-destructive'
+                        }`}>
+                          {(viewingStaff.active ?? true) ? 'Active' : 'Inactive'}
+                        </span>
                      </div>
                   </div>
                </div>

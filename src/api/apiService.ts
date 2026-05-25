@@ -131,6 +131,86 @@ export const getApiError401 = async (queryParams?: any) => {
 };
 
 /**
+ * Bed Management - Search and filter beds
+ */
+export const getApiV1BedManagementBeds = async (queryParams?: any) => {
+  let endpoint = `/api/v1/bed-management/beds`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Bed Management - Create a new bed
+ */
+export const postApiV1BedManagementBeds = async (data: any, queryParams?: any) => {
+  let endpoint = `/api/v1/bed-management/beds`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data), queryParams });
+};
+
+/**
+ * Bed Management - Get bed details by ID
+ */
+export const getApiV1BedManagementBedsByid = async (id: string | number) => {
+  let endpoint = `/api/v1/bed-management/beds/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Bed Management - Update bed details
+ */
+export const putApiV1BedManagementBedsByid = async (id: string | number, data: any) => {
+  let endpoint = `/api/v1/bed-management/beds/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Bed Management - Delete a bed
+ */
+export const deleteApiV1BedManagementBedsByid = async (id: string | number) => {
+  let endpoint = `/api/v1/bed-management/beds/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
+};
+
+/**
+ * Bed Management - Get available beds by ward
+ */
+export const getApiV1BedManagementBedsAvailable = async (queryParams: { wardId: string | number }) => {
+  let endpoint = `/api/v1/bed-management/beds/available`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Bed Management - Assign a bed to a patient (Admit)
+ */
+export const postApiV1BedManagementAssign = async (data: any) => {
+  let endpoint = `/api/v1/bed-management/assign`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * Bed Management - Transfer patient to another bed
+ */
+export const postApiV1BedManagementTransfer = async (queryParams: { admissionId: string | number, newBedId: string | number }) => {
+  let endpoint = `/api/v1/bed-management/transfer`;
+  return apiRequest(endpoint, { method: 'POST', queryParams });
+};
+
+/**
+ * Bed Management - Release/Clear a bed manually
+ */
+export const postApiV1BedManagementReleaseBybedId = async (bedId: string | number) => {
+  let endpoint = `/api/v1/bed-management/release/${bedId}`;
+  return apiRequest(endpoint, { method: 'POST' });
+};
+
+/**
+ * Bed Management - Get bed assignment history
+ */
+export const getApiV1BedManagementLifecycleBybedId = async (bedId: string | number) => {
+  let endpoint = `/api/v1/bed-management/lifecycle/${bedId}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
  * Forbidden
  */
 export const getApiError403 = async (queryParams?: any) => {
@@ -3901,3 +3981,37 @@ export const createIpdAdmission = postApiV1IpdAdmit;
 export const createLabOrder = postApiV1DiagnosticsLabOrders;
 export const createRadiologyOrder = postApiV1DiagnosticsRadiologyOrders;
 export const createBillingInvoice = postApiV1BillingInvoices;
+
+/**
+ * Activate/Deactivate user account
+ */
+export const patchApiAdminUsersActive = async (id: string | number, active: boolean) => {
+  return apiRequest(`/api/admin/users/${id}/active?active=${active}`, {
+    method: 'PATCH'
+  });
+};
+
+/**
+ * Call patient for consultation
+ */
+export const postApiV1OpdCall = async (id: string | number) => {
+  return apiRequest(`/api/v1/opd/${id}/call`, {
+    method: 'POST'
+  });
+};
+
+/**
+ * Get OPD patient queue
+ */
+export const getApiV1OpdQueue = async (queryParams?: any) => {
+  let endpoint = `/api/v1/opd/queue`;
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, {
+    method: 'GET'
+  });
+};

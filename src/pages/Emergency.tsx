@@ -7,6 +7,13 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
 };
 
+const traumaBays = [
+  { bay: 'Trauma Bay 1', equipment: 'Ventilator, Monitor, Defibrillator', patient: 'Mohan Lal', status: 'Occupied' },
+  { bay: 'Trauma Bay 2', equipment: 'Monitor, Suction, Oxygen', patient: '-', status: 'Available' },
+  { bay: 'Trauma Bay 3', equipment: 'Ventilator, Monitor', patient: 'Rajesh Kumar', status: 'Occupied' },
+  { bay: 'Trauma Bay 4', equipment: 'Monitor, Oxygen', patient: '-', status: 'Available' },
+];
+
 const Emergency = () => {
   const tabs = ['Dashboard','Active Cases','Triage','Trauma Bay','Resuscitation','MLC Register','Waiting Area','Shift Handover'];
   const [tab, setTab] = useState('Dashboard');

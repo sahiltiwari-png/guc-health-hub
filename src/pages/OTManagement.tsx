@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage } from 'lucide-react';
+import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage, Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
-import { getOTBookings, extractArray } from "@/api/apiService";
+import { 
+  getOTBookings, 
+  extractArray,
+  getApiV1ClinicalOtSearch,
+  getAutoUsers,
+  getAutoDepartments
+} from "@/api/apiService";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const c: Record<string, string> = { 'Running': 'bg-green-700 text-white', 'Scheduled': 'bg-blue-700 text-white', 'Completed': 'bg-green-800 text-white', 'Preparing': 'bg-yellow-600 text-white', 'Cancelled': 'bg-red-700 text-white', 'Available': 'bg-green-700 text-white', 'Occupied': 'bg-red-700 text-white', 'Cleaning': 'bg-yellow-600 text-white', 'Emergency': 'bg-red-700 text-white', 'Elective': 'bg-blue-700 text-white', 'Done': 'bg-green-700 text-white', 'Pending': 'bg-yellow-600 text-white', 'GA': 'bg-purple-700 text-white', 'SA': 'bg-blue-700 text-white', 'LA': 'bg-green-700 text-white' };
@@ -47,11 +53,54 @@ const OTManagement = () => {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [surgeryMedia, setSurgeryMedia] = useState([
-    { id: 1, patient: 'Rajesh Kumar', surgery: 'CABG', type: 'Video', name: 'cabg_procedure_start.mp4', url: '#', date: '2024-03-15' },
-    { id: 2, patient: 'Mohan Lal', surgery: 'Lap Chole', type: 'Image', name: 'gallbladder_view.jpg', url: '#', date: '2024-03-15' },
-  ]);
+   const [uploading, setUploading] = useState(false);
+   const [surgeryMedia, setSurgeryMedia] = useState([
+     { id: 1, patient: 'Rajesh Kumar', surgery: 'CABG', type: 'Video', name: 'cabg_procedure_start.mp4', url: '#', date: '2024-03-15' },
+     { id: 2, patient: 'Mohan Lal', surgery: 'Lap Chole', type: 'Image', name: 'gallbladder_view.jpg', url: '#', date: '2024-03-15' },
+   ]);
+   const [surgeons, setSurgeons] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  
+  // Search Filters
+  const [filters, setFilters] = useState({
+    surgeonId: '',
+    departmentId: '',
+    status: '',
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const fetchFiltersData = async () => {
+    try {
+      const [sRes, dRes] = await Promise.all([
+        getAutoUsers({ role: 'DOCTOR' }),
+        getAutoDepartments()
+      ]);
+      if (sRes.ok) setSurgeons(extractArray(sRes));
+      if (dRes.ok) setDepartments(extractArray(dRes));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSearchBookings = async () => {
+    setLoading(true);
+    try {
+      const res = await getApiV1ClinicalOtSearch({
+        surgeonId: filters.surgeonId || undefined,
+        departmentId: filters.departmentId || undefined,
+        status: filters.status || undefined,
+        start: filters.date ? `${filters.date}T00:00:00` : undefined,
+        end: filters.date ? `${filters.date}T23:59:59` : undefined,
+      });
+      if (res.ok) {
+        setBookings(res.data?.data?.content || res.data?.content || extractArray(res));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -69,7 +118,14 @@ const OTManagement = () => {
 
   useEffect(() => {
     fetchBookings();
+    fetchFiltersData();
   }, []);
+
+  useEffect(() => {
+    if (tab === 'OT Schedule') {
+      handleSearchBookings();
+    }
+  }, [tab, filters]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,14 +227,63 @@ const OTManagement = () => {
       {tab === 'OT Schedule' && (
         <div>
           <div className="flex gap-2 mb-2">
-            <input type="date" className="hms-input" />
-            <select className="hms-select"><option>All OT Rooms</option>{otRooms.map(r => <option key={r.room}>{r.room}</option>)}</select>
-            <select className="hms-select"><option>All Surgeons</option><option>Dr. Sharma</option><option>Dr. Singh</option><option>Dr. Gupta</option></select>
-            <button className="hms-btn-primary ml-auto">+ Book OT</button>
+            <input 
+              type="date" 
+              className="hms-input" 
+              value={filters.date}
+              onChange={e => setFilters({...filters, date: e.target.value})}
+            />
+            <select 
+              className="hms-select"
+              value={filters.departmentId}
+              onChange={e => setFilters({...filters, departmentId: e.target.value})}
+            >
+              <option value="">All Departments</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <select 
+              className="hms-select"
+              value={filters.surgeonId}
+              onChange={e => setFilters({...filters, surgeonId: e.target.value})}
+            >
+              <option value="">All Surgeons</option>
+              {surgeons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select 
+              className="hms-select"
+              value={filters.status}
+              onChange={e => setFilters({...filters, status: e.target.value})}
+            >
+              <option value="">All Status</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="PREPARING">Preparing</option>
+              <option value="RUNNING">Running</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+            <button className="hms-btn-primary ml-auto" onClick={handleSearchBookings}>
+              {loading ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />} Search
+            </button>
+            <button className="hms-btn-primary">+ Book OT</button>
             <button className="hms-btn-secondary flex items-center gap-1"><Printer size={10} />Print Schedule</button>
           </div>
           <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesiologist</th><th>Type</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{schedule.map((s, i) => <tr key={i}><td>{s.time}</td><td>{s.room}</td><td>{s.surgery}</td><td>{s.patient}</td><td>{s.surgeon}</td><td>{s.anesthesiologist}</td><td><StatusBadge status={s.type} /></td><td>{s.duration}</td><td><StatusBadge status={s.status} /></td><td><Eye size={12} className="text-primary cursor-pointer" /> <Edit size={12} className="text-primary cursor-pointer" /></td></tr>)}</tbody>
+            <tbody>
+              {bookings.length > 0 ? bookings.map((s, i) => (
+                <tr key={i}>
+                  <td>{s.scheduleDate ? new Date(s.scheduleDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
+                  <td>{s.room || 'N/A'}</td>
+                  <td>{s.procedureName || 'N/A'}</td>
+                  <td>{s.patient?.fullName || s.patientName || 'N/A'}</td>
+                  <td>{s.surgeon?.user?.fullName || s.surgeonName || 'N/A'}</td>
+                  <td>{s.anesthetist?.user?.fullName || s.anesthesiologist || 'N/A'}</td>
+                  <td><StatusBadge status={s.status || 'Scheduled'} /></td>
+                  <td>{s.durationInMinutes ? `${s.durationInMinutes} min` : 'N/A'}</td>
+                  <td><StatusBadge status={s.status || 'Scheduled'} /></td>
+                  <td><Eye size={12} className="text-primary cursor-pointer" /> <Edit size={12} className="text-primary cursor-pointer" /></td>
+                </tr>
+              )) : schedule.map((s, i) => <tr key={i}><td>{s.time}</td><td>{s.room}</td><td>{s.surgery}</td><td>{s.patient}</td><td>{s.surgeon}</td><td>{s.anesthesiologist}</td><td><StatusBadge status={s.type} /></td><td>{s.duration}</td><td><StatusBadge status={s.status} /></td><td><Eye size={12} className="text-primary cursor-pointer" /> <Edit size={12} className="text-primary cursor-pointer" /></td></tr>)}
+            </tbody>
           </table>
         </div>
       )}

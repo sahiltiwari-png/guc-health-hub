@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit, Printer, Trash2, Eye, Calendar, FileText, Image, UserSearch } from 'lucide-react';
+import { Search, Edit, Printer, Trash2, Eye, Calendar, FileText, Image, UserSearch, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { PhoneOutgoing, Volume2 } from 'lucide-react';
 import { 
   getOPDVisits, createOPDWalkIn, 
   getAutoGeoCities, getAutoGeoCountries, getAutoGeoStates, 
   getAutoUsers, getAutoEquipmentLocations, 
   getAutoDepartments, extractArray, searchPatients,
   getApiV1OpdSearch, patchApiV1OpdByidStatus, postApiV1OpdVitalsByopdVisitId,
-  getApiV1OpdByid
+  getApiV1OpdByid,
+  postApiV1OpdCall,
+  getApiV1OpdQueue
 } from "@/api/apiService";
 
 import { toast as sonnerToast } from 'sonner';
@@ -30,6 +33,8 @@ const OPD = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [patient, setPatient] = useState<any>(null);
   const [visits, setVisits] = useState<any[]>([]);
+  const [queue, setQueue] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'list' | 'queue'>('list');
   const [pagination, setPagination] = useState({ page: 0, size: 10, total: 0 });
 
   // Vitals State
@@ -90,6 +95,36 @@ const OPD = () => {
     source: 'WALK-IN',
     slot: 'Slot I'
   });
+
+  const fetchQueue = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getApiV1OpdQueue({ page: 0, size: 50 });
+      if (res.ok) {
+        setQueue(res.data?.data?.content || res.data?.content || extractArray(res));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCallPatient = async (id: string | number) => {
+    try {
+      const res = await postApiV1OpdCall(id);
+      if (res.ok) {
+        sonnerToast.success("Patient called for consultation");
+        fetchInitialData(pagination.page);
+        if (activeTab === 'queue') fetchQueue();
+      } else {
+        sonnerToast.error(res.data?.message || "Failed to call patient");
+      }
+    } catch (e) {
+      console.error(e);
+      sonnerToast.error("Error calling patient");
+    }
+  };
 
   const fetchInitialData = async (page = 0) => {
     setIsLoading(true);
@@ -566,9 +601,18 @@ const OPD = () => {
       {/* Export buttons + Search */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex gap-1">
-          <button className="hms-btn-secondary text-xs px-4 py-2">Copy</button>
-          <button className="hms-btn-secondary text-xs px-4 py-2">CSV</button>
-          <button className="hms-btn-secondary text-xs px-4 py-2">PDF</button>
+          <button 
+            onClick={() => setActiveTab('list')} 
+            className={`px-4 py-2 text-xs font-bold uppercase rounded-sm transition-all ${activeTab === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-muted-foreground'}`}
+          >
+            Visit List
+          </button>
+          <button 
+            onClick={() => { setActiveTab('queue'); fetchQueue(); }} 
+            className={`px-4 py-2 text-xs font-bold uppercase rounded-sm transition-all ${activeTab === 'queue' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-muted-foreground'}`}
+          >
+            OPD Queue
+          </button>
         </div>
         <div className="flex items-center gap-2 bg-card border border-border px-4 py-1.5 rounded shadow-sm">
           <label className="hms-form-label">Search List:</label>
@@ -599,8 +643,8 @@ const OPD = () => {
               </tr>
             </thead>
             <tbody className="text-[11px]">
-              {visits.length > 0 ? (
-                visits.map((visit, index) => (
+              {(activeTab === 'list' ? visits : queue).length > 0 ? (
+                (activeTab === 'list' ? visits : queue).map((visit, index) => (
                   <tr key={visit.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                     <td className="py-1 px-2 border-r border-border">
                       <div className="flex items-center gap-1">
@@ -627,6 +671,7 @@ const OPD = () => {
                       <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                         visit.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                         visit.status === 'IN_CONSULTATION' ? 'bg-blue-100 text-blue-700' :
+                        visit.status === 'CALLED' ? 'bg-purple-100 text-purple-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
                         {visit.status || 'WAITING'}
@@ -634,6 +679,13 @@ const OPD = () => {
                     </td>
                     <td className="py-0.5 px-2">
                       <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => handleCallPatient(visit.id)}
+                          className="w-5 h-5 flex items-center justify-center bg-purple-600 text-white rounded-sm shadow-sm hover:bg-purple-700 transition-colors" 
+                          title="Call Patient"
+                        >
+                          <Volume2 size={10} />
+                        </button>
                         <button 
                           onClick={() => handleViewVisit(visit)}
                           className="w-5 h-5 flex items-center justify-center bg-[#ff0000] text-white rounded-sm shadow-sm hover:bg-[#cc0000] transition-colors" 
