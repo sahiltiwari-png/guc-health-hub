@@ -1,184 +1,502 @@
 import React, { useState, useEffect } from 'react';
-import { BedDouble, Eye, Edit, AlertTriangle, CheckCircle, Clock, Activity, Thermometer, Heart, RefreshCw } from 'lucide-react';
-import { apiRequest, extractArray } from "@/api/apiService";
+import { BedDouble, Activity, AlertTriangle, Thermometer, RefreshCw, User, Droplets, Plus, Edit } from 'lucide-react';
+import { 
+  apiRequest, 
+  extractArray, 
+  getIcuDashboardStats,
+  searchIcuAdmissions,
+  recordIcuIntakeOutput,
+  recordIcuMonitoring,
+  admitIcuPatient,
+  getAutoUsers,
+  getAutoDepartments
+} from "@/api/apiService";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const c: Record<string, string> = { 'Occupied': 'bg-red-700 text-white', 'Vacant': 'bg-green-700 text-white', 'Reserved': 'bg-yellow-600 text-white', 'Cleaning': 'bg-blue-700 text-white', 'Maintenance': 'bg-orange-600 text-white', 'Critical': 'bg-red-900 text-white', 'Stable': 'bg-green-700 text-white', 'Improving': 'bg-blue-700 text-white', 'On Ventilator': 'bg-red-700 text-white', 'Weaning': 'bg-yellow-600 text-white', 'Self': 'bg-green-700 text-white' };
-  return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
+  const c: Record<string, string> = { 
+    'Occupied': 'bg-red-50 text-red-700 border-red-200', 
+    'Vacant': 'bg-green-50 text-green-700 border-green-200', 
+    'Reserved': 'bg-yellow-50 text-yellow-700 border-yellow-200', 
+    'Critical': 'bg-red-600 text-white border-red-700', 
+    'Stable': 'bg-blue-50 text-blue-700 border-blue-200', 
+    'Improving': 'bg-indigo-50 text-indigo-700 border-indigo-200', 
+    'On Ventilator': 'bg-purple-50 text-purple-700 border-purple-200',
+    'Self': 'bg-slate-50 text-slate-700 border-slate-200'
+  };
+  return <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${c[status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>{status}</span>;
 };
 
 const ICUWard = () => {
-  const tabs = ['Dashboard','Bed Map','Patient Monitor','Ventilator Tracker','Nursing Notes','Intake/Output','Ward Transfer','Census Report'];
+  const tabs = ['Dashboard','Admissions','Patient Monitor','Intake/Output'];
   const [tab, setTab] = useState('Dashboard');
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [wards, setWards] = useState<any[]>([]);
-  const [beds, setBeds] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [admissions, setAdmissions] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [availableBeds, setAvailableBeds] = useState<any[]>([]);
+
+  // Modals
+  const [showMonitoringModal, setShowMonitoringModal] = useState(false);
+  const [showIoModal, setShowIoModal] = useState(false);
+  const [showAdmitModal, setShowAdmitModal] = useState(false);
+  const [selectedAdmission, setSelectedAdmission] = useState<any>(null);
+
+  // Forms
+  const [monitoringForm, setMonitoringForm] = useState({
+    heartRate: '', bloodPressure: '', respiratoryRate: '', temperature: '',
+    spo2: '', map: '', ventilatorMode: '', peep: '', fio2: '',
+    tidalVolume: '', gcsScore: '', pupilSize: '', sedationScale: '', notes: ''
+  });
+  const [ioForm, setIoForm] = useState({ intakeType: '', intakeAmount: '', intakeDescription: '', outputType: '', outputAmount: '', outputDescription: '', recordedBy: '' });
+  const [admitForm, setAdmitForm] = useState({
+    patientId: '',
+    bedId: '',
+    assignedDoctorId: '',
+    severityIndex: 'Stable',
+    diagnosis: '',
+    isolationType: 'None'
+  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [wRes, bRes, pRes] = await Promise.all([
-        apiRequest('/api/v1/ipd/wards'),
-        apiRequest('/api/v1/ipd/beds'),
-        apiRequest('/api/v1/ipd/admissions')
+      const [sRes, aRes, docRes, depRes, bRes] = await Promise.all([
+        getIcuDashboardStats(),
+        searchIcuAdmissions({ page: 0, size: 50 }),
+        getAutoUsers({ role: 'DOCTOR' }),
+        getAutoDepartments(),
+        apiRequest('/api/v1/ipd/beds')
       ]);
 
-      if (wRes.ok) setWards(extractArray(wRes));
-      if (bRes.ok) setBeds(extractArray(bRes));
-      if (pRes.ok) setPatients(extractArray(pRes));
-
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+      if (sRes.ok) setStats(sRes.data?.data);
+      if (aRes.ok) setAdmissions(aRes.data?.data?.content || aRes.data?.content || []);
+      if (docRes.ok) setDoctors(extractArray(docRes));
+      if (depRes.ok) setDepartments(extractArray(depRes));
+      if (bRes.ok) setAvailableBeds(extractArray(bRes).filter((b: any) => b.available && b.ward?.type === 'ICU'));
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const displayWards = wards.length > 0 ? wards : [
-    { ward: 'General Ward-A', total: 30, occupied: 26, vacant: 3, reserved: 1, cleaning: 0 },
-    { ward: 'General Ward-B', total: 30, occupied: 22, vacant: 8, reserved: 0, cleaning: 0 },
-    { ward: 'Semi-Private', total: 20, occupied: 15, vacant: 4, reserved: 1, cleaning: 0 },
-    { ward: 'Private Deluxe', total: 10, occupied: 8, vacant: 1, reserved: 1, cleaning: 0 },
-    { ward: 'ICU-1', total: 10, occupied: 9, vacant: 1, reserved: 0, cleaning: 0 },
-    { ward: 'NICU', total: 8, occupied: 6, vacant: 2, reserved: 0, cleaning: 0 },
-  ];
-  const displayPatients = patients.length > 0 ? patients : [
-    { bed: 'ICU1-B01', patient: 'Rajesh Kumar', uhid: 'P-1001', age: '58/M', diagnosis: 'Acute MI - Post CABG', doctor: 'Dr. Sharma', day: 5, ventilator: 'On Ventilator', mode: 'SIMV', fio2: '60%', peep: '8', spo2: '97%', bp: '118/72', hr: '82', temp: '37.2°C', rr: '16', gcs: '10T', urine: '1200ml', condition: 'Critical' },
-    { bed: 'ICU1-B02', patient: 'Sita Devi', uhid: 'P-1002', age: '62/F', diagnosis: 'Sepsis - ARDS', doctor: 'Dr. Gupta', day: 3, ventilator: 'On Ventilator', mode: 'ACVC', fio2: '50%', peep: '10', spo2: '94%', bp: '90/60', hr: '110', temp: '38.5°C', rr: '22', gcs: '12', urine: '800ml', condition: 'Critical' },
-  ];
+  const handleSaveMonitoring = async () => {
+    if (!selectedAdmission?.id) return;
+    setLoading(true);
+    try {
+      const res = await recordIcuMonitoring(selectedAdmission.id, monitoringForm);
+      if (res.ok) {
+        toast({ title: "Success", description: "Vitals recorded." });
+        setShowMonitoringModal(false);
+        fetchData();
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const handleSaveIo = async () => {
+    if (!selectedAdmission?.id) return;
+    setLoading(true);
+    try {
+      const res = await recordIcuIntakeOutput(selectedAdmission.id, ioForm);
+      if (res.ok) {
+        toast({ title: "Success", description: "I/O recorded." });
+        setShowIoModal(false);
+        fetchData();
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const handleAdmit = async () => {
+    setLoading(true);
+    try {
+      const res = await admitIcuPatient(admitForm);
+      if (res.ok) {
+        toast({ title: "Success", description: "Patient admitted to ICU." });
+        setShowAdmitModal(false);
+        fetchData();
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
 
   return (
-    <div>
-      <div className="hms-section-header flex items-center gap-2"><BedDouble size={14} /> ICU / Ward Management</div>
-      <div className="flex gap-0 border-b border-border mb-2 overflow-x-auto">
-        {tabs.map(t => <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 text-xs font-semibold whitespace-nowrap border-b-2 ${tab === t ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{t}</button>)}
+    <div className="flex flex-col h-full space-y-3 overflow-y-auto pb-4 pr-1">
+      {/* Header */}
+      <div className="flex items-center justify-between bg-card border border-border p-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="bg-primary/10 p-1.5 rounded-lg">
+            <BedDouble size={20} className="text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-foreground">ICU & Ward Management</h1>
+            <p className="text-[10px] text-muted-foreground">Critical Care Unit Dashboard</p>
+          </div>
+        </div>
+        <button 
+          onClick={fetchData} 
+          className="hms-btn-secondary p-1.5 rounded-full" 
+          title="Refresh Data"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> 
+        </button>
       </div>
 
-      {tab === 'Dashboard' && (
-        <div>
-          <div className="grid grid-cols-6 gap-2 mb-3">
-            {[{ l: 'Total Beds', v: '179', s: '10 Wards' },{ l: 'Occupied', v: '139', s: '77.7%' },{ l: 'Vacant', v: '28', s: '15.6%' },{ l: 'ICU Patients', v: '9', s: '3 Critical' },{ l: 'On Ventilator', v: '4', s: '1 Weaning' },{ l: 'Discharges Today', v: '3', s: '5 Pending' }].map((k, i) => (
-              <div key={i} className="bg-card border border-border p-2">
-                <div className="text-[10px] text-muted-foreground">{k.l}</div>
-                <div className="text-sm font-bold">{k.v}</div>
-                <div className="text-[9px] text-muted-foreground">{k.s}</div>
+      {/* Navigation Tabs */}
+      <div className="flex gap-1 bg-card border border-border p-1 overflow-x-auto no-scrollbar">
+        {tabs.map(t => (
+          <button 
+            key={t} 
+            onClick={() => setTab(t)} 
+            className={`px-3 py-1 text-[11px] font-semibold transition-all whitespace-nowrap ${
+              tab === t 
+                ? 'bg-primary text-white' 
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="flex-1">
+        {tab === 'Dashboard' && (
+          <div className="space-y-3 animate-in fade-in duration-500">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {[
+                { l: 'Total Beds', v: stats?.totalBeds || '0', i: <BedDouble size={16} />, c: 'text-blue-600' },
+                { l: 'Occupied', v: stats?.occupiedBeds || '0', i: <User size={16} />, c: 'text-rose-600' },
+                { l: 'Occupancy %', v: stats?.occupancyRate || '0%', i: <Activity size={16} />, c: 'text-amber-600' },
+                { l: 'Critical', v: stats?.criticalPatients || '0', i: <AlertTriangle size={16} />, c: 'text-red-700' },
+                { l: 'On Vent', v: stats?.ventilatorStats?.onVentilator || '0', i: <Thermometer size={16} />, c: 'text-purple-600' }
+              ].map((k, i) => (
+                <div key={i} className="bg-card border border-border p-2.5 hover:border-primary/50 transition-colors">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className={`${k.c} opacity-70`}>{k.i}</div>
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wide">{k.l}</p>
+                  </div>
+                  <p className="text-lg font-bold text-foreground leading-tight">{k.v}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Simple Patient Overview in Dashboard */}
+            <div className="border border-border bg-card">
+              <div className="hms-section-header flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Activity size={12} />
+                  <span className="font-semibold">Recent Critical Patients</span>
+                </div>
+                <button onClick={() => setTab('Admissions')} className="text-[10px] font-bold uppercase hover:underline opacity-80">View All</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="hms-table">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-2">Patient Name</th>
+                      <th className="px-3 py-2 text-center">Bed</th>
+                      <th className="px-3 py-2">Attending Doctor</th>
+                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {admissions.slice(0, 5).map((a, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-2">
+                          <div className="font-bold text-foreground">{a.patient?.fullName}</div>
+                          <div className="text-[9px] text-muted-foreground font-mono">{a.patient?.uhid}</div>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span className="bg-primary/10 text-primary font-bold px-2 py-0.5 rounded text-[10px]">
+                            {a.icuAdmission?.bed?.bedNumber || a.bed?.bedNumber}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{a.assignedDoctor?.user?.fullName || 'N/A'}</td>
+                        <td className="px-3 py-2"><StatusBadge status={a.severityIndex || 'Stable'} /></td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => { setSelectedAdmission(a); setShowMonitoringModal(true); }} className="p-1 hover:bg-muted rounded text-primary" title="Vitals"><Activity size={12} /></button>
+                            <button onClick={() => { setSelectedAdmission(a); setShowIoModal(true); }} className="p-1 hover:bg-muted rounded text-blue-600" title="I/O"><Droplets size={12} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'Admissions' && (
+          <div className="border border-border bg-card animate-in slide-in-from-right-1 duration-300">
+            <div className="hms-section-header flex items-center justify-between">
+              <span className="font-semibold">Current ICU Admissions</span>
+              <button onClick={() => setShowAdmitModal(true)} className="hms-btn-secondary py-0.5 px-2 flex items-center gap-1 text-[10px] bg-white/20 border-white/30 text-white hover:bg-white/30">
+                <Plus size={12} /> Admit Patient
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="hms-table">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2">Bed No</th>
+                    <th className="px-3 py-2">Patient Details</th>
+                    <th className="px-3 py-2">Primary Doctor</th>
+                    <th className="px-3 py-2">Admission Status</th>
+                    <th className="px-3 py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admissions.map((a) => (
+                    <tr key={a.id}>
+                      <td className="px-3 py-2">
+                        <span className="text-primary font-bold text-sm">{a.icuAdmission?.bed?.bedNumber || a.bed?.bedNumber}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-bold text-foreground">{a.patient?.fullName}</div>
+                        <div className="text-[9px] text-muted-foreground font-mono">{a.patient?.uhid}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{a.assignedDoctor?.user?.fullName}</td>
+                      <td className="px-3 py-2"><StatusBadge status={a.status} /></td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => { setSelectedAdmission(a); setShowMonitoringModal(true); }} className="hms-btn-secondary p-1 flex items-center gap-1 text-[10px]"><Activity size={12}/> Vitals</button>
+                          <button onClick={() => { setSelectedAdmission(a); setShowIoModal(true); }} className="hms-btn-secondary p-1 flex items-center gap-1 text-[10px] text-rose-600"><Droplets size={12}/> I/O</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'Patient Monitor' && (
+          <div className="border border-border bg-card animate-in slide-in-from-right-1 duration-300">
+            <div className="hms-section-header">
+              <span className="font-semibold">Live Vitals Monitoring</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="hms-table">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2">Bed</th>
+                    <th className="px-3 py-2">Patient</th>
+                    <th className="px-3 py-2">SpO2</th>
+                    <th className="px-3 py-2">BP</th>
+                    <th className="px-3 py-2">HR</th>
+                    <th className="px-3 py-2">Temp</th>
+                    <th className="px-3 py-2">Support</th>
+                    <th className="px-3 py-2 text-right">Update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admissions.map((a) => (
+                    <tr key={a.id}>
+                      <td className="px-3 py-2 font-bold text-primary">{a.icuAdmission?.bed?.bedNumber || a.bed?.bedNumber}</td>
+                      <td className="px-3 py-2 font-bold text-foreground">{a.patient?.fullName}</td>
+                      <td className="px-3 py-2">
+                        <span className={`text-sm font-bold ${parseInt(a.latestMonitoring?.spo2) < 94 ? 'text-red-600' : 'text-green-600'}`}>
+                          {a.latestMonitoring?.spo2 || '--'}%
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{a.latestMonitoring?.bloodPressure || '--'}</td>
+                      <td className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{a.latestMonitoring?.heartRate || '--'}</td>
+                      <td className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{a.latestMonitoring?.temperature || '--'}°C</td>
+                      <td className="px-3 py-2">
+                        <StatusBadge status={a.latestMonitoring?.ventilatorMode ? 'On Ventilator' : 'Self'} />
+                        {a.latestMonitoring?.ventilatorMode && <span className="ml-1 text-[9px] text-muted-foreground font-mono italic">({a.latestMonitoring.ventilatorMode})</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button onClick={() => { setSelectedAdmission(a); setShowMonitoringModal(true); }} className="p-1 hover:bg-muted rounded text-primary"><Edit size={12} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'Intake/Output' && (
+          <div className="border border-border bg-card animate-in slide-in-from-right-1 duration-300">
+            <div className="hms-section-header">
+              <span className="font-semibold">24h Fluid Balance Tracker</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="hms-table">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2">Bed</th>
+                    <th className="px-3 py-2">Patient</th>
+                    <th className="px-3 py-2">Intake</th>
+                    <th className="px-3 py-2">Output</th>
+                    <th className="px-3 py-2">Net Balance</th>
+                    <th className="px-3 py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admissions.map((a) => (
+                    <tr key={a.id}>
+                      <td className="px-3 py-2 font-bold text-primary">{a.icuAdmission?.bed?.bedNumber || a.bed?.bedNumber}</td>
+                      <td className="px-3 py-2 font-bold text-foreground">{a.patient?.fullName}</td>
+                      <td className="px-3 py-2 text-blue-700 font-semibold">{a.totalIntake || 0} ml</td>
+                      <td className="px-3 py-2 text-orange-700 font-semibold">{a.totalOutput || 0} ml</td>
+                      <td className={`px-3 py-2 font-semibold ${(a.totalIntake || 0) - (a.totalOutput || 0) < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                        {(a.totalIntake || 0) - (a.totalOutput || 0)} ml
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button onClick={() => { setSelectedAdmission(a); setShowIoModal(true); }} className="hms-btn-primary px-2 py-1">Record Entry</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Modals */}
+      <Dialog open={showAdmitModal} onOpenChange={setShowAdmitModal}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-border rounded-none">
+          <div className="hms-section-header flex items-center gap-2">
+            <Plus size={14} /> <span>Admit Patient to ICU</span>
+          </div>
+          <div className="p-4 space-y-3 bg-card">
+            <div className="space-y-1">
+              <label className="hms-form-label">Patient UHID / ID *</label>
+              <input className="hms-input w-full" placeholder="Enter UHID..." value={admitForm.patientId} onChange={e => setAdmitForm({...admitForm, patientId: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="hms-form-label">Available ICU Bed *</label>
+                <select className="hms-select w-full" value={admitForm.bedId} onChange={e => setAdmitForm({...admitForm, bedId: e.target.value})}>
+                  <option value="">Select Bed...</option>
+                  {availableBeds.map(b => <option key={b.id} value={b.id}>{b.bedNumber} ({b.bedType})</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="hms-form-label">Assigned Doctor *</label>
+                <select className="hms-select w-full" value={admitForm.assignedDoctorId} onChange={e => setAdmitForm({...admitForm, assignedDoctorId: e.target.value})}>
+                  <option value="">Select Doctor...</option>
+                  {doctors.map(d => <option key={d.id} value={d.id}>{d.user?.fullName || d.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="hms-form-label">Severity Index</label>
+                <select className="hms-select w-full" value={admitForm.severityIndex} onChange={e => setAdmitForm({...admitForm, severityIndex: e.target.value})}>
+                  <option value="Stable">Stable</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="hms-form-label">Isolation Type</label>
+                <select className="hms-select w-full" value={admitForm.isolationType} onChange={e => setAdmitForm({...admitForm, isolationType: e.target.value})}>
+                  <option value="None">None</option>
+                  <option value="Contact">Contact</option>
+                  <option value="Airborne">Airborne</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="hms-form-label">Initial Diagnosis</label>
+              <textarea className="hms-input w-full h-16" placeholder="Reason for ICU admission..." value={admitForm.diagnosis} onChange={e => setAdmitForm({...admitForm, diagnosis: e.target.value})} />
+            </div>
+          </div>
+          <div className="p-3 bg-muted border-t border-border flex justify-end gap-2">
+            <button className="hms-btn-secondary" onClick={() => setShowAdmitModal(false)}>Cancel</button>
+            <button className="hms-btn-primary" onClick={handleAdmit} disabled={loading || !admitForm.patientId || !admitForm.bedId}>
+              Admit Patient
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMonitoringModal} onOpenChange={setShowMonitoringModal}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-border rounded-none">
+          <div className="hms-section-header flex items-center gap-2">
+            <Activity size={14} /> <span>Vitals Assessment</span>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-3 bg-card">
+            {[
+              { id: 'heartRate', l: 'Heart Rate (bpm)', p: '72' },
+              { id: 'bloodPressure', l: 'Blood Pressure', p: '120/80' },
+              { id: 'respiratoryRate', l: 'Resp Rate', p: '18' },
+              { id: 'temperature', l: 'Temp (°C)', p: '37.0' },
+              { id: 'spo2', l: 'SpO2 (%)', p: '98' },
+              { id: 'gcsScore', l: 'GCS Score', p: '15' }
+            ].map(f => (
+              <div key={f.id} className="space-y-1">
+                <label className="hms-form-label">{f.l}</label>
+                <input className="hms-input w-full font-mono" placeholder={f.p} value={(monitoringForm as any)[f.id]} onChange={e => setMonitoringForm({...monitoringForm, [f.id]: e.target.value})} />
               </div>
             ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-card border border-border">
-              <div className="hms-section-header text-xs">ICU Patient Vitals (Live)</div>
-              <table className="hms-table"><thead><tr><th>Bed</th><th>Patient</th><th>Diagnosis</th><th>Vent</th><th>SpO2</th><th>BP</th><th>HR</th><th>Temp</th><th>GCS</th><th>Condition</th></tr></thead>
-                <tbody>{displayPatients.map(p => <tr key={p.bed}><td className="font-bold">{p.bed}</td><td>{p.patient}</td><td className="text-[10px] max-w-[120px]">{p.diagnosis}</td><td><StatusBadge status={p.ventilator} /></td><td className={p.spo2 && parseInt(p.spo2) < 95 ? 'text-red-600 font-bold' : ''}>{p.spo2}</td><td>{p.bp}</td><td>{p.hr}</td><td className={p.temp && parseFloat(p.temp) > 38 ? 'text-red-600 font-bold' : ''}>{p.temp}</td><td>{p.gcs}</td><td><StatusBadge status={p.condition} /></td></tr>)}</tbody>
-              </table>
-            </div>
-            <div className="bg-card border border-border">
-              <div className="hms-section-header text-xs">Ward Occupancy</div>
-              <table className="hms-table"><thead><tr><th>Ward</th><th>Total</th><th>Occupied</th><th>Vacant</th><th>Reserved</th><th>Occupancy%</th></tr></thead>
-                <tbody>{displayWards.map(w => <tr key={w.ward}><td>{w.ward}</td><td>{w.total}</td><td>{w.occupied}</td><td className="font-bold text-green-700">{w.vacant}</td><td>{w.reserved}</td><td>{Math.round(w.occupied / w.total * 100)}%</td></tr>)}</tbody>
-              </table>
+            <div className="col-span-2 space-y-1">
+              <label className="hms-form-label">Clinical Observation Notes</label>
+              <textarea className="hms-input w-full h-16" value={monitoringForm.notes} onChange={e => setMonitoringForm({...monitoringForm, notes: e.target.value})} />
             </div>
           </div>
-        </div>
-      )}
+          <div className="p-3 bg-muted border-t border-border flex justify-end gap-2">
+            <button className="hms-btn-secondary" onClick={() => setShowMonitoringModal(false)}>Cancel</button>
+            <button className="hms-btn-primary" onClick={handleSaveMonitoring} disabled={loading}>
+              Save Assessment
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {tab === 'Bed Map' && (
-        <div>
-          <div className="flex gap-2 mb-2">
-            <select className="hms-select"><option>All Wards</option>{displayWards.map(w => <option key={w.ward}>{w.ward}</option>)}</select>
-            <div className="flex gap-3 ml-4 text-[10px] items-center">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-700 inline-block"></span> Occupied</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-700 inline-block"></span> Vacant</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-600 inline-block"></span> Reserved</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-700 inline-block"></span> Cleaning</span>
+      {/* I/O Modal */}
+      <Dialog open={showIoModal} onOpenChange={setShowIoModal}>
+        <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden border-border rounded-none">
+          <div className="hms-section-header flex items-center gap-2">
+            <Droplets size={14} /> <span>Fluid Balance</span>
+          </div>
+          <div className="p-4 space-y-4 bg-card">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="hms-form-label text-blue-600">Intake Type</label>
+                <input className="hms-input w-full" placeholder="e.g. IV Fluids" value={ioForm.intakeType} onChange={e => setIoForm({...ioForm, intakeType: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="hms-form-label text-blue-600">Amount (ml)</label>
+                <input className="hms-input w-full" type="number" placeholder="500" value={ioForm.intakeAmount} onChange={e => setIoForm({...ioForm, intakeAmount: e.target.value})} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="hms-form-label text-orange-600">Output Type</label>
+                <input className="hms-input w-full" placeholder="e.g. Urine" value={ioForm.outputType} onChange={e => setIoForm({...ioForm, outputType: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="hms-form-label text-orange-600">Amount (ml)</label>
+                <input className="hms-input w-full" type="number" placeholder="200" value={ioForm.outputAmount} onChange={e => setIoForm({...ioForm, outputAmount: e.target.value})} />
+              </div>
             </div>
           </div>
-          <table className="hms-table"><thead><tr><th>Ward</th><th>Total</th><th>Occupied</th><th>Vacant</th><th>Reserved</th><th>Cleaning</th><th>Occupancy</th></tr></thead>
-            <tbody>{displayWards.map(w => <tr key={w.ward}><td className="font-bold">{w.ward}</td><td>{w.total}</td><td>{w.occupied}</td><td className="font-bold text-green-700">{w.vacant}</td><td>{w.reserved}</td><td>{w.cleaning}</td><td>{Math.round(w.occupied / w.total * 100)}%</td></tr>)}</tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Patient Monitor' && (
-        <div>
-          <table className="hms-table"><thead><tr><th>Bed</th><th>Patient</th><th>Age/Sex</th><th>Diagnosis</th><th>Day</th><th>SpO2</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>GCS</th><th>Urine(24h)</th><th>Ventilator</th><th>Condition</th></tr></thead>
-            <tbody>{icuPatients.filter(p => p.patient !== '-').map(p => <tr key={p.bed}><td className="font-bold">{p.bed}</td><td>{p.patient}</td><td>{p.age}</td><td className="text-[10px]">{p.diagnosis}</td><td>{p.day}</td><td className={parseInt(p.spo2) < 95 ? 'text-red-600 font-bold' : ''}>{p.spo2}</td><td>{p.bp}</td><td>{p.hr}</td><td className={parseFloat(p.temp) > 38 ? 'text-red-600 font-bold' : ''}>{p.temp}</td><td>{p.rr}</td><td>{p.gcs}</td><td>{p.urine}</td><td><StatusBadge status={p.ventilator} /></td><td><StatusBadge status={p.condition} /></td></tr>)}</tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Ventilator Tracker' && (
-        <div>
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {[{ l: 'Total Ventilators', v: '12' },{ l: 'In Use', v: '4' },{ l: 'Available', v: '7' },{ l: 'Under Maintenance', v: '1' }].map((k, i) => (
-              <div key={i} className="bg-card border border-border p-2"><div className="text-[10px] text-muted-foreground">{k.l}</div><div className="text-sm font-bold">{k.v}</div></div>
-            ))}
+          <div className="p-3 bg-muted border-t border-border flex justify-end gap-2">
+            <button className="hms-btn-secondary" onClick={() => setShowIoModal(false)}>Cancel</button>
+            <button className="hms-btn-primary bg-rose-600 hover:bg-rose-700" onClick={handleSaveIo} disabled={loading}>
+              Update Balance
+            </button>
           </div>
-          <table className="hms-table"><thead><tr><th>Ventilator ID</th><th>Model</th><th>Location</th><th>Patient</th><th>Mode</th><th>FiO2</th><th>PEEP</th><th>TV</th><th>RR Set</th><th>Days on Vent</th><th>Status</th></tr></thead>
-            <tbody>
-              {[['V-001','Drager Evita V500','ICU1-B01','Rajesh Kumar','SIMV','60%','8','450ml','14','5','In Use'],['V-002','Hamilton C6','ICU1-B02','Sunita Devi','PC-AC','80%','12','400ml','18','3','In Use'],['V-003','Drager Evita V500','ICU1-B03','Mohan Gupta','CPAP','40%','5','Self','Self','7 (Weaning)','In Use'],['V-004','Medtronic PB980','ICU1-B06','Deepak Verma','VC-AC','70%','10','500ml','16','4','In Use'],['V-005','Hamilton C6','ICU-2','--','--','--','--','--','--','--','Available'],['V-006','Drager Evita V300','Maintenance','--','--','--','--','--','--','--','Maintenance']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{j === 10 ? <StatusBadge status={c === 'In Use' ? 'Occupied' : c === 'Available' ? 'Vacant' : 'Maintenance'} /> : c}</td>)}</tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Nursing Notes' && (
-        <div>
-          <div className="flex gap-2 mb-2"><select className="hms-select"><option>Select Patient</option>{icuPatients.filter(p => p.patient !== '-').map(p => <option key={p.bed}>{p.patient} ({p.bed})</option>)}</select><button className="hms-btn-primary ml-auto">+ Add Note</button></div>
-          <table className="hms-table"><thead><tr><th>Time</th><th>Patient</th><th>Bed</th><th>Note</th><th>Vitals Recorded</th><th>Nurse</th><th>Shift</th></tr></thead>
-            <tbody>
-              {[['06:00','Rajesh Kumar','ICU1-B01','Patient stable. Vent settings unchanged. BP stable.','BP:120/72 HR:78 SpO2:97%','Sr. Nurse Geeta','Night'],['06:00','Sunita Devi','ICU1-B02','Temp spike to 39.1°C. Dr. Singh informed. Blood culture sent.','BP:100/62 HR:115 SpO2:92%','Sr. Nurse Geeta','Night'],['08:00','Deepak Verma','ICU1-B06','Urine output decreased. Noradrenaline increased to 0.3mcg/kg/min.','BP:85/50 HR:125 SpO2:94%','Staff Nurse Priti','Morning'],['10:00','Mohan Gupta','ICU1-B03','Weaning trial started. Patient comfortable on CPAP.','BP:132/82 HR:74 SpO2:98%','Staff Nurse Priti','Morning']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className={j === 3 ? 'text-[10px] max-w-[250px]' : ''}>{c}</td>)}</tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Intake/Output' && (
-        <div>
-          <div className="flex gap-2 mb-2"><select className="hms-select"><option>Select Patient</option></select></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-card border border-border">
-              <div className="hms-section-header text-xs">Intake (24 hrs)</div>
-              <table className="hms-table"><thead><tr><th>Time</th><th>Type</th><th>Route</th><th>Volume</th><th>Nurse</th></tr></thead>
-                <tbody>{[['06:00','NS 0.9%','IV','500ml','Geeta'],['08:00','Ryle\'s Feed','RT','200ml','Priti'],['10:00','DNS 5%','IV','500ml','Priti'],['12:00','Ryle\'s Feed','RT','200ml','Priti'],['14:00','RL','IV','500ml','Rani']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-              </table>
-              <div className="p-2 text-xs font-bold">Total Intake: 1900ml</div>
-            </div>
-            <div className="bg-card border border-border">
-              <div className="hms-section-header text-xs">Output (24 hrs)</div>
-              <table className="hms-table"><thead><tr><th>Time</th><th>Type</th><th>Volume</th><th>Color/Nature</th><th>Nurse</th></tr></thead>
-                <tbody>{[['06:00','Urine','300ml','Clear Yellow','Geeta'],['08:00','Ryle\'s Aspirate','50ml','Greenish','Priti'],['10:00','Urine','250ml','Clear','Priti'],['12:00','Drain','100ml','Serosanguinous','Priti'],['14:00','Urine','350ml','Clear','Rani']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-              </table>
-              <div className="p-2 text-xs font-bold">Total Output: 1050ml | Balance: +850ml</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'Ward Transfer' && (
-        <div>
-          <div className="flex mb-2"><button className="hms-btn-primary ml-auto">+ Request Transfer</button></div>
-          <table className="hms-table"><thead><tr><th>Request ID</th><th>Patient</th><th>From Ward/Bed</th><th>To Ward/Bed</th><th>Reason</th><th>Requested By</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>
-              {[['TR-001','Mohan Gupta','ICU1-B03','Ward-A/B-15','Step Down - Improving','Dr. Gupta','2024-03-15 10:00','Pending',''],['TR-002','Priya Sharma','ICU1-B04','Maternity/B-08','Stable - Shift to Ward','Dr. Verma','2024-03-15 09:30','Pending',''],['TR-003','Kishan Das','Ward-B/B-10','Ward-A/B-02','Patient Request','Ward Nurse','2024-03-15 08:00','Completed','']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{j === 7 ? <StatusBadge status={c === 'Completed' ? 'Stable' : 'Reserved'} /> : c}</td>)}<td><Eye size={12} className="text-primary cursor-pointer" /></td></tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Census Report' && (
-        <div>
-          <div className="flex gap-2 mb-2"><input type="date" className="hms-input" /><button className="hms-btn-secondary">Generate</button></div>
-          <table className="hms-table"><thead><tr><th>Ward</th><th>Midnight Census</th><th>Admissions</th><th>Transfers In</th><th>Transfers Out</th><th>Discharges</th><th>Deaths</th><th>Current Census</th><th>Occupancy%</th></tr></thead>
-            <tbody>{[['General Ward-A',25,2,1,0,1,0,27,'90%'],['General Ward-B',23,1,0,1,0,0,23,'77%'],['ICU-1',5,0,0,0,0,0,5,'62.5%'],['ICU-2',4,1,0,0,0,0,5,'83%'],['Private Ward',14,2,0,1,1,0,14,'70%'],['Maternity',13,1,0,0,0,0,14,'70%']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-          </table>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

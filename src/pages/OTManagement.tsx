@@ -1,38 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Scissors, Eye, Edit, Clock, CheckCircle, AlertTriangle, Printer, Calendar, Upload, FileVideo, FileImage, Search, RefreshCw } from 'lucide-react';
+import { 
+  Scissors, 
+  Eye, 
+  Edit, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  Printer, 
+  Calendar, 
+  Upload, 
+  FileVideo, 
+  FileImage, 
+  Search, 
+  RefreshCw, 
+  CheckCircle2, 
+  XCircle 
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import { 
-  getOTBookings, 
+  getOtDashboardStats,
+  searchOtBookings,
+  getOtBookingById,
+  createOtBooking,
+  updateOtBooking,
+  startOtSurgery,
+  completeOtSurgery,
+  cancelOtSurgery,
   extractArray,
-  getApiV1ClinicalOtSearch,
   getAutoUsers,
   getAutoDepartments
 } from "@/api/apiService";
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const c: Record<string, string> = { 'Running': 'bg-green-700 text-white', 'Scheduled': 'bg-blue-700 text-white', 'Completed': 'bg-green-800 text-white', 'Preparing': 'bg-yellow-600 text-white', 'Cancelled': 'bg-red-700 text-white', 'Available': 'bg-green-700 text-white', 'Occupied': 'bg-red-700 text-white', 'Cleaning': 'bg-yellow-600 text-white', 'Emergency': 'bg-red-700 text-white', 'Elective': 'bg-blue-700 text-white', 'Done': 'bg-green-700 text-white', 'Pending': 'bg-yellow-600 text-white', 'GA': 'bg-purple-700 text-white', 'SA': 'bg-blue-700 text-white', 'LA': 'bg-green-700 text-white' };
+  const c: Record<string, string> = { 
+    'RUNNING': 'bg-green-700 text-white', 
+    'SCHEDULED': 'bg-blue-700 text-white', 
+    'COMPLETED': 'bg-green-800 text-white', 
+    'PREPARING': 'bg-yellow-600 text-white', 
+    'CANCELLED': 'bg-red-700 text-white', 
+    'IN_PROGRESS': 'bg-green-700 text-white',
+    'Available': 'bg-green-700 text-white', 
+    'Occupied': 'bg-red-700 text-white', 
+    'Cleaning': 'bg-yellow-600 text-white', 
+    'Emergency': 'bg-red-700 text-white', 
+    'Elective': 'bg-blue-700 text-white', 
+    'Done': 'bg-green-700 text-white', 
+    'Pending': 'bg-yellow-600 text-white', 
+    'GA': 'bg-purple-700 text-white', 
+    'SA': 'bg-blue-700 text-white', 
+    'LA': 'bg-green-700 text-white' 
+  };
   return <span className={`px-1.5 py-0.5 text-[10px] font-bold ${c[status] || 'bg-muted text-foreground'}`}>{status}</span>;
 };
-
-const otRooms = [
-  { room: 'OT-1 (Major)', currentSurgery: 'Lap Cholecystectomy', patient: 'Mohan Lal', surgeon: 'Dr. Singh', anesthesia: 'GA', startTime: '09:00', estEnd: '11:30', elapsed: '1h 45m', status: 'Running' },
-  { room: 'OT-2 (Major)', currentSurgery: 'CABG', patient: 'Rajesh Kumar', surgeon: 'Dr. Sharma', anesthesia: 'GA', startTime: '08:00', estEnd: '14:00', elapsed: '3h 45m', status: 'Running' },
-  { room: 'OT-3 (Minor)', currentSurgery: '-', patient: '-', surgeon: '-', anesthesia: '-', startTime: '-', estEnd: '-', elapsed: '-', status: 'Cleaning' },
-  { room: 'OT-4 (Minor)', currentSurgery: '-', patient: '-', surgeon: '-', anesthesia: '-', startTime: '-', estEnd: '-', elapsed: '-', status: 'Available' },
-  { room: 'OT-5 (Emergency)', currentSurgery: 'Appendectomy', patient: 'Ravi Yadav', surgeon: 'Dr. Gupta', anesthesia: 'SA', startTime: '10:30', estEnd: '12:00', elapsed: '1h 15m', status: 'Running' },
-  { room: 'OT-6 (Eye)', currentSurgery: '-', patient: '-', surgeon: '-', anesthesia: '-', startTime: '-', estEnd: '-', elapsed: '-', status: 'Available' },
-];
-
-const schedule = [
-  { time: '08:00', room: 'OT-2', surgery: 'CABG', patient: 'Rajesh Kumar (P-1001)', surgeon: 'Dr. Sharma', anesthesiologist: 'Dr. Mehta', type: 'Elective', duration: '6 hrs', status: 'Running' },
-  { time: '09:00', room: 'OT-1', surgery: 'Lap Cholecystectomy', patient: 'Mohan Lal (P-1005)', surgeon: 'Dr. Singh', anesthesiologist: 'Dr. Jain', type: 'Elective', duration: '2.5 hrs', status: 'Running' },
-  { time: '10:30', room: 'OT-5', surgery: 'Appendectomy', patient: 'Ravi Yadav (P-0998)', surgeon: 'Dr. Gupta', anesthesiologist: 'Dr. Mehta', type: 'Emergency', duration: '1.5 hrs', status: 'Running' },
-  { time: '12:00', room: 'OT-1', surgery: 'Hernia Repair', patient: 'Suresh Yadav (P-1007)', surgeon: 'Dr. Singh', anesthesiologist: 'Dr. Jain', type: 'Elective', duration: '1.5 hrs', status: 'Scheduled' },
-  { time: '12:00', room: 'OT-3', surgery: 'Excision Biopsy', patient: 'Kavita Jain (P-1006)', surgeon: 'Dr. Verma', anesthesiologist: 'Dr. Kumar', type: 'Elective', duration: '1 hr', status: 'Preparing' },
-  { time: '14:00', room: 'OT-4', surgery: 'Cataract Surgery', patient: 'Sunita Devi (P-1010)', surgeon: 'Dr. Agarwal', anesthesiologist: '-', type: 'Elective', duration: '45 min', status: 'Scheduled' },
-  { time: '14:30', room: 'OT-2', surgery: 'Valve Replacement', patient: 'Deepak Verma (P-1000)', surgeon: 'Dr. Sharma', anesthesiologist: 'Dr. Mehta', type: 'Elective', duration: '5 hrs', status: 'Scheduled' },
-];
 
 const preOpChecklist = [
   { item: 'Consent Form Signed', responsible: 'Surgeon', status: 'Done' },
@@ -48,17 +75,105 @@ const preOpChecklist = [
 ];
 
 const OTManagement = () => {
-  const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Pre-Op Checklist','Surgery Media','Post-Op Notes','Equipment/Instruments','OT Utilization','Anesthesia Log'];
+  const tabs = ['Dashboard','OT Schedule','Running Surgeries','OT Booking','Post-Op Notes'];
   const [tab, setTab] = useState('Dashboard');
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-   const [uploading, setUploading] = useState(false);
-   const [surgeryMedia, setSurgeryMedia] = useState([
-     { id: 1, patient: 'Rajesh Kumar', surgery: 'CABG', type: 'Video', name: 'cabg_procedure_start.mp4', url: '#', date: '2024-03-15' },
-     { id: 2, patient: 'Mohan Lal', surgery: 'Lap Chole', type: 'Image', name: 'gallbladder_view.jpg', url: '#', date: '2024-03-15' },
-   ]);
-   const [surgeons, setSurgeons] = useState<any[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [actionNotes, setActionNotes] = useState('');
+  const [actionReason, setActionReason] = useState('');
+  const [dashboardBookings, setDashboardBookings] = useState<any[]>([]);
+
+  const [bookingForm, setBookingForm] = useState({
+    patientId: '',
+    surgeonId: '',
+    anesthetistId: '',
+    departmentId: '',
+    procedureName: '',
+    scheduleDate: '',
+    durationInMinutes: '',
+    otRoomNumber: '',
+    anesthesiaType: '',
+    scrubNurse: '',
+    circulatingNurse: '',
+    preOpInstructions: '',
+    priority: 'NORMAL',
+    notes: '',
+    videoRecordingUrl: ''
+  });
+
+  useEffect(() => {
+    if (selectedBooking) {
+      setBookingForm({
+        patientId: selectedBooking.patient?.id || '',
+        surgeonId: selectedBooking.surgeon?.id || '',
+        anesthetistId: selectedBooking.anesthetist?.id || '',
+        departmentId: selectedBooking.department?.id || '',
+        procedureName: selectedBooking.procedureName || '',
+        scheduleDate: selectedBooking.scheduleDate ? selectedBooking.scheduleDate.substring(0, 16) : '',
+        durationInMinutes: selectedBooking.durationInMinutes || '',
+        otRoomNumber: selectedBooking.otRoomNumber || '',
+        anesthesiaType: selectedBooking.anesthesiaType || '',
+        scrubNurse: selectedBooking.scrubNurse || '',
+        circulatingNurse: selectedBooking.circulatingNurse || '',
+        preOpInstructions: selectedBooking.preOpInstructions || '',
+        priority: selectedBooking.priority || 'NORMAL',
+        notes: selectedBooking.notes || '',
+        videoRecordingUrl: selectedBooking.videoRecordingUrl || ''
+      });
+    } else {
+      setBookingForm({
+        patientId: '',
+        surgeonId: '',
+        anesthetistId: '',
+        departmentId: '',
+        procedureName: '',
+        scheduleDate: '',
+        durationInMinutes: '',
+        otRoomNumber: '',
+        anesthesiaType: '',
+        scrubNurse: '',
+        circulatingNurse: '',
+        preOpInstructions: '',
+        priority: 'NORMAL',
+        notes: '',
+        videoRecordingUrl: ''
+      });
+    }
+  }, [selectedBooking]);
+
+  const handleSaveBooking = async () => {
+    setLoading(true);
+    try {
+      let res;
+      if (isEditing && selectedBooking?.id) {
+        res = await updateOtBooking(selectedBooking.id, bookingForm);
+      } else {
+        res = await createOtBooking(bookingForm);
+      }
+
+      if (res.ok) {
+        toast({ title: "Success", description: `OT Booking ${isEditing ? 'updated' : 'created'} successfully.` });
+        setTab('OT Schedule');
+        refreshViews();
+      } else {
+        toast({ title: "Error", description: "Failed to save booking.", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [surgeons, setSurgeons] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   
   // Search Filters
@@ -68,6 +183,27 @@ const OTManagement = () => {
     status: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  const fetchDashboardStats = async () => {
+    try {
+      const [sRes, bRes] = await Promise.all([
+        getOtDashboardStats(),
+        searchOtBookings({
+          start: new Date().toISOString().split('T')[0] + 'T00:00:00',
+          end: new Date().toISOString().split('T')[0] + 'T23:59:59',
+          page: 0,
+          size: 50
+        })
+      ]);
+      if (sRes.ok) setStats(sRes.data?.data || sRes.data);
+      if (bRes.ok) {
+        const data = bRes.data?.data || bRes.data;
+        setDashboardBookings(data?.content || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchFiltersData = async () => {
     try {
@@ -82,18 +218,29 @@ const OTManagement = () => {
     }
   };
 
-  const handleSearchBookings = async () => {
+  const handleSearchBookings = async (p = 0, statusOverride?: string) => {
     setLoading(true);
-    try {
-      const res = await getApiV1ClinicalOtSearch({
+    
+    // Clean up filters to remove empty strings, null, or undefined values for the URL
+    const queryParams = Object.fromEntries(
+      Object.entries({
         surgeonId: filters.surgeonId || undefined,
         departmentId: filters.departmentId || undefined,
-        status: filters.status || undefined,
+        status: statusOverride || filters.status || undefined,
         start: filters.date ? `${filters.date}T00:00:00` : undefined,
         end: filters.date ? `${filters.date}T23:59:59` : undefined,
-      });
+        page: p,
+        size: 10
+      }).filter(([_, v]) => v !== undefined && v !== '' && v !== null)
+    );
+
+    try {
+      const res = await searchOtBookings(queryParams);
       if (res.ok) {
-        setBookings(res.data?.data?.content || res.data?.content || extractArray(res));
+        const data = res.data?.data || res.data;
+        setBookings(data?.content || []);
+        setTotalPages(data?.totalPages || 0);
+        setPage(p);
       }
     } catch (e) {
       console.error(e);
@@ -102,71 +249,133 @@ const OTManagement = () => {
     }
   };
 
-  const fetchBookings = async () => {
+  const handleViewDetails = async (id: number) => {
     setLoading(true);
     try {
-      const res = await getOTBookings();
+      const res = await getOtBookingById(id);
       if (res.ok) {
-        setBookings(extractArray(res));
+        const data = res.data?.data || res.data;
+        setSelectedBooking(data);
+        setIsEditing(false);
+        setTab('OT Booking');
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditDetails = async (id: number) => {
+    setLoading(true);
+    try {
+      const res = await getOtBookingById(id);
+      if (res.ok) {
+        const data = res.data?.data || res.data;
+        setSelectedBooking(data);
+        setIsEditing(true);
+        setTab('OT Booking');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (action: 'start' | 'complete' | 'cancel', id: number) => {
+    if (action === 'complete') {
+      setSelectedBooking({ id });
+      setActionNotes('');
+      setShowCompleteModal(true);
+      return;
+    }
+    if (action === 'cancel') {
+      setSelectedBooking({ id });
+      setActionReason('');
+      setShowCancelModal(true);
+      return;
+    }
+
+    try {
+      let res;
+      if (action === 'start') {
+        res = await startOtSurgery(id);
+      }
+
+      if (res?.ok) {
+        toast({ title: "Success", description: `Surgery ${action}ed successfully.` });
+        refreshViews();
+      } else {
+        toast({ title: "Error", description: `Failed to ${action} surgery.`, variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCompleteSurgery = async () => {
+    if (!selectedBooking?.id) return;
+    setLoading(true);
+    try {
+      const res = await completeOtSurgery(selectedBooking.id, { postOpNotes: actionNotes });
+      if (res.ok) {
+        toast({ title: "Success", description: "Surgery completed successfully." });
+        setShowCompleteModal(false);
+        refreshViews();
+      } else {
+        toast({ title: "Error", description: "Failed to complete surgery.", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelSurgery = async () => {
+    if (!selectedBooking?.id) return;
+    setLoading(true);
+    try {
+      const res = await cancelOtSurgery(selectedBooking.id, { reason: actionReason });
+      if (res.ok) {
+        toast({ title: "Success", description: "Surgery cancelled successfully." });
+        setShowCancelModal(false);
+        refreshViews();
+      } else {
+        toast({ title: "Error", description: "Failed to cancel surgery.", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshViews = () => {
+    if (tab === 'Running Surgeries') handleSearchBookings(page, 'RUNNING');
+    else if (tab === 'Post-Op Notes') handleSearchBookings(page, 'COMPLETED');
+    else handleSearchBookings(page);
+    fetchDashboardStats();
   };
 
   useEffect(() => {
-    fetchBookings();
+    fetchDashboardStats();
     fetchFiltersData();
   }, []);
 
   useEffect(() => {
-    if (tab === 'OT Schedule') {
-      handleSearchBookings();
+    if (tab === 'Dashboard') {
+      handleSearchBookings(0);
+    } else if (tab === 'OT Schedule') {
+      handleSearchBookings(0);
+    } else if (tab === 'Running Surgeries') {
+      handleSearchBookings(0, 'RUNNING');
+    } else if (tab === 'Post-Op Notes') {
+      handleSearchBookings(0, 'COMPLETED');
     }
   }, [tab, filters]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setUploading(true);
-    try {
-      // Use the newly integrated S3 upload endpoint
-      const response = await axios.post('/api/v1/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      const newMedia = {
-        id: Date.now(),
-        patient: 'Active Surgery',
-        surgery: 'Ongoing',
-        type: file.type.startsWith('video/') ? 'Video' : 'Image',
-        name: file.name,
-        url: response.data.fileUrl,
-        date: new Date().toISOString().split('T')[0]
-      };
-
-      setSurgeryMedia([newMedia, ...surgeryMedia]);
-      toast({
-        title: "Upload Successful",
-        description: "Media uploaded to S3 for government verification.",
-      });
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast({
-        title: "Upload Failed",
-        description: "Could not upload media to S3.",
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
   return (
     <div>
       <div className="hms-section-header flex items-center gap-2"><Scissors size={14} /> Operation Theatre Management</div>
@@ -177,7 +386,14 @@ const OTManagement = () => {
       {tab === 'Dashboard' && (
         <div>
           <div className="grid grid-cols-6 gap-2 mb-3">
-            {[{ l: 'Total OTs', v: '6', s: '3 Running' },{ l: 'Surgeries Today', v: '7', s: '3 Running, 4 Scheduled' },{ l: 'Emergency', v: '1', s: 'OT-5' },{ l: 'Avg Duration', v: '2.8 hrs', s: 'This Week' },{ l: 'Utilization', v: '72%', s: 'Target 80%' },{ l: 'Cancellations', v: '1', s: 'This Week' }].map((k, i) => (
+            {[
+              { l: 'Total OTs', v: stats?.totalOTs || '0', s: `${stats?.runningOTs || 0} Running` },
+              { l: 'Surgeries Today', v: stats?.surgeriesToday?.total || '0', s: `${stats?.surgeriesToday?.running || 0} Running, ${stats?.surgeriesToday?.scheduled || 0} Scheduled` },
+              { l: 'Emergency', v: stats?.emergency?.count || '0', s: stats?.emergency?.locations?.join(', ') || 'None' },
+              { l: 'Avg Duration', v: stats?.avgDuration || '0 hrs', s: 'This Week' },
+              { l: 'Utilization', v: stats?.utilization || '0%', s: `Target ${stats?.utilizationTarget || '80%'}` },
+              { l: 'Cancellations', v: stats?.cancellationsThisWeek || '0', s: 'This Week' }
+            ].map((k, i) => (
               <div key={i} className="bg-card border border-border p-2">
                 <div className="text-[10px] text-muted-foreground">{k.l}</div>
                 <div className="text-sm font-bold">{k.v}</div>
@@ -187,37 +403,42 @@ const OTManagement = () => {
           </div>
           <div className="bg-card border border-border mb-2">
             <div className="hms-section-header text-xs">OT Room Status (Live)</div>
-            <table className="hms-table"><thead><tr><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesia</th><th>Start</th><th>Est. End</th><th>Elapsed</th><th>Status</th></tr></thead>
-              <tbody>{otRooms.map(r => <tr key={r.room}><td className="font-bold">{r.room}</td><td>{r.currentSurgery}</td><td>{r.patient}</td><td>{r.surgeon}</td><td>{r.anesthesia !== '-' ? <StatusBadge status={r.anesthesia} /> : '-'}</td><td>{r.startTime}</td><td>{r.estEnd}</td><td>{r.elapsed}</td><td><StatusBadge status={r.status} /></td></tr>)}</tbody>
+            <table className="hms-table"><thead><tr><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesia</th><th>Start</th><th>Est. End</th><th>Status</th></tr></thead>
+              <tbody>
+                {dashboardBookings.filter(b => b.status === 'RUNNING').map((b, i) => (
+                  <tr key={i}>
+                    <td className="font-bold">{b.otRoomNumber || 'N/A'}</td>
+                    <td>{b.procedureName || 'N/A'}</td>
+                    <td>{b.patient?.fullName || 'N/A'}</td>
+                    <td>{b.surgeon?.user?.fullName || 'N/A'}</td>
+                    <td>{b.anesthesiaType ? <StatusBadge status={b.anesthesiaType} /> : '-'}</td>
+                    <td>{b.surgeryStartTime ? new Date(b.surgeryStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                    <td>{b.surgeryEndTime ? new Date(b.surgeryEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                    <td><StatusBadge status={b.status} /></td>
+                  </tr>
+                ))}
+                {dashboardBookings.filter(b => b.status === 'RUNNING').length === 0 && (
+                  <tr><td colSpan={8} className="text-center py-4 text-muted-foreground">No surgeries currently running</td></tr>
+                )}
+              </tbody>
             </table>
           </div>
           <div className="bg-card border border-border">
             <div className="hms-section-header text-xs">Today's Schedule</div>
-            <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Type</th><th>Duration</th><th>Status</th></tr></thead>
+            <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Status</th></tr></thead>
               <tbody>
-                {bookings.length > 0 ? bookings.map((s, i) => (
+                {dashboardBookings.length > 0 ? dashboardBookings.map((s, i) => (
                   <tr key={i}>
-                    <td>{s.time || 'N/A'}</td>
-                    <td>{s.room || 'N/A'}</td>
-                    <td>{s.surgery || 'N/A'}</td>
-                    <td>{s.patientName || 'N/A'}</td>
-                    <td>{s.surgeonName || 'N/A'}</td>
-                    <td><StatusBadge status={s.type || 'Elective'} /></td>
-                    <td>{s.duration || 'N/A'}</td>
-                    <td><StatusBadge status={s.status || 'Scheduled'} /></td>
+                    <td>{s.scheduleDate ? new Date(s.scheduleDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
+                    <td>{s.otRoomNumber || 'N/A'}</td>
+                    <td>{s.procedureName || 'N/A'}</td>
+                    <td>{s.patient?.fullName || 'N/A'}</td>
+                    <td>{s.surgeon?.user?.fullName || 'N/A'}</td>
+                    <td><StatusBadge status={s.status || 'SCHEDULED'} /></td>
                   </tr>
-                )) : schedule.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.time}</td>
-                    <td>{s.room}</td>
-                    <td>{s.surgery}</td>
-                    <td>{s.patient}</td>
-                    <td>{s.surgeon}</td>
-                    <td><StatusBadge status={s.type} /></td>
-                    <td>{s.duration}</td>
-                    <td><StatusBadge status={s.status} /></td>
-                  </tr>
-                ))}
+                )) : (
+                  <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No bookings found for today</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -261,170 +482,363 @@ const OTManagement = () => {
               <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
-            <button className="hms-btn-primary ml-auto" onClick={handleSearchBookings}>
+            <button className="hms-btn-primary ml-auto" onClick={() => handleSearchBookings(0)}>
               {loading ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />} Search
             </button>
-            <button className="hms-btn-primary">+ Book OT</button>
+            <button className="hms-btn-primary" onClick={() => { setIsEditing(false); setSelectedBooking(null); setTab('OT Booking'); }}>+ Book OT</button>
             <button className="hms-btn-secondary flex items-center gap-1"><Printer size={10} />Print Schedule</button>
           </div>
-          <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesiologist</th><th>Type</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead>
+          <table className="hms-table"><thead><tr><th>Time</th><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Type</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               {bookings.length > 0 ? bookings.map((s, i) => (
                 <tr key={i}>
                   <td>{s.scheduleDate ? new Date(s.scheduleDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
-                  <td>{s.room || 'N/A'}</td>
+                  <td>{s.otRoomNumber || 'N/A'}</td>
                   <td>{s.procedureName || 'N/A'}</td>
-                  <td>{s.patient?.fullName || s.patientName || 'N/A'}</td>
-                  <td>{s.surgeon?.user?.fullName || s.surgeonName || 'N/A'}</td>
-                  <td>{s.anesthetist?.user?.fullName || s.anesthesiologist || 'N/A'}</td>
-                  <td><StatusBadge status={s.status || 'Scheduled'} /></td>
+                  <td>{s.patient?.fullName || 'N/A'}</td>
+                  <td>{s.surgeon?.user?.fullName || 'N/A'}</td>
+                  <td><StatusBadge status={s.status || 'SCHEDULED'} /></td>
                   <td>{s.durationInMinutes ? `${s.durationInMinutes} min` : 'N/A'}</td>
-                  <td><StatusBadge status={s.status || 'Scheduled'} /></td>
-                  <td><Eye size={12} className="text-primary cursor-pointer" /> <Edit size={12} className="text-primary cursor-pointer" /></td>
+                  <td><StatusBadge status={s.status || 'SCHEDULED'} /></td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <Eye size={12} className="text-primary cursor-pointer" title="View" onClick={() => handleViewDetails(s.id)} /> 
+                      <Edit size={12} className="text-primary cursor-pointer" title="Edit" onClick={() => handleEditDetails(s.id)} />
+                      {s.status === 'SCHEDULED' && <button onClick={() => handleAction('start', s.id)} className="text-[10px] text-green-600 font-bold hover:underline">Start</button>}
+                      {s.status === 'RUNNING' && <button onClick={() => handleAction('complete', s.id)} className="text-[10px] text-blue-600 font-bold hover:underline">Complete</button>}
+                      {['SCHEDULED', 'RUNNING', 'PREPARING'].includes(s.status) && <button onClick={() => handleAction('cancel', s.id)} className="text-[10px] text-red-600 font-bold hover:underline">Cancel</button>}
+                    </div>
+                  </td>
                 </tr>
-              )) : schedule.map((s, i) => <tr key={i}><td>{s.time}</td><td>{s.room}</td><td>{s.surgery}</td><td>{s.patient}</td><td>{s.surgeon}</td><td>{s.anesthesiologist}</td><td><StatusBadge status={s.type} /></td><td>{s.duration}</td><td><StatusBadge status={s.status} /></td><td><Eye size={12} className="text-primary cursor-pointer" /> <Edit size={12} className="text-primary cursor-pointer" /></td></tr>)}
+              )) : (
+                <tr><td colSpan={9} className="text-center py-4 text-muted-foreground">No bookings found</td></tr>
+              )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-2">
+              <button disabled={page === 0} onClick={() => handleSearchBookings(page - 1)} className="hms-btn-secondary py-1 text-[10px]">Prev</button>
+              <span className="text-[10px]">Page {page + 1} of {totalPages}</span>
+              <button disabled={page >= totalPages - 1} onClick={() => handleSearchBookings(page + 1)} className="hms-btn-secondary py-1 text-[10px]">Next</button>
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'Running Surgeries' && (
         <div>
-          <table className="hms-table"><thead><tr><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesia</th><th>Start</th><th>Est End</th><th>Elapsed</th><th>Vitals</th><th>Blood Used</th><th>Status</th></tr></thead>
-            <tbody>{otRooms.filter(r => r.status === 'Running').map(r => <tr key={r.room}><td className="font-bold">{r.room}</td><td>{r.currentSurgery}</td><td>{r.patient}</td><td>{r.surgeon}</td><td><StatusBadge status={r.anesthesia} /></td><td>{r.startTime}</td><td>{r.estEnd}</td><td className="font-bold">{r.elapsed}</td><td className="text-[10px]">BP:120/80 HR:72 SpO2:99%</td><td>0 Units</td><td><StatusBadge status={r.status} /></td></tr>)}</tbody>
+          <table className="hms-table"><thead><tr><th>Room</th><th>Surgery</th><th>Patient</th><th>Surgeon</th><th>Anesthesia</th><th>Start</th><th>Est End</th><th>Vitals</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              {bookings.map((b, i) => (
+                <tr key={i}>
+                  <td className="font-bold">{b.otRoomNumber || 'N/A'}</td>
+                  <td>{b.procedureName || 'N/A'}</td>
+                  <td>{b.patient?.fullName || 'N/A'}</td>
+                  <td>{b.surgeon?.user?.fullName || 'N/A'}</td>
+                  <td>{b.anesthesiaType ? <StatusBadge status={b.anesthesiaType} /> : '-'}</td>
+                  <td>{b.surgeryStartTime ? new Date(b.surgeryStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                  <td>{b.surgeryEndTime ? new Date(b.surgeryEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                  <td className="text-[10px]">BP:120/80 HR:72 SpO2:99%</td>
+                  <td><StatusBadge status={b.status} /></td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <Eye size={12} className="text-primary cursor-pointer" onClick={() => handleViewDetails(b.id)} />
+                      <button onClick={() => handleAction('complete', b.id)} className="hms-btn-primary py-0.5 text-[10px]">Complete</button>
+                      <button onClick={() => handleAction('cancel', b.id)} className="text-[10px] text-red-600 font-bold hover:underline">Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {bookings.length === 0 && (
+                <tr><td colSpan={10} className="text-center py-4 text-muted-foreground">No surgeries currently running</td></tr>
+              )}
+            </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-2">
+              <button disabled={page === 0} onClick={() => handleSearchBookings(page - 1, 'RUNNING')} className="hms-btn-secondary py-1 text-[10px]">Prev</button>
+              <span className="text-[10px]">Page {page + 1} of {totalPages}</span>
+              <button disabled={page >= totalPages - 1} onClick={() => handleSearchBookings(page + 1, 'RUNNING')} className="hms-btn-secondary py-1 text-[10px]">Next</button>
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'OT Booking' && (
         <div className="bg-card border border-border p-3">
+          <div className="hms-section-header text-xs mb-3">
+            {isEditing ? (selectedBooking ? 'Edit OT Booking' : 'New OT Booking') : 'View OT Booking'}
+          </div>
           <div className="grid grid-cols-4 gap-3">
-            {[['Patient UHID','P-'],['Patient Name',''],['IPD Number','IPD-'],['Surgery Name',''],['Surgeon',''],['Anesthesiologist',''],['Preferred OT Room',''],['Preferred Date',''],['Estimated Duration',''],['Surgery Type','Elective'],['Priority','Normal'],['Special Requirements','']].map(([label, ph], i) => (
-              <div key={i} className="flex flex-col gap-0.5">
-                <label className="hms-form-label">{label}</label>
-                {label === 'Surgery Type' ? <select className="hms-select"><option>Elective</option><option>Emergency</option></select> :
-                 label === 'Priority' ? <select className="hms-select"><option>Normal</option><option>Urgent</option><option>Emergency</option></select> :
-                 label === 'Preferred Date' ? <input type="date" className="hms-input" /> :
-                 <input className="hms-input" placeholder={ph as string} />}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-3"><button className="hms-btn-primary">Book OT</button><button className="hms-btn-secondary">Check Availability</button></div>
-        </div>
-      )}
-
-      {tab === 'Pre-Op Checklist' && (
-        <div>
-          <div className="flex gap-2 mb-2">
-            <select className="hms-select"><option>Select Patient</option><option>Suresh Yadav (P-1007) - Hernia Repair</option><option>Kavita Jain (P-1006) - Excision Biopsy</option></select>
-          </div>
-          <table className="hms-table"><thead><tr><th>S.No</th><th>Checklist Item</th><th>Responsible</th><th>Status</th><th>Time</th><th>Verified By</th></tr></thead>
-            <tbody>{preOpChecklist.map((c, i) => <tr key={i}><td>{i + 1}</td><td>{c.item}</td><td>{c.responsible}</td><td><StatusBadge status={c.status} /></td><td>{c.status === 'Done' ? '08:30' : '-'}</td><td>{c.status === 'Done' ? 'Staff Nurse' : '-'}</td></tr>)}</tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'Surgery Media' && (
-        <div className="space-y-4">
-          <div className="bg-card border border-border p-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold">Upload Surgery Media</h3>
-              <p className="text-[10px] text-muted-foreground">Upload images or videos for government verification (S3 Storage)</p>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Patient ID *</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.patientId} 
+                onChange={e => setBookingForm({...bookingForm, patientId: e.target.value})} 
+                placeholder="Patient ID" 
+                disabled={!isEditing}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <label className={`hms-btn-primary cursor-pointer flex items-center gap-2 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                <Upload size={14} />
-                {uploading ? 'Uploading...' : 'Upload Media'}
-                <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*,video/*" />
-              </label>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Surgeon *</label>
+              <select 
+                className="hms-select" 
+                value={bookingForm.surgeonId} 
+                onChange={e => setBookingForm({...bookingForm, surgeonId: e.target.value})}
+                disabled={!isEditing}
+              >
+                <option value="">Select Surgeon</option>
+                {surgeons.map(s => <option key={s.id} value={s.id}>{s.user?.fullName || s.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Anesthetist</label>
+              <select 
+                className="hms-select" 
+                value={bookingForm.anesthetistId} 
+                onChange={e => setBookingForm({...bookingForm, anesthetistId: e.target.value})}
+                disabled={!isEditing}
+              >
+                <option value="">Select Anesthetist</option>
+                {surgeons.map(s => <option key={s.id} value={s.id}>{s.user?.fullName || s.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Department</label>
+              <select 
+                className="hms-select" 
+                value={bookingForm.departmentId} 
+                onChange={e => setBookingForm({...bookingForm, departmentId: e.target.value})}
+                disabled={!isEditing}
+              >
+                <option value="">Select Department</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Procedure Name *</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.procedureName} 
+                onChange={e => setBookingForm({...bookingForm, procedureName: e.target.value})} 
+                placeholder="e.g. Lap Cholecystectomy" 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Schedule Date & Time *</label>
+              <input 
+                type="datetime-local" 
+                className="hms-input" 
+                value={bookingForm.scheduleDate} 
+                onChange={e => setBookingForm({...bookingForm, scheduleDate: e.target.value})} 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Duration (Min) *</label>
+              <input 
+                type="number" 
+                className="hms-input" 
+                value={bookingForm.durationInMinutes} 
+                onChange={e => setBookingForm({...bookingForm, durationInMinutes: e.target.value})} 
+                placeholder="e.g. 120" 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">OT Room Number</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.otRoomNumber} 
+                onChange={e => setBookingForm({...bookingForm, otRoomNumber: e.target.value})} 
+                placeholder="e.g. OT-1" 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Anesthesia Type</label>
+              <select 
+                className="hms-select" 
+                value={bookingForm.anesthesiaType} 
+                onChange={e => setBookingForm({...bookingForm, anesthesiaType: e.target.value})}
+                disabled={!isEditing}
+              >
+                <option value="">Select Type</option>
+                <option value="GA">GA</option>
+                <option value="SA">SA</option>
+                <option value="LA">LA</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <label className="hms-form-label">Priority</label>
+              <select 
+                className="hms-select" 
+                value={bookingForm.priority} 
+                onChange={e => setBookingForm({...bookingForm, priority: e.target.value})}
+                disabled={!isEditing}
+              >
+                <option value="NORMAL">Normal</option>
+                <option value="URGENT">Urgent</option>
+                <option value="EMERGENCY">Emergency</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5 col-span-2">
+              <label className="hms-form-label">Pre-Op Instructions</label>
+              <textarea 
+                className="hms-input h-10" 
+                value={bookingForm.preOpInstructions} 
+                onChange={e => setBookingForm({...bookingForm, preOpInstructions: e.target.value})} 
+                placeholder="Instructions..." 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 col-span-2">
+              <label className="hms-form-label">Internal Notes</label>
+              <textarea 
+                className="hms-input h-10" 
+                value={bookingForm.notes} 
+                onChange={e => setBookingForm({...bookingForm, notes: e.target.value})} 
+                placeholder="Internal notes..." 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 col-span-2">
+              <label className="hms-form-label">Scrub Nurse</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.scrubNurse} 
+                onChange={e => setBookingForm({...bookingForm, scrubNurse: e.target.value})} 
+                placeholder="Scrub nurse name" 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 col-span-2">
+              <label className="hms-form-label">Circulating Nurse</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.circulatingNurse} 
+                onChange={e => setBookingForm({...bookingForm, circulatingNurse: e.target.value})} 
+                placeholder="Circulating nurse name" 
+                disabled={!isEditing}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 col-span-4">
+              <label className="hms-form-label">Video Recording URL (S3)</label>
+              <input 
+                className="hms-input" 
+                value={bookingForm.videoRecordingUrl} 
+                onChange={e => setBookingForm({...bookingForm, videoRecordingUrl: e.target.value})} 
+                placeholder="https://..." 
+                disabled={!isEditing}
+              />
             </div>
           </div>
-
-          <div className="bg-card border border-border overflow-hidden">
-            <div className="hms-section-header text-xs">Media Archive</div>
-            <table className="hms-table">
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Surgery</th>
-                  <th>Type</th>
-                  <th>Filename</th>
-                  <th>Upload Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {surgeryMedia.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.patient}</td>
-                    <td>{m.surgery}</td>
-                    <td>
-                      <span className="flex items-center gap-1 text-[10px]">
-                        {m.type === 'Video' ? <FileVideo size={12} className="text-blue-500" /> : <FileImage size={12} className="text-green-500" />}
-                        {m.type}
-                      </span>
-                    </td>
-                    <td className="font-mono text-[10px]">{m.name}</td>
-                    <td>{m.date}</td>
-                    <td>
-                      <a href={m.url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-[10px] font-bold">
-                        View S3
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex gap-2 mt-3">
+            {isEditing && (
+              <button className="hms-btn-primary" onClick={handleSaveBooking} disabled={loading}>
+                {loading ? 'Saving...' : (selectedBooking ? 'Update Booking' : 'Book OT')}
+              </button>
+            )}
+            <button className="hms-btn-secondary" onClick={() => { setTab('OT Schedule'); setSelectedBooking(null); }}>
+              {isEditing ? 'Cancel' : 'Back to Schedule'}
+            </button>
           </div>
         </div>
       )}
 
       {tab === 'Post-Op Notes' && (
         <div>
-          <table className="hms-table"><thead><tr><th>Date</th><th>Patient</th><th>Surgery</th><th>Surgeon</th><th>Findings</th><th>Procedure</th><th>Complications</th><th>Blood Loss</th><th>Duration</th><th>Action</th></tr></thead>
+          <table className="hms-table"><thead><tr><th>Date</th><th>Patient</th><th>Surgery</th><th>Surgeon</th><th>Post-Op Notes</th><th>Complications</th><th>Action</th></tr></thead>
             <tbody>
-              {[['2024-03-14','Ravi Yadav','Appendectomy','Dr. Gupta','Inflamed Appendix','Open Appendectomy','None','100ml','1h 15m'],['2024-03-14','Sunita Kumari','C-Section','Dr. Verma','CPD','LSCS','None','300ml','45m'],['2024-03-13','Deepak Kumar','Hernia Repair','Dr. Singh','Right Inguinal Hernia','Mesh Repair','None','50ml','1h 30m']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}<td><Eye size={12} className="text-primary cursor-pointer" /> <Printer size={12} className="text-muted-foreground cursor-pointer" /></td></tr>)}
+              {bookings.map((b, i) => (
+                <tr key={i}>
+                  <td>{b.updatedAt ? new Date(b.updatedAt).toLocaleDateString() : 'N/A'}</td>
+                  <td>{b.patient?.fullName || 'N/A'}</td>
+                  <td>{b.procedureName || 'N/A'}</td>
+                  <td>{b.surgeon?.user?.fullName || 'N/A'}</td>
+                  <td>{b.postOpNotes || 'N/A'}</td>
+                  <td>{b.recoveryStatus || 'None'}</td>
+                   <td><Eye size={12} className="text-primary cursor-pointer" onClick={() => handleViewDetails(b.id)} /> <Printer size={12} className="text-muted-foreground cursor-pointer" /></td>
+                 </tr>
+              ))}
+              {bookings.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-4 text-muted-foreground">No completed surgeries found</td></tr>
+              )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-2">
+              <button disabled={page === 0} onClick={() => handleSearchBookings(page - 1, 'COMPLETED')} className="hms-btn-secondary py-1 text-[10px]">Prev</button>
+              <span className="text-[10px]">Page {page + 1} of {totalPages}</span>
+              <button disabled={page >= totalPages - 1} onClick={() => handleSearchBookings(page + 1, 'COMPLETED')} className="hms-btn-secondary py-1 text-[10px]">Next</button>
+            </div>
+          )}
         </div>
       )}
 
-      {tab === 'Equipment/Instruments' && (
-        <div>
-          <table className="hms-table"><thead><tr><th>Set Name</th><th>Items</th><th>OT Room</th><th>Sterilization</th><th>Last Used</th><th>Condition</th><th>Status</th></tr></thead>
-            <tbody>
-              {[['General Surgery Set','45 instruments','OT-1','2024-03-15 07:00','2024-03-14','Good','Available'],['Lap Cholecystectomy Set','22 instruments','OT-1','2024-03-15 07:00','In Use','Good','Occupied'],['Cardiac Surgery Set','68 instruments','OT-2','2024-03-15 06:30','In Use','Good','Occupied'],['Minor Surgery Set','18 instruments','OT-3','Pending','2024-03-15','Good','Cleaning'],['Eye Surgery Set','32 instruments','OT-6','2024-03-15 07:00','2024-03-14','Good','Available']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{j === 6 ? <StatusBadge status={c} /> : c}</td>)}</tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'OT Utilization' && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-card border border-border">
-            <div className="hms-section-header text-xs">Room-wise Utilization (This Month)</div>
-            <table className="hms-table"><thead><tr><th>Room</th><th>Total Hrs</th><th>Used Hrs</th><th>Utilization</th><th>Surgeries</th><th>Cancellations</th></tr></thead>
-              <tbody>{[['OT-1 (Major)','240','185','77%','45','2'],['OT-2 (Major)','240','198','82.5%','28','1'],['OT-3 (Minor)','240','156','65%','62','3'],['OT-4 (Minor)','240','142','59%','55','4'],['OT-5 (Emergency)','720','210','29%','35','0'],['OT-6 (Eye)','240','168','70%','82','2']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-            </table>
+      {/* Complete Surgery Modal */}
+      <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="text-green-600" size={18} />
+              Complete Surgery
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="hms-form-label mb-1">Post-Op Notes *</label>
+            <textarea
+              className="hms-input min-h-[100px]"
+              placeholder="Enter findings, procedure details, and recovery instructions..."
+              value={actionNotes}
+              onChange={(e) => setActionNotes(e.target.value)}
+            />
           </div>
-          <div className="bg-card border border-border">
-            <div className="hms-section-header text-xs">Surgeon-wise Statistics</div>
-            <table className="hms-table"><thead><tr><th>Surgeon</th><th>Surgeries</th><th>Avg Duration</th><th>Complications</th><th>Cancellations</th></tr></thead>
-              <tbody>{[['Dr. Sharma (Cardiac)','12','4.5 hrs','0','0'],['Dr. Singh (General)','28','1.8 hrs','1','1'],['Dr. Gupta (Ortho)','22','2.2 hrs','0','2'],['Dr. Verma (OBG)','18','1.2 hrs','0','0'],['Dr. Agarwal (Eye)','35','0.8 hrs','0','1']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button className="hms-btn-secondary" onClick={() => setShowCompleteModal(false)}>Cancel</button>
+            <button 
+              className="hms-btn-primary" 
+              onClick={handleCompleteSurgery}
+              disabled={loading || !actionNotes.trim()}
+            >
+              {loading ? 'Completing...' : 'Mark as Completed'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {tab === 'Anesthesia Log' && (
-        <div>
-          <table className="hms-table"><thead><tr><th>Date</th><th>Patient</th><th>Surgery</th><th>Type</th><th>Agent</th><th>Dose</th><th>Anesthesiologist</th><th>ASA Grade</th><th>Intubation</th><th>Duration</th><th>Complications</th><th>Recovery</th></tr></thead>
-            <tbody>
-              {[['2024-03-15','Rajesh Kumar','CABG','GA','Sevoflurane+O2','2%','Dr. Mehta','III','ETT 7.5','3h 45m (ongoing)','None','--'],['2024-03-15','Mohan Lal','Lap Chole','GA','Propofol+Sevo','200mg+2%','Dr. Jain','II','LMA #4','1h 45m (ongoing)','None','--'],['2024-03-15','Ravi Yadav','Appendectomy','SA','Bupivacaine 0.5%','3ml','Dr. Mehta','I','N/A','1h 15m (ongoing)','None','--'],['2024-03-14','Sunita Kumari','C-Section','SA','Bupivacaine 0.5%','2.5ml','Dr. Kumar','I','N/A','45m','None','Smooth']].map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{j === 3 ? <StatusBadge status={c} /> : c}</td>)}</tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Cancel Surgery Modal */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle size={18} />
+              Cancel Surgery
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="hms-form-label mb-1">Reason for Cancellation *</label>
+            <textarea
+              className="hms-input min-h-[100px]"
+              placeholder="Enter reason for cancelling this procedure..."
+              value={actionReason}
+              onChange={(e) => setActionReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <button className="hms-btn-secondary" onClick={() => setShowCancelModal(false)}>Go Back</button>
+            <button 
+              className="hms-btn-primary bg-red-600 hover:bg-red-700 border-red-700" 
+              onClick={handleCancelSurgery}
+              disabled={loading || !actionReason.trim()}
+            >
+              {loading ? 'Cancelling...' : 'Confirm Cancellation'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

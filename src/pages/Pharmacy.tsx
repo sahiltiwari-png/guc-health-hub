@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  createMedicine, createPharmacyDispense, createPharmacyInvoice, createPharmacyStock, 
-  createPharmacySupplier, extractArray, getGRNs, getInsuranceClaims, getPharmacyDispenses, 
-  getPharmacyInventory, getPharmacyInvoices, getPharmacyPrescriptions, getPharmacyStock, 
-  getPharmacyStockOverview, getPharmacySuppliers, getPurchaseOrders, getStockAdjustments, 
-  getStockTransfers, listMedicines,
-  getApiInventoryPharmacyStock,
-  postApiInventoryPharmacyStock,
-  putApiInventoryPharmacyStockByid,
-  deleteApiInventoryPharmacyStockByid,
-  getApiInventoryPharmacyStockSearch,
-  getApiV1PharmacyDispenses,
-  getApiV1PharmacyInventory
+  getApiV1InventoryPharmacyDashboard,
+  getApiV1InventoryPharmacyDispense,
+  postApiV1InventoryPharmacyDispense,
+  getApiV1InventoryPharmacyStock,
+  postApiV1InventoryPharmacyStock,
+  putApiV1InventoryPharmacyStockByid,
+  deleteApiV1InventoryPharmacyStockByid,
+  getApiV1InventoryPharmacyStockSearch,
+  getApiV1InventoryPurchaseOrders,
+  postApiV1InventoryPurchaseOrders,
+  postApiV1InventoryPurchaseOrdersReceiveByid,
+  getApiV1InventorySuppliers,
+  postApiV1InventorySuppliers,
+  putApiV1InventorySuppliersByid
 } from "@/api/apiService";
 import { 
   Pill, ClipboardList, Package, TrendingUp, AlertTriangle, CreditCard,
@@ -21,28 +23,6 @@ import {
   Plus, X, History
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-
-/* ───────── DUMMY DATA ───────── */
-
-const kpiCards = [
-  { label: 'Total Rx Today', value: '187', icon: ClipboardList, change: '+12 vs yesterday', color: 'bg-primary' },
-  { label: 'Medicines Dispensed', value: '1,243', icon: Pill, change: '98% fulfilment', color: 'bg-hms-success' },
-  { label: 'Low Stock Items', value: '14', icon: AlertTriangle, change: '3 critical', color: 'bg-hms-warning' },
-  { label: 'Expiring Soon', value: '23', icon: Clock, change: 'Within 30 days', color: 'bg-destructive' },
-  { label: 'Pending Bills', value: '₹45,200', icon: CreditCard, change: '8 patients', color: 'bg-hms-info' },
-  { label: 'Revenue Today', value: '₹1,82,500', icon: TrendingUp, change: '+8% vs avg', color: 'bg-primary' },
-];
-
-const auditLogs = [
-  { time: '10:35 AM', user: 'Ankit Gupta', action: 'Dispensed', detail: 'RX-2026-006 - Calcium + Vit D3 x 30 to Mrs. Kamla Devi', module: 'Dispensing' },
-  { time: '10:20 AM', user: 'Admin', action: 'Stock Update', detail: 'Added 500 units of Paracetamol 500mg (Batch B-2026-A01)', module: 'Inventory' },
-  { time: '10:05 AM', user: 'Renu Singh', action: 'Dispensed', detail: 'RX-2026-002 - Metformin 500mg x 30 to Mrs. Sunita Devi', module: 'Dispensing' },
-  { time: '09:50 AM', user: 'Ankit Gupta', action: 'Dispensed', detail: 'RX-2026-003 - Diclofenac 50mg x 10 to Mr. Amit Sharma', module: 'Dispensing' },
-  { time: '09:30 AM', user: 'Admin', action: 'Price Update', detail: 'Amoxicillin 250mg MRP changed ₹10 → ₹12', module: 'Inventory' },
-  { time: '09:15 AM', user: 'System', action: 'Alert', detail: 'Low stock alert triggered for Insulin Glargine (3 units)', module: 'Alerts' },
-];
-
-
 
 /* ───────── STATUS BADGE ───────── */
 const StatusBadge = ({ status }: { status: string }) => {
@@ -58,43 +38,39 @@ const StatusBadge = ({ status }: { status: string }) => {
             : status === 'Partial Return'
               ? 'bg-hms-info text-hms-success-foreground'
               : 'bg-muted text-foreground';
-  return <span className={`px-2 py-0.5 text-[10px] font-bold \${cls}`}>{status}</span>;
+  return <span className={`px-2 py-0.5 text-[10px] font-bold ${cls}`}>{status}</span>;
 };
 
 /* ───────── TAB PANELS ───────── */
 
-const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
-  const lowStock = [
-    { name: 'Amoxicillin 250mg', stock: 8, minStock: 30, supplier: 'Cipla Ltd', status: 'Low' },
-    { name: 'Paracetamol 500mg', stock: 1200, minStock: 500, supplier: 'Sun Pharma', status: 'OK' }
-  ];
-  const expiryAlerts = [
-    { name: 'Cetrizine 10mg', batch: 'B-998', expiry: '2026-03-18', daysLeft: 7, action: 'Return' },
-    { name: 'Insulin Glargine', batch: 'B-112', expiry: '2026-03-23', daysLeft: 12, action: 'Flash Sale' }
-  ];
+const OverviewPanel = ({ dispenses, stocks }: { dispenses: any[], stocks: any[] }) => {
+  const lowStock = stocks.filter(s => s.quantity < (s.reorderLevel || 10)).slice(0, 5);
+  const expiryAlerts = stocks.filter(s => {
+    if (!s.expiryDate) return false;
+    const daysLeft = Math.ceil((new Date(s.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    return daysLeft <= 60;
+  }).slice(0, 5);
 
   return (
     <div className="space-y-3">
       <div>
-        <div className="hms-section-header">Live Prescription Queue</div>
+        <div className="hms-section-header">Recent Dispense Activity</div>
         <table className="hms-table">
-          <thead><tr><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>Dispense No</th><th>UHID</th><th>Patient</th><th>Medicine</th><th>Qty</th><th>Total (₹)</th><th>Date</th><th>Status</th></tr></thead>
           <tbody>
-            {prescriptionQueue.length > 0 ? prescriptionQueue.map(p => (
-              <tr key={p.id}>
-                <td>{p.prescriptionId?.visitId || 'V-001'}</td>
-                <td>{p.prescriptionId?.patientId?.uhid}</td>
-                <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
-                <td>{p.prescriptionId?.patientId?.age}Y</td>
-                <td>{p.prescriptionId?.doctorId?.name}</td>
-                <td>{p.prescriptionItemId?.medicineName || 'Paracetamol'}</td>
-                <td>{p.quantityGiven}</td>
-                <td>{new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                <td><StatusBadge status={p.status || 'Dispensed'} /></td>
-                <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
+            {dispenses.length > 0 ? dispenses.slice(0, 5).map(d => (
+              <tr key={d.id}>
+                <td className="font-mono text-[10px]">{d.dispenseNumber}</td>
+                <td>{d.patient?.uhid}</td>
+                <td className="font-semibold">{d.patientName || d.patient?.fullName}</td>
+                <td>{d.items?.[0]?.stock?.medicineName || 'N/A'}</td>
+                <td>{d.items?.[0]?.quantity || 0}</td>
+                <td className="font-bold">₹{d.totalAmount?.toLocaleString()}</td>
+                <td>{new Date(d.dispenseDate).toLocaleDateString()}</td>
+                <td><StatusBadge status={d.status || 'Completed'} /></td>
               </tr>
             )) : (
-              <tr><td colSpan={10} className="text-center py-4">No live prescriptions in queue</td></tr>
+              <tr><td colSpan={8} className="text-center py-4">No recent dispenses found</td></tr>
             )}
           </tbody>
         </table>
@@ -103,22 +79,31 @@ const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
         <div>
           <div className="hms-section-header">Low Stock Items</div>
           <table className="hms-table">
-            <thead><tr><th>Medicine</th><th>Stock</th><th>Min Stock</th><th>Supplier</th><th>Status</th></tr></thead>
+            <thead><tr><th>Medicine</th><th>Stock</th><th>Min Stock</th><th>Category</th><th>Status</th></tr></thead>
             <tbody>
-              {lowStock.map((i, idx) => (
-                <tr key={idx}><td>{i.name}</td><td className={i.status === 'Low' ? 'text-destructive font-bold' : ''}>{i.stock}</td><td>{i.minStock}</td><td>{i.supplier}</td><td><StatusBadge status={i.status} /></td></tr>
-              ))}
+              {lowStock.length > 0 ? lowStock.map((i, idx) => (
+                <tr key={idx}><td>{i.medicineName}</td><td className="text-destructive font-bold">{i.quantity}</td><td>{i.reorderLevel}</td><td>{i.category}</td><td><StatusBadge status="Low" /></td></tr>
+              )) : (
+                <tr><td colSpan={5} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No low stock items</td></tr>
+              )}
             </tbody>
           </table>
         </div>
         <div>
           <div className="hms-section-header">Expiry Alerts (Next 60 Days)</div>
           <table className="hms-table">
-            <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Days Left</th><th>Action</th></tr></thead>
+            <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Days Left</th><th>Status</th></tr></thead>
             <tbody>
-              {expiryAlerts.map((e, idx) => (
-                <tr key={idx} className={e.daysLeft <= 14 ? 'text-destructive font-semibold' : ''}><td>{e.name}</td><td>{e.batch}</td><td>{e.expiry}</td><td>{e.daysLeft}</td><td>{e.action}</td></tr>
-              ))}
+              {expiryAlerts.length > 0 ? expiryAlerts.map((e, idx) => {
+                const daysLeft = Math.ceil((new Date(e.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <tr key={idx} className={daysLeft <= 14 ? 'text-destructive font-semibold' : ''}>
+                    <td>{e.medicineName}</td><td>{e.batchNumber}</td><td>{new Date(e.expiryDate).toLocaleDateString()}</td><td>{daysLeft}</td><td><StatusBadge status="Expiring" /></td>
+                  </tr>
+                );
+              }) : (
+                <tr><td colSpan={5} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No near-expiry items</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -127,128 +112,31 @@ const OverviewPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => {
   );
 };
 
-const PrescriptionsPanel = ({ prescriptionQueue }: { prescriptionQueue: any[] }) => (
-  <div>
-    <div className="hms-section-header">Prescription Management</div>
-    <table className="hms-table">
-      <thead><tr><th>S.No</th><th>Visit ID</th><th>UHID</th><th>Patient</th><th>Age</th><th>Doctor</th><th>Medicine</th><th>Qty</th><th>Date/Time</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody>
-        {prescriptionQueue.map((p, i) => (
-          <tr key={p.id}>
-            <td>{i + 1}</td>
-            <td>{p.prescriptionId?.visitId}</td>
-            <td>{p.prescriptionId?.patientId?.uhid}</td>
-            <td className="font-semibold">{p.prescriptionId?.patientId?.patientName}</td>
-            <td>{p.prescriptionId?.patientId?.age}Y</td>
-            <td>{p.prescriptionId?.doctorId?.name}</td>
-            <td>{p.prescriptionItemId?.medicineName}</td>
-            <td>{p.quantityGiven}</td>
-            <td>{new Date(p.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-            <td><StatusBadge status={p.status || 'Dispensed'} /></td>
-            <td className="flex gap-1"><Eye size={13} className="text-primary cursor-pointer" /><Printer size={13} className="text-primary cursor-pointer" /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+const StockPanel = ({ stocks, onAddStock, onSearch, onEdit, onDelete }: { stocks: any[], onAddStock: () => void, onSearch: (q: string) => void, onEdit: (s: any) => void, onDelete: (id: string | number) => void }) => {
+  const [searchTerm, setSearchTerm] = useState('');
 
-const RxHeaderPanel = ({ prescriptions }: { prescriptions: any[] }) => (
-  <div>
-    <div className="hms-section-header">Prescription Headers</div>
-    <table className="hms-table">
-      <thead><tr><th>Rx ID</th><th>UHID</th><th>Patient</th><th>Doctor</th><th>Dept</th><th>Date</th><th>Status</th></tr></thead>
-      <tbody>
-        {prescriptions.length > 0 ? prescriptions.map(p => (
-          <tr key={p.id}>
-            <td>{p.id.substring(0, 8)}</td>
-            <td>{p.patientId?.uhid}</td>
-            <td className="font-semibold">{p.patientId?.patientName}</td>
-            <td>{p.doctorId?.name}</td>
-            <td>{p.departmentId?.name}</td>
-            <td>{new Date(p.prescriptionDate).toLocaleDateString()}</td>
-            <td><StatusBadge status={p.status || 'Active'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={7} className="text-center py-4">No prescriptions found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const RxItemsPanel = () => (
-  <div>
-    <div className="hms-section-header">Prescription Items Detail</div>
-    <table className="hms-table">
-      <thead><tr><th>Rx ID</th><th>S.No</th><th>Medicine</th><th>Dosage</th><th>Duration</th><th>Qty</th><th>Route</th><th>Instruction</th><th>Substitution</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr><td colSpan={10} className="text-center py-4">Select a prescription header to view items</td></tr>
-      </tbody>
-    </table>
-  </div>
-);
-
-const MedicineMasterPanel = ({ medicines }: { medicines: any[] }) => (
-  <div>
-    <div className="hms-section-header">Medicine Master Catalog</div>
-    <table className="hms-table">
-      <thead><tr><th>Code</th><th>Name</th><th>Generic Name</th><th>Category</th><th>Schedule</th><th>Form</th><th>Strength</th><th>HSN</th><th>GST</th><th>Status</th></tr></thead>
-      <tbody>
-        {medicines.length > 0 ? medicines.map((m, i) => (
-          <tr key={m.id}>
-            <td className="font-mono text-[10px]">{m.id.substring(0, 8)}</td>
-            <td className="font-bold">{m.name}</td>
-            <td>{m.genericName || '-'}</td>
-            <td>{m.category}</td>
-            <td>{m.scheduleType}</td>
-            <td>{m.form}</td>
-            <td>{m.strength}</td>
-            <td>{m.hsnCode || '-'}</td>
-            <td>{m.gstPercentage}%</td>
-            <td><StatusBadge status={m.isActive ? 'Active' : 'Inactive'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={10} className="text-center py-4">No medicines found in master</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const InventoryPanel = ({ stocks }: { stocks: any[] }) => (
-  <div>
-    <div className="hms-section-header">Current Pharmacy Inventory</div>
-    <table className="hms-table">
-      <thead><tr><th>Medicine</th><th>Batch</th><th>Category</th><th>Stock</th><th>Min Stock</th><th>Unit</th><th>MRP</th><th>Expiry</th><th>Status</th></tr></thead>
-      <tbody>
-        {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s.id} className={s.availableQuantity < 50 ? 'text-destructive font-semibold' : ''}>
-            <td className="font-bold">{s.medicineName}</td>
-            <td className="font-mono text-[10px]">{s.batchNumber}</td>
-            <td>{s.category || 'General'}</td>
-            <td className={s.availableQuantity < 50 ? 'text-destructive font-bold' : 'text-hms-success font-bold'}>{s.availableQuantity}</td>
-            <td>{s.unit || 'Units'}</td>
-            <td>₹{s.sellingPrice || s.mrp}</td>
-            <td>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '-'}</td>
-            <td><StatusBadge status={s.status || 'Available'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={9} className="text-center py-4">No inventory data found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const StockPanel = ({ stocks, onAddStock }: { stocks: any[], onAddStock: () => void }) => (
-  <div>
-    <div className="hms-section-header flex justify-between items-center">
-      <span>Pharmacy Stock Summary</span>
-      <button className="hms-btn-primary text-[10px] py-1" onClick={onAddStock}><Plus size={12} /> Add Stock</button>
-    </div>
-    <table className="hms-table">
-      <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th></tr></thead>
+  return (
+    <div>
+      <div className="hms-section-header flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <span>Pharmacy Stock Summary</span>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+            <input 
+              className="hms-input pl-7 py-1 w-48 text-[10px]" 
+              placeholder="Search by name/batch..." 
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                onSearch(e.target.value);
+              }}
+            />
+          </div>
+        </div>
+        <button className="hms-btn-primary text-[10px] py-1" onClick={onAddStock}><Plus size={12} /> Add Stock</button>
+      </div>
+      <table className="hms-table">
+      <thead><tr><th>S.No</th><th>Medicine</th><th>Category</th><th>Available Stock</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Value</th><th>Actions</th></tr></thead>
       <tbody>
         {stocks.length > 0 ? stocks.map((s, i) => (
           <tr key={s.id || i}>
@@ -263,39 +151,22 @@ const StockPanel = ({ stocks, onAddStock }: { stocks: any[], onAddStock: () => v
             <td>₹{s.unitPrice || 0}</td>
             <td>₹{s.mrp || 0}</td>
             <td>₹{(s.quantity * (s.unitPrice || 0)).toLocaleString()}</td>
+            <td>
+              <div className="flex gap-2">
+                <Eye size={13} className="text-primary cursor-pointer hover:opacity-70" onClick={() => onEdit(s)} />
+                <Wrench size={13} className="text-primary cursor-pointer hover:opacity-70" onClick={() => onEdit(s)} />
+                <X size={13} className="text-destructive cursor-pointer hover:opacity-70" onClick={() => onDelete(s.id)} />
+              </div>
+            </td>
           </tr>
         )) : (
-          <tr><td colSpan={8} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No stock data found</td></tr>
+          <tr><td colSpan={9} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No stock data found</td></tr>
         )}
       </tbody>
     </table>
   </div>
-);
-
-const StockBatchWisePanel = ({ stocks }: { stocks: any[] }) => (
-  <div>
-    <div className="hms-section-header">Stock — Batch-Wise Detail</div>
-    <table className="hms-table">
-      <thead><tr><th>Medicine</th><th>Batch No</th><th>Exp Date</th><th>Qty</th><th>MRP (₹)</th><th>Purchase Price (₹)</th><th>Supplier</th><th>Status</th></tr></thead>
-      <tbody>
-        {stocks.length > 0 ? stocks.map((s, i) => (
-          <tr key={s.id}>
-            <td>{s.medicineName}</td>
-            <td className="font-mono text-[10px]">{s.batchNumber}</td>
-            <td>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '-'}</td>
-            <td>{s.availableQuantity}</td>
-            <td>{s.sellingPrice || s.mrp}</td>
-            <td>{s.purchasePrice}</td>
-            <td>{s.supplierName || '-'}</td>
-            <td><StatusBadge status={s.status || 'Available'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={8} className="text-center py-4">No batch data found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
+  );
+};
 
 const DispensingPanel = ({ dispenses }: { dispenses: any[] }) => (
   <div>
@@ -304,31 +175,31 @@ const DispensingPanel = ({ dispenses }: { dispenses: any[] }) => (
       <thead>
         <tr>
           <th>ID</th>
-          <th>Rx ID</th>
+          <th>Dispense No</th>
           <th>Patient</th>
           <th>UHID</th>
           <th>Medicine & Qty</th>
           <th>Pharmacist</th>
-          <th>Time</th>
+          <th>Date</th>
           <th>Amount</th>
-          <th>Payment</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
         {dispenses.length > 0 ? dispenses.map((d, i) => (
           <tr key={d.id || i}>
             <td>{i + 1}</td>
-            <td className="font-mono text-[10px]">{d.orderNumber || d.prescriptionId || 'N/A'}</td>
+            <td className="font-mono text-[10px]">{d.dispenseNumber}</td>
             <td>{d.patientName || d.patient?.fullName || 'N/A'}</td>
-            <td className="font-mono text-[10px]">{d.uhid || d.patient?.uhid || 'N/A'}</td>
+            <td className="font-mono text-[10px]">{d.patient?.uhid || 'N/A'}</td>
             <td>
-              <div className="font-semibold">{d.medicineName}</div>
-              <div className="text-[10px] text-muted-foreground">Qty: {d.quantity}</div>
+              <div className="font-semibold">{d.items?.[0]?.stock?.medicineName || 'N/A'}</div>
+              <div className="text-[10px] text-muted-foreground">Qty: {d.items?.[0]?.quantity || 0}</div>
             </td>
-            <td>{d.pharmacistName || d.dispensedBy || 'N/A'}</td>
-            <td>{d.dispensedAt ? new Date(d.dispensedAt).toLocaleString() : 'N/A'}</td>
+            <td>{d.createdBy || 'N/A'}</td>
+            <td>{d.dispenseDate ? new Date(d.dispenseDate).toLocaleDateString() : 'N/A'}</td>
             <td>₹{d.totalAmount || 0}</td>
-            <td><StatusBadge status={d.paymentStatus || 'Paid'} /></td>
+            <td><StatusBadge status={d.status || 'Completed'} /></td>
           </tr>
         )) : (
           <tr><td colSpan={9} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No active dispenses found</td></tr>
@@ -338,277 +209,60 @@ const DispensingPanel = ({ dispenses }: { dispenses: any[] }) => (
   </div>
 );
 
-const DispenseRecordsPanel = ({ dispenses }: { dispenses: any[] }) => (
-  <div>
-    <div className="hms-section-header">Pharmacy Dispense Records</div>
-    <table className="hms-table">
-      <thead><tr><th>Dispense ID</th><th>Patient</th><th>UHID</th><th>Medicine</th><th>Batch</th><th>Qty Dispensed</th><th>Pharmacist</th><th>Time</th><th>Status</th></tr></thead>
-      <tbody>
-        {dispenses.length > 0 ? dispenses.map((d, i) => (
-          <tr key={d.id}>
-            <td>{d.id.substring(0, 8)}</td>
-            <td className="font-semibold">{d.patientId?.patientName}</td>
-            <td>{d.patientId?.uhid}</td>
-            <td>{d.medicineId?.name}</td>
-            <td>{d.batchNumber}</td>
-            <td>{d.quantityDispensed}</td>
-            <td>{d.dispensedBy?.name || 'Pharmacist'}</td>
-            <td>{new Date(d.createdAt).toLocaleDateString()}</td>
-            <td><StatusBadge status={d.status || 'Completed'} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={9} className="text-center py-4">No dispense records found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const InvoicesPanel = ({ invoices }: { invoices: any[] }) => (
-  <div>
-    <div className="hms-section-header">Pharmacy Invoices</div>
-    <table className="hms-table">
-      <thead><tr><th>Invoice No</th><th>Date</th><th>Patient</th><th>UHID</th><th>Net Amt (₹)</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody>
-        {invoices.length > 0 ? invoices.map(inv => (
-          <tr key={inv.id}>
-            <td className="font-mono text-[10px]">{inv.invoiceNumber}</td>
-            <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
-            <td className="font-semibold">{inv.patientId?.patientName}</td>
-            <td>{inv.patientId?.uhid}</td>
-            <td className="font-bold">₹{inv.netAmount?.toLocaleString()}</td>
-            <td><StatusBadge status={inv.paymentStatus} /></td>
-            <td><Printer size={13} className="text-primary cursor-pointer" /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={7} className="text-center py-4">No invoices found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const BillingPanel = () => (
-  <div>
-    <div className="hms-section-header">Pharmacy Billing & Insurance</div>
-    <table className="hms-table">
-      <thead><tr><th>Bill No</th><th>Patient</th><th>UHID</th><th>Items</th><th>Gross (₹)</th><th>Discount (₹)</th><th>Net (₹)</th><th>Mode</th><th>Insurance</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr><td colSpan={10} className="text-center py-4">No billing data found</td></tr>
-      </tbody>
-    </table>
-  </div>
-);
-
-const InsuranceClaimsPanel = ({ claims }: { claims: any[] }) => (
-  <div>
-    <div className="hms-section-header">Insurance Claims</div>
-    <table className="hms-table">
-      <thead><tr><th>Claim ID</th><th>Patient</th><th>Insurer</th><th>Amount</th><th>Status</th></tr></thead>
-      <tbody>
-        {claims.length > 0 ? claims.map(c => (
-          <tr key={c.id}>
-            <td>{c.id.substring(0, 8)}</td>
-            <td>{c.patientId?.patientName}</td>
-            <td>{c.insuranceCompany}</td>
-            <td>₹{c.claimAmount?.toLocaleString()}</td>
-            <td><StatusBadge status={c.status} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={5} className="text-center py-4">No claims found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const PurchaseOrdersPanel = ({ orders }: { orders: any[] }) => (
+const PurchaseOrdersPanel = ({ orders, onReceive, onEdit }: { orders: any[], onReceive: (id: string | number) => void, onEdit: (o: any) => void }) => (
   <div>
     <div className="hms-section-header">Purchase Orders</div>
     <table className="hms-table">
-      <thead><tr><th>PO No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+      <thead><tr><th>PO No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         {orders.length > 0 ? orders.map(o => (
           <tr key={o.id}>
             <td>{o.poNumber}</td>
-            <td>{o.supplierId?.supplierName}</td>
-            <td>{new Date(o.poDate).toLocaleDateString()}</td>
+            <td>{o.supplierName || o.supplierId?.supplierName}</td>
+            <td>{new Date(o.orderDate || o.poDate).toLocaleDateString()}</td>
             <td>₹{o.totalAmount?.toLocaleString()}</td>
             <td><StatusBadge status={o.status} /></td>
+            <td>
+              <div className="flex gap-2">
+                <Eye size={13} className="text-primary cursor-pointer hover:opacity-70" onClick={() => onEdit(o)} />
+                {o.status !== 'Received' && (
+                  <Download size={13} className="text-hms-success cursor-pointer hover:opacity-70" onClick={() => onReceive(o.id)} title="Receive Stock" />
+                )}
+              </div>
+            </td>
           </tr>
         )) : (
-          <tr><td colSpan={5} className="text-center py-4">No orders found</td></tr>
+          <tr><td colSpan={6} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No orders found</td></tr>
         )}
       </tbody>
     </table>
   </div>
 );
 
-const POItemsPanel = () => (
+const SuppliersPanel = ({ suppliers, onEdit }: { suppliers: any[], onEdit: (s: any) => void }) => (
   <div>
-    <div className="hms-section-header">PO Items Detail</div>
-    <p className="text-xs p-4">Select a purchase order to view items</p>
-  </div>
-);
-
-const GRNPanel = ({ grns }: { grns: any[] }) => (
-  <div>
-    <div className="hms-section-header">Goods Received Notes (GRN)</div>
+    <div className="hms-section-header flex justify-between items-center">
+      <span>Supplier Directory</span>
+      <button className="hms-btn-primary text-[10px] py-1" onClick={() => onEdit({ name: '', phone: '', email: '', active: true })}><Plus size={12} /> Add Supplier</button>
+    </div>
     <table className="hms-table">
-      <thead><tr><th>GRN No</th><th>Supplier</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
-      <tbody>
-        {grns.length > 0 ? grns.map(g => (
-          <tr key={g.id}>
-            <td>{g.grnNumber}</td>
-            <td>{g.supplierId?.supplierName}</td>
-            <td>{new Date(g.grnDate).toLocaleDateString()}</td>
-            <td>₹{g.netAmount?.toLocaleString()}</td>
-            <td><StatusBadge status={g.status} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={5} className="text-center py-4">No GRNs found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const SuppliersPanel = ({ suppliers }: { suppliers: any[] }) => (
-  <div>
-    <div className="hms-section-header">Supplier Directory</div>
-    <table className="hms-table">
-      <thead><tr><th>Supplier Name</th><th>Phone</th><th>Email</th><th>Status</th></tr></thead>
+      <thead><tr><th>Supplier Name</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         {suppliers.length > 0 ? suppliers.map(s => (
           <tr key={s.id}>
-            <td className="font-bold">{s.supplierName}</td>
+            <td className="font-bold">{s.name || s.supplierName}</td>
             <td>{s.phone}</td>
             <td>{s.email}</td>
-            <td><StatusBadge status={s.isActive ? 'Active' : 'Inactive'} /></td>
+            <td><StatusBadge status={(s.active ?? s.isActive) ? 'Active' : 'Inactive'} /></td>
+            <td>
+              <div className="flex gap-2">
+                <Wrench size={13} className="text-primary cursor-pointer hover:opacity-70" onClick={() => onEdit(s)} />
+              </div>
+            </td>
           </tr>
         )) : (
-          <tr><td colSpan={4} className="text-center py-4">No suppliers found</td></tr>
+          <tr><td colSpan={5} className="text-center py-4 text-muted-foreground uppercase text-[10px] font-bold">No suppliers found</td></tr>
         )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const VendorsPanel = ({ suppliers }: { suppliers: any[] }) => <SuppliersPanel suppliers={suppliers} />;
-
-const InterBranchPanel = ({ transfers }: { transfers: any[] }) => (
-  <div>
-    <div className="hms-section-header">Inter-Branch Transfers</div>
-    <table className="hms-table">
-      <thead><tr><th>Transfer ID</th><th>From</th><th>To</th><th>Date</th><th>Status</th></tr></thead>
-      <tbody>
-        {transfers.length > 0 ? transfers.map(t => (
-          <tr key={t.id}>
-            <td>{t.id.substring(0, 8)}</td>
-            <td>{t.fromBranchId?.name}</td>
-            <td>{t.toBranchId?.name}</td>
-            <td>{new Date(t.transferDate).toLocaleDateString()}</td>
-            <td><StatusBadge status={t.status} /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={5} className="text-center py-4">No transfers found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const StockAdjustmentPanel = ({ adjustments }: { adjustments: any[] }) => (
-  <div>
-    <div className="hms-section-header">Stock Adjustments</div>
-    <table className="hms-table">
-      <thead><tr><th>Date</th><th>Medicine</th><th>Type</th><th>Qty Adjust</th><th>Status</th></tr></thead>
-      <tbody>
-        {adjustments.length > 0 ? adjustments.map(a => (
-          <tr key={a.id}>
-            <td>{new Date(a.adjustmentDate).toLocaleDateString()}</td>
-            <td>{a.medicineId?.name}</td>
-            <td>{a.adjustmentType}</td>
-            <td>{a.adjustmentQuantity}</td>
-            <td><StatusBadge status="Completed" /></td>
-          </tr>
-        )) : (
-          <tr><td colSpan={5} className="text-center py-4">No adjustments found</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
-
-const DoctorAnalyticsPanel = () => (
-  <div>
-    <div className="hms-section-header">Doctor-wise Prescription Analytics</div>
-    <p className="text-xs p-4">Analytics dashboards pending integration...</p>
-  </div>
-);
-
-const ExpiryPanel = ({ stocks }: { stocks: any[] }) => {
-  const expiryAlerts = stocks.filter(s => {
-    if (!s.expiryDate) return false;
-    const daysLeft = Math.ceil((new Date(s.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return daysLeft <= 90;
-  });
-
-  return (
-    <div>
-      <div className="hms-section-header">Expiry & Compliance</div>
-      <table className="hms-table">
-        <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry Date</th><th>Stock</th><th>Days Left</th></tr></thead>
-        <tbody>
-          {expiryAlerts.length > 0 ? expiryAlerts.map((e, i) => {
-            const daysLeft = Math.ceil((new Date(e.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            return (
-              <tr key={i} className={daysLeft <= 30 ? 'text-destructive font-bold' : ''}>
-                <td>{e.medicineName}</td><td>{e.batchNumber}</td><td>{new Date(e.expiryDate).toLocaleDateString()}</td><td>{e.availableQuantity}</td><td>{daysLeft}</td>
-              </tr>
-            );
-          }) : (
-            <tr><td colSpan={5} className="text-center py-4">No near-expiry items found</td></tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-const ReportsPanel = () => (
-  <div>
-    <div className="hms-section-header">Pharmacy Reports</div>
-    <p className="text-xs p-4">Report generation pending integration...</p>
-  </div>
-);
-
-const AlertsPanel = () => (
-  <div>
-    <div className="hms-section-header">Alerts & Notifications</div>
-    <div className="bg-card border border-border p-2 space-y-1.5">
-      <p className="text-xs">🔴 <strong>CRITICAL:</strong> Insulin Glargine stock at 3 units (Min: 10) — Reorder immediately</p>
-      <p className="text-xs">🔴 <strong>CRITICAL:</strong> Cetrizine 10mg expires in 7 days — 5 units remaining</p>
-      <p className="text-xs">🟡 <strong>LOW STOCK:</strong> Amoxicillin 250mg — 8 units (Min: 30)</p>
-      <p className="text-xs">🟡 <strong>LOW STOCK:</strong> Atorvastatin 10mg — 15 units (Min: 50)</p>
-      <p className="text-xs">🟡 <strong>EXPIRY:</strong> Insulin Glargine expires in 12 days</p>
-      <p className="text-xs">🔵 <strong>PAYMENT:</strong> 8 pending pharmacy bills totaling ₹45,200</p>
-      <p className="text-xs">🔵 <strong>INSURANCE:</strong> 2 claims pending approval (Star Health, ICICI Lombard)</p>
-      <p className="text-xs">⚠️ <strong>HIGH-RISK:</strong> Schedule H drug dispensing requires double verification</p>
-      <p className="text-xs">✅ Drug license valid till 15-Mar-2026 — Renewal reminder sent</p>
-    </div>
-  </div>
-);
-
-const AuditPanel = () => (
-  <div>
-    <div className="hms-section-header">Audit Logs</div>
-    <table className="hms-table">
-      <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th><th>Module</th></tr></thead>
-      <tbody>
-        {auditLogs.map((a, i) => (
-          <tr key={i}><td>{a.time}</td><td>{a.user}</td><td>{a.action}</td><td className="max-w-xs truncate">{a.detail}</td><td>{a.module}</td></tr>
-        ))}
       </tbody>
     </table>
   </div>
@@ -619,28 +273,10 @@ const AuditPanel = () => (
 const Pharmacy = () => {
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
-    { key: 'prescriptions', label: 'Prescriptions', icon: ClipboardList },
-    { key: 'rx-header', label: 'Rx Header', icon: FileText },
-    { key: 'rx-items', label: 'Rx Items', icon: ClipboardList },
-    { key: 'medicine-master', label: 'Medicine Master', icon: BookOpen },
-    { key: 'inventory', label: 'Inventory', icon: Package },
-    { key: 'stock', label: 'Stock', icon: Archive },
-    { key: 'stock-batchwise', label: 'Stock Batch-Wise', icon: Layers },
-    { key: 'dispensing', label: 'Dispensing', icon: Pill },
-    { key: 'dispense-records', label: 'Dispense Records', icon: Receipt },
-    { key: 'invoices', label: 'Invoices', icon: Receipt },
-    { key: 'billing', label: 'Billing & Insurance', icon: CreditCard },
-    { key: 'insurance-claims', label: 'Insurance Claims', icon: ShieldCheck },
+    { key: 'stock', label: 'Stock & Inventory', icon: Archive },
+    { key: 'dispensing', label: 'Medication Dispensing', icon: Pill },
     { key: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
-    { key: 'po-items', label: 'PO Items', icon: ClipboardList },
-    { key: 'grn', label: 'GRN', icon: Download },
-    { key: 'suppliers', label: 'Suppliers', icon: UserCheck },
-    { key: 'vendors', label: 'Vendors', icon: Truck },
-    { key: 'stock-transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
-    { key: 'stock-adjustments', label: 'Stock Adjustments', icon: Wrench },
-    { key: 'expiring', label: 'Expiring Soon', icon: Clock },
-    { key: 'audit', label: 'Audit Logs', icon: FileText },
-    { key: 'reports', label: 'Reports', icon: TrendingUp },
+    { key: 'suppliers', label: 'Supplier Directory', icon: UserCheck },
   ];
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
@@ -649,64 +285,46 @@ const Pharmacy = () => {
   const { toast } = useToast();
   
   // Data States
-  const [medicines, setMedicines] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [stocks, setStocks] = useState<any[]>([]);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [dispenses, setDispenses] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [claims, setClaims] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
-  const [grns, setGrns] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [transfers, setTransfers] = useState<any[]>([]);
-  const [adjustments, setAdjustments] = useState<any[]>([]);
-  const [inventory, setInventory] = useState<any[]>([]);
+  
+  // Pagination States
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [mRes, sRes, pRes, dRes, iRes, cRes, poRes, gRes, supRes, tRes, aRes, invRes, pharmacyStockRes, dispenseFeedRes, inventoryFeedRes] = await Promise.all([
-        listMedicines(),
-        getPharmacyStock(),
-        getPharmacyPrescriptions(),
-        getPharmacyDispenses(),
-        getPharmacyInvoices(),
-        getInsuranceClaims(),
-        getPurchaseOrders(),
-        getGRNs(),
-        getPharmacySuppliers(),
-        getStockTransfers(),
-        getStockAdjustments(),
-        getPharmacyInventory(),
-        getApiInventoryPharmacyStock({ page: 0, size: 100 }),
-        getApiV1PharmacyDispenses(),
-        getApiV1PharmacyInventory({ page: 0, size: 100 })
+      const [dashRes, stockRes, dispenseRes, poRes, supRes] = await Promise.all([
+        getApiV1InventoryPharmacyDashboard(),
+        getApiV1InventoryPharmacyStock({ page, size }),
+        getApiV1InventoryPharmacyDispense({ page, size }),
+        getApiV1InventoryPurchaseOrders({ page, size }),
+        getApiV1InventorySuppliers({ page, size })
       ]);
 
-      const getArr = (res: any, key: string) => {
-        if (!res.ok) return [];
-        // Extract data based on the provided JSON structures
-        const d = res.data?.data || res.data;
-        if (!d) return [];
-        if (Array.isArray(d)) return d;
-        return d[key] || d.content || d.items || d.data || [];
+      if (dashRes.ok) setDashboardStats(dashRes.data?.data || dashRes.data);
+      
+      const setPaginatedData = (res: any, setter: (data: any[]) => void) => {
+        if (res.ok) {
+          const d = res.data?.data || res.data;
+          setter(d?.content || d || []);
+          if (d?.totalPages) setTotalPages(d.totalPages);
+        }
       };
 
-      setMedicines(getArr(mRes, 'medicines'));
-      setStocks(getArr(inventoryFeedRes, 'stock'));
-      setPrescriptions(getArr(pRes, 'prescriptions'));
-      setDispenses(getArr(dispenseFeedRes, 'dispenses'));
-      setInvoices(getArr(iRes, 'invoices'));
-      setClaims(getArr(cRes, 'claims'));
-      setOrders(getArr(poRes, 'purchaseOrders'));
-      setGrns(getArr(gRes, 'grns'));
-      setSuppliers(getArr(supRes, 'suppliers'));
-      setTransfers(getArr(tRes, 'transfers'));
-      setAdjustments(getArr(aRes, 'adjustments'));
-      setInventory(getArr(inventoryFeedRes, 'inventory'));
+      setPaginatedData(stockRes, setStocks);
+      setPaginatedData(dispenseRes, setDispenses);
+      setPaginatedData(poRes, setOrders);
+      setPaginatedData(supRes, setSuppliers);
 
     } catch (e) {
       console.error('Error syncing pharmacy data:', e);
+      toast({ title: 'Error', description: 'Failed to fetch pharmacy data', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -714,74 +332,165 @@ const Pharmacy = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, size, activeTab]);
 
-  const prescriptionQueue = dispenses.slice(0, 10);
+  const kpiData = [
+    { label: 'Total Rx Today', value: dashboardStats?.totalRxToday || '0', icon: ClipboardList, change: dashboardStats?.rxChange || '0% vs yesterday', color: 'bg-primary' },
+    { label: 'Medicines Dispensed', value: dashboardStats?.medicinesDispensed || '0', icon: Pill, change: dashboardStats?.fulfilmentRate || '0% fulfilment', color: 'bg-hms-success' },
+    { label: 'Low Stock Items', value: dashboardStats?.lowStockItems || '0', icon: AlertTriangle, change: dashboardStats?.criticalItems || '0 critical', color: 'bg-hms-warning' },
+    { label: 'Expiring Soon', value: dashboardStats?.expiringSoon || '0', icon: Clock, change: 'Within 30 days', color: 'bg-destructive' },
+    { label: 'Pending Bills', value: `₹${dashboardStats?.pendingBillsAmount || '0'}`, icon: CreditCard, change: `${dashboardStats?.pendingBillsCount || '0'} patients`, color: 'bg-hms-info' },
+    { label: 'Revenue Today', value: `₹${dashboardStats?.revenueToday || '0'}`, icon: TrendingUp, change: dashboardStats?.revenueChange || '0% vs avg', color: 'bg-primary' },
+  ];
 
-  const panelMap: Record<string, React.ReactNode> = {
-    overview: <OverviewPanel prescriptionQueue={prescriptionQueue} />,
-    prescriptions: <PrescriptionsPanel prescriptionQueue={prescriptionQueue} />,
-    'rx-header': <RxHeaderPanel prescriptions={prescriptions} />,
-    'rx-items': <RxItemsPanel />,
-    'medicine-master': <MedicineMasterPanel medicines={medicines} />,
-    inventory: <InventoryPanel stocks={stocks} />,
-    stock: <StockPanel stocks={stocks} onAddStock={() => {
-      setSelectedItem({
-        medicineName: '',
-        batchNumber: '',
-        genericName: '',
-        manufacturer: '',
-        unitPrice: 0,
-        mrp: 0,
-        quantity: 0,
-        expiryDate: new Date().toISOString().split('T')[0],
-        reorderLevel: 10,
-        category: 'General',
-        active: true
-      });
-      setShowModal('addStock');
-    }} />,
-    'stock-batchwise': <StockBatchWisePanel stocks={stocks} />,
-    dispensing: <DispensingPanel dispenses={dispenses} />,
-    'dispense-records': <DispenseRecordsPanel dispenses={dispenses} />,
-    invoices: <InvoicesPanel invoices={invoices} />,
-    billing: <BillingPanel />,
-    'insurance-claims': <InsuranceClaimsPanel claims={claims} />,
-    'purchase-orders': <PurchaseOrdersPanel orders={orders} />,
-    'po-items': <POItemsPanel />,
-    grn: <GRNPanel grns={grns} />,
-    suppliers: <SuppliersPanel suppliers={suppliers} />,
-    vendors: <VendorsPanel suppliers={suppliers} />,
-    'stock-transfers': <InterBranchPanel transfers={transfers} />,
-    'stock-adjustments': <StockAdjustmentPanel adjustments={adjustments} />,
-    expiring: <ExpiryPanel stocks={stocks} />,
-    audit: <AuditPanel />,
-    reports: <ReportsPanel />,
-  };
-
-  const handleAddStock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await postApiInventoryPharmacyStock(selectedItem);
-      toast({ title: 'Success', description: 'Stock added successfully' });
-      setShowModal(null);
+  const handleSearch = async (query: string) => {
+    if (!query) {
       fetchData();
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await getApiV1InventoryPharmacyStockSearch({ name: query, page: 0, size });
+      if (res.ok) {
+        const d = res.data?.data || res.data;
+        setStocks(d?.content || d || []);
+        if (d?.totalPages) setTotalPages(d.totalPages);
+      }
     } catch (e) {
-      toast({ title: 'Error', description: 'Failed to add stock', variant: 'destructive' });
+      console.error('Search error:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleEditStock = (s: any) => {
+    setSelectedItem(s);
+    setShowModal('editStock');
+  };
+
+  const handleDeleteStock = async (id: string | number) => {
+    if (!confirm('Are you sure you want to delete this stock item?')) return;
+    try {
+      await deleteApiV1InventoryPharmacyStockByid(id);
+      toast({ title: 'Success', description: 'Stock deleted successfully' });
+      fetchData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to delete stock', variant: 'destructive' });
+    }
+  };
+
+  const handleReceivePO = async (id: string | number) => {
+    if (!confirm('Receive all items from this purchase order into stock?')) return;
+    try {
+      await postApiV1InventoryPurchaseOrdersReceiveByid(id);
+      toast({ title: 'Success', description: 'Purchase order received successfully' });
+      fetchData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to receive PO', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (showModal === 'addStock') {
+        await postApiV1InventoryPharmacyStock(selectedItem);
+        toast({ title: 'Success', description: 'Stock added successfully' });
+      } else {
+        await putApiV1InventoryPharmacyStockByid(selectedItem.id, selectedItem);
+        toast({ title: 'Success', description: 'Stock updated successfully' });
+      }
+      setShowModal(null);
+      fetchData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to save stock', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (selectedItem.id) {
+        await putApiV1InventorySuppliersByid(selectedItem.id, selectedItem);
+        toast({ title: 'Success', description: 'Supplier updated successfully' });
+      } else {
+        await postApiV1InventorySuppliers(selectedItem);
+        toast({ title: 'Success', description: 'Supplier added successfully' });
+      }
+      setShowModal(null);
+      fetchData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to save supplier', variant: 'destructive' });
+    }
+  };
+
+  const panelMap: Record<string, React.ReactNode> = {
+    overview: <OverviewPanel dispenses={dispenses} stocks={stocks} />,
+    stock: <StockPanel 
+      stocks={stocks} 
+      onSearch={handleSearch} 
+      onEdit={handleEditStock}
+      onDelete={handleDeleteStock}
+      onAddStock={() => {
+        setSelectedItem({
+          medicineName: '',
+          batchNumber: '',
+          genericName: '',
+          manufacturer: '',
+          unitPrice: 0,
+          mrp: 0,
+          quantity: 0,
+          expiryDate: new Date().toISOString().split('T')[0],
+          reorderLevel: 10,
+          category: 'General',
+          active: true
+        });
+        setShowModal('addStock');
+      }} 
+    />,
+    dispensing: <DispensingPanel dispenses={dispenses} />,
+    'purchase-orders': <PurchaseOrdersPanel 
+      orders={orders} 
+      onReceive={handleReceivePO}
+      onEdit={(o) => { setSelectedItem(o); setShowModal('viewPO'); }}
+    />,
+    suppliers: <SuppliersPanel 
+      suppliers={suppliers} 
+      onEdit={(s) => { setSelectedItem(s); setShowModal('editSupplier'); }}
+    />,
+  };
+
+  const Pagination = () => (
+    <div className="flex items-center justify-end gap-2 mt-4 pb-4">
+      <button 
+        disabled={page === 0} 
+        onClick={() => setPage(p => p - 1)}
+        className="hms-btn-secondary px-2 py-1 text-[10px] disabled:opacity-50"
+      >
+        Previous
+      </button>
+      <span className="text-[10px] font-bold">Page {page + 1} of {totalPages || 1}</span>
+      <button 
+        disabled={page >= totalPages - 1} 
+        onClick={() => setPage(p => p + 1)}
+        className="hms-btn-secondary px-2 py-1 text-[10px] disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  );
+
   return (
-    <div>
+    <div className="pb-10">
       {/* Header */}
       <div className="hms-section-header flex items-center justify-between">
         <span className="flex items-center gap-2"><Pill size={16} /> Pharmacy Dashboard — GUC HMS</span>
-        <span className="text-[10px] font-normal">21-Feb-2026 | Pharmacist: Ankit Gupta</span>
+        <span className="text-[10px] font-normal">{new Date().toLocaleDateString()} | Pharmacist: Ankit Gupta</span>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-6 gap-2 my-2">
-        {kpiCards.map((k, i) => {
+        {kpiData.map((k, i) => {
           const Icon = k.icon;
           return (
             <div key={i} className="bg-card border border-border p-2">
@@ -805,7 +514,10 @@ const Pharmacy = () => {
           return (
             <button
               key={t.key}
-              onClick={() => setActiveTab(t.key)}
+              onClick={() => {
+                setActiveTab(t.key);
+                setPage(0); // Reset page on tab change
+              }}
               className={`flex items-center gap-1 px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition-colors
                 ${activeTab === t.key
                   ? 'bg-card text-foreground'
@@ -822,17 +534,18 @@ const Pharmacy = () => {
       {/* Tab Content */}
       <div className="mt-2">
         {panelMap[activeTab]}
+        {['stock', 'dispensing', 'purchase-orders', 'suppliers'].includes(activeTab) && <Pagination />}
       </div>
 
       {/* Modals */}
-      {showModal === 'addStock' && (
+      {(showModal === 'addStock' || showModal === 'editStock') && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-card border border-border w-full max-w-2xl shadow-2xl rounded-sm overflow-hidden">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Pill size={16} className="text-primary" /> Register New Pharmacy Stock</h3>
+              <h3 className="text-sm font-bold flex items-center gap-2"><Pill size={16} className="text-primary" /> {showModal === 'addStock' ? 'Register New Pharmacy Stock' : 'Edit Pharmacy Stock'}</h3>
               <button onClick={() => setShowModal(null)}><X size={18} /></button>
             </div>
-            <form onSubmit={handleAddStock} className="p-4 space-y-4">
+            <form onSubmit={handleSaveStock} className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Medicine Name</label>
@@ -885,6 +598,82 @@ const Pharmacy = () => {
                 <button type="submit" className="hms-btn-primary flex-1">Register Stock</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Supplier Modal */}
+      {showModal === 'editSupplier' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-lg shadow-2xl rounded-sm overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Truck size={16} className="text-primary" /> {selectedItem?.id ? 'Edit Supplier' : 'Add New Supplier'}</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveSupplier} className="p-4 space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Supplier Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.name || selectedItem?.supplierName} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Phone</label>
+                  <input className="hms-input w-full" value={selectedItem?.phone} onChange={e => setSelectedItem({...selectedItem, phone: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Email</label>
+                  <input className="hms-input w-full" value={selectedItem?.email} onChange={e => setSelectedItem({...selectedItem, email: e.target.value})} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={selectedItem?.active ?? selectedItem?.isActive} onChange={e => setSelectedItem({...selectedItem, active: e.target.checked})} />
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Active Supplier</label>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
+                <button type="submit" className="hms-btn-primary flex-1">Save Supplier</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View PO Modal */}
+      {showModal === 'viewPO' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-2xl shadow-2xl rounded-sm overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><ShoppingCart size={16} className="text-primary" /> Purchase Order: {selectedItem?.poNumber}</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-[11px]">
+                <div><span className="font-bold uppercase text-muted-foreground">Supplier:</span> {selectedItem?.supplierName || selectedItem?.supplierId?.supplierName}</div>
+                <div><span className="font-bold uppercase text-muted-foreground">Date:</span> {new Date(selectedItem?.orderDate || selectedItem?.poDate).toLocaleDateString()}</div>
+                <div><span className="font-bold uppercase text-muted-foreground">Status:</span> <StatusBadge status={selectedItem?.status} /></div>
+                <div><span className="font-bold uppercase text-muted-foreground">Total Amount:</span> ₹{selectedItem?.totalAmount?.toLocaleString()}</div>
+              </div>
+              <div className="hms-section-header">Order Items</div>
+              <table className="hms-table">
+                <thead><tr><th>Item</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                <tbody>
+                  {selectedItem?.items?.map((item: any, i: number) => (
+                    <tr key={i}>
+                      <td>{item.medicineName}</td>
+                      <td>{item.quantity}</td>
+                      <td>₹{item.unitPrice}</td>
+                      <td>₹{item.subtotal}</td>
+                    </tr>
+                  )) || <tr><td colSpan={4} className="text-center py-2">No items listed</td></tr>}
+                </tbody>
+              </table>
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="hms-btn-secondary w-full" onClick={() => setShowModal(null)}>Close</button>
+                {selectedItem?.status !== 'Received' && (
+                  <button type="button" className="hms-btn-primary w-full" onClick={() => { handleReceivePO(selectedItem.id); setShowModal(null); }}>Receive Stock</button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

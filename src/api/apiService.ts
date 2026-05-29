@@ -40,7 +40,11 @@ export const apiRequest = async <T = any>(endpoint: string, options: RequestInit
 
   let finalEndpoint = endpoint;
   if (options.queryParams) {
-    const searchParams = new URLSearchParams(options.queryParams);
+    // Filter out undefined and null values from queryParams
+    const cleanQueryParams = Object.fromEntries(
+      Object.entries(options.queryParams).filter(([_, v]) => v !== undefined && v !== null)
+    );
+    const searchParams = new URLSearchParams(cleanQueryParams as any);
     if (searchParams.toString()) {
       finalEndpoint += (finalEndpoint.includes('?') ? '&' : '?') + searchParams.toString();
     }
@@ -910,6 +914,121 @@ export const deleteApiV1BillingInvoicesByid = async (id: string) => {
   return apiRequest(endpoint, {
     method: 'DELETE'
   });
+};
+
+/**
+ * ICU Management - Record Intake/Output
+ */
+export const recordIcuIntakeOutput = async (icuAdmissionId: string | number, data: any) => {
+  let endpoint = `/api/v1/icu/${icuAdmissionId}/intake-output`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * ICU Management - Record Monitoring/Vitals
+ */
+export const recordIcuMonitoring = async (icuAdmissionId: string | number, data: any) => {
+  let endpoint = `/api/v1/icu/${icuAdmissionId}/monitoring`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * ICU Management - Search Admissions
+ */
+export const searchIcuAdmissions = async (queryParams?: any) => {
+  let endpoint = `/api/v1/icu/admissions`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * ICU Management - Admit Patient
+ */
+export const admitIcuPatient = async (data: any, queryParams?: any) => {
+  let endpoint = `/api/v1/icu/admit`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data), queryParams });
+};
+
+/**
+ * ICU Management - Get Dashboard Stats
+ */
+export const getIcuDashboardStats = async () => {
+  let endpoint = `/api/v1/icu/dashboard/stats`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * OT Management - Get Dashboard Stats
+ */
+export const getOtDashboardStats = async () => {
+  let endpoint = `/api/v1/ot/dashboard/stats`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * OT Management - Search Bookings
+ */
+export const searchOtBookings = async (queryParams?: any) => {
+  let endpoint = `/api/v1/ot/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * OT Management - Get Booking Details by ID
+ */
+export const getOtBookingById = async (id: string | number) => {
+  let endpoint = `/api/v1/ot/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * OT Management - Create Booking
+ * Requires patientId, surgeonId as query params and full object in body
+ */
+export const createOtBooking = async (data: any) => {
+  const queryParams = {
+    patientId: data.patientId,
+    surgeonId: data.surgeonId,
+    anesthetistId: data.anesthetistId || undefined,
+    departmentId: data.departmentId || undefined
+  };
+  let endpoint = `/api/v1/ot/booking`;
+  return apiRequest(endpoint, { 
+    method: 'POST', 
+    body: JSON.stringify(data), 
+    queryParams 
+  });
+};
+
+/**
+ * OT Management - Update Booking
+ */
+export const updateOtBooking = async (id: string | number, data: any) => {
+  let endpoint = `/api/v1/ot/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * OT Management - Start Surgery
+ */
+export const startOtSurgery = async (id: string | number) => {
+  let endpoint = `/api/v1/ot/${id}/start`;
+  return apiRequest(endpoint, { method: 'POST' });
+};
+
+/**
+ * OT Management - Complete Surgery
+ */
+export const completeOtSurgery = async (id: string | number, queryParams: { postOpNotes: string }) => {
+  let endpoint = `/api/v1/ot/${id}/complete`;
+  return apiRequest(endpoint, { method: 'POST', queryParams });
+};
+
+/**
+ * OT Management - Cancel Surgery
+ */
+export const cancelOtSurgery = async (id: string | number, queryParams: { reason: string }) => {
+  let endpoint = `/api/v1/ot/${id}/cancel`;
+  return apiRequest(endpoint, { method: 'POST', queryParams });
 };
 
 /**
@@ -2077,60 +2196,121 @@ export const postApiInventoryPharmacyStock = async (data?: any) => {
 };
 
 /**
+ * Pharmacy Dashboard Stats
+ */
+export const getApiV1InventoryPharmacyDashboard = async () => {
+  let endpoint = `/api/v1/inventory/pharmacy/dashboard`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * List dispenses
+ */
+export const getApiV1InventoryPharmacyDispense = async (queryParams?: { page?: number, size?: number }) => {
+  let endpoint = `/api/v1/inventory/pharmacy/dispense`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Dispense medicine
+ */
+export const postApiV1InventoryPharmacyDispense = async (data: any) => {
+  let endpoint = `/api/v1/inventory/pharmacy/dispense`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * List pharmacy stock
+ */
+export const getApiV1InventoryPharmacyStock = async (queryParams?: { page?: number, size?: number }) => {
+  let endpoint = `/api/v1/inventory/pharmacy/stock`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
  * Add pharmacy stock
  */
-export const getApiInventoryPharmacyStock = async (queryParams?: any) => {
-  let endpoint = `/api/inventory/pharmacy/stock`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
+export const postApiV1InventoryPharmacyStock = async (data: any) => {
+  let endpoint = `/api/v1/inventory/pharmacy/stock`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * Update pharmacy stock
+ */
+export const putApiV1InventoryPharmacyStockByid = async (id: string | number, data: any) => {
+  let endpoint = `/api/v1/inventory/pharmacy/stock/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Delete pharmacy stock
+ */
+export const deleteApiV1InventoryPharmacyStockByid = async (id: string | number) => {
+  let endpoint = `/api/v1/inventory/pharmacy/stock/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
 };
 
 /**
  * Search pharmacy stock
  */
-export const getApiInventoryPharmacyStockSearch = async (queryParams?: any) => {
-  let endpoint = `/api/inventory/pharmacy/stock/search`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
+export const getApiV1InventoryPharmacyStockSearch = async (queryParams: { name?: string, genericName?: string, batchNumber?: string, page?: number, size?: number }) => {
+  let endpoint = `/api/v1/inventory/pharmacy/stock/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
 };
 
 /**
- * Update pharmacy stock
+ * List Purchase Orders
  */
-export const putApiInventoryPharmacyStockByid = async (id: string, data?: any) => {
-  let endpoint = `/api/inventory/pharmacy/stock/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'PUT', body: JSON.stringify(data || {})
-  });
+export const getApiV1InventoryPurchaseOrders = async (queryParams?: { page?: number, size?: number }) => {
+  let endpoint = `/api/v1/inventory/purchase-orders`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
 };
 
 /**
- * Update pharmacy stock
+ * Create Purchase Order
  */
-export const deleteApiInventoryPharmacyStockByid = async (id: string) => {
-  let endpoint = `/api/inventory/pharmacy/stock/${id}`;
-  
-  return apiRequest(endpoint, {
-    method: 'DELETE'
-  });
+export const postApiV1InventoryPurchaseOrders = async (data: any) => {
+  let endpoint = `/api/v1/inventory/purchase-orders`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
 };
+
+/**
+ * Receive Purchase Order
+ */
+export const postApiV1InventoryPurchaseOrdersReceiveByid = async (id: string | number) => {
+  let endpoint = `/api/v1/inventory/purchase-orders/${id}/receive`;
+  return apiRequest(endpoint, { method: 'POST' });
+};
+
+/**
+ * List suppliers
+ */
+export const getApiV1InventorySuppliers = async (queryParams?: { page?: number, size?: number }) => {
+  let endpoint = `/api/v1/inventory/suppliers`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Add supplier
+ */
+export const postApiV1InventorySuppliers = async (data: any) => {
+  let endpoint = `/api/v1/inventory/suppliers`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * Update supplier
+ */
+export const putApiV1InventorySuppliersByid = async (id: string | number, data: any) => {
+  let endpoint = `/api/v1/inventory/suppliers/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+export const getApiInventoryPharmacyStock = getApiV1InventoryPharmacyStock;
+export const getApiInventoryPharmacyStockSearch = getApiV1InventoryPharmacyStockSearch;
+export const putApiInventoryPharmacyStockByid = putApiV1InventoryPharmacyStockByid;
+export const deleteApiInventoryPharmacyStockByid = deleteApiV1InventoryPharmacyStockByid;
 
 /**
  * Create Ward
@@ -2499,6 +2679,62 @@ export const postApiV1PatientsVisitRegister = async (data?: any) => {
   return apiRequest(endpoint, {
     method: 'POST', body: JSON.stringify(data || {})
   });
+};
+
+/**
+ * Emergency Room (ER) - Search ER visits with filters
+ */
+export const getApiV1Emergency = async (queryParams?: any) => {
+  const endpoint = `/api/v1/emergency`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Emergency Room (ER) - Get ER visit details by ID
+ */
+export const getApiV1EmergencyByid = async (id: string | number) => {
+  const endpoint = `/api/v1/emergency/${id}`;
+  return apiRequest(endpoint, { method: 'GET' });
+};
+
+/**
+ * Emergency Room (ER) - Update ER visit (triage, status, doctor)
+ */
+export const putApiV1EmergencyByid = async (id: string | number, data: any) => {
+  const endpoint = `/api/v1/emergency/${id}`;
+  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * Emergency Room (ER) - Delete ER visit record
+ */
+export const deleteApiV1EmergencyByid = async (id: string | number) => {
+  const endpoint = `/api/v1/emergency/${id}`;
+  return apiRequest(endpoint, { method: 'DELETE' });
+};
+
+/**
+ * Emergency Room (ER) - Quickly update ER status
+ */
+export const postApiV1EmergencyByidStatus = async (id: string | number, status: string) => {
+  const endpoint = `/api/v1/emergency/${id}/status`;
+  return apiRequest(endpoint, { method: 'POST', queryParams: { status } });
+};
+
+/**
+ * Emergency Room (ER) - Quickly update triage level
+ */
+export const postApiV1EmergencyByidTriage = async (id: string | number, triage: string) => {
+  const endpoint = `/api/v1/emergency/${id}/triage`;
+  return apiRequest(endpoint, { method: 'POST', queryParams: { triage } });
+};
+
+/**
+ * Emergency Room (ER) - Register new ER Visit
+ */
+export const postApiV1EmergencyRegister = async (data: any, queryParams: { patientId: string | number, doctorId?: string | number, departmentId?: string | number }) => {
+  const endpoint = `/api/v1/emergency/register`;
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data), queryParams });
 };
 
 /**
