@@ -26,14 +26,12 @@ const statusColor = (s: string) => {
   return 'bg-muted text-muted-foreground';
 };
 
-type Tab = 'fleet' | 'trips' | 'tracking' | 'alerts' | 'maintenance';
+type Tab = 'fleet' | 'trips' | 'maintenance';
 
 const tabs: { key: Tab; label: string }[] = [
   { key: 'fleet', label: 'Fleet Overview' },
   { key: 'trips', label: 'Trip Log' },
-  { key: 'tracking', label: 'Real-Time Tracking' },
   { key: 'maintenance', label: 'Maintenance Log' },
-  { key: 'alerts', label: 'GPS Alerts' },
 ];
 
 const Ambulance = () => {
@@ -195,7 +193,7 @@ const Ambulance = () => {
         <tbody>
           {data.trips.map((t: any) => (
             <tr key={t.id}>
-              <td className="font-mono text-[10px]">{t.id.slice(-6).toUpperCase()}</td>
+              <td className="font-mono text-[10px]">{t.id?.toString().slice(-6).toUpperCase()}</td>
               <td className="font-bold">{t.ambulanceId?.registrationNumber}</td>
               <td className="font-semibold">{t.patientId?.patientName || t.patientId?.name || 'Unknown'}</td>
               <td className="text-[10px] max-w-[150px] truncate">{t.fromLocation}</td>
@@ -240,101 +238,54 @@ const Ambulance = () => {
     </div>
   );
 
-  const renderTracking = () => (
-    <div className="p-4 bg-muted/10 min-h-[500px]">
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8 space-y-4">
-          <div className="bg-card border border-border p-4 shadow-sm">
-            <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Navigation size={14} className="text-primary" /> Live Fleet Status</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {data.ambulances.map((a: any) => (
-                <div key={a.id} className="border border-border p-3 rounded hover:border-primary transition-colors cursor-pointer group">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="bg-primary/10 p-2 rounded"><Truck size={18} className="text-primary" /></div>
-                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${statusColor(a.status || (a.active ? 'Available' : 'Maintenance'))}`}>
-                      {a.status || (a.active ? 'Available' : 'Busy')}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold font-mono">{a.registrationNumber}</h4>
-                  <p className="text-[10px] text-muted-foreground mb-2">{a.type} Support</p>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {a.driverName || 'N/A'}</div>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1"><MapPin size={10} /> Hospital Base</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="col-span-4 space-y-4">
-          <div className="bg-card border border-border p-4 shadow-sm">
-            <h3 className="text-xs font-bold uppercase mb-4 flex items-center gap-2"><Clock size={14} className="text-hms-info" /> Active Requests</h3>
-            <div className="space-y-2">
-              {data.trips.filter((t: any) => t.status !== 'Completed' && t.status !== 'Cancelled').map((t: any) => (
-                <div key={t.id} className="bg-primary/5 border-l-2 border-primary p-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-mono text-[9px] font-bold">#{t.id.slice(-4).toUpperCase()}</span>
-                    <span className="text-[8px] bg-primary text-white px-1 py-0.5 rounded uppercase font-bold">{t.status}</span>
-                  </div>
-                  <p className="text-[10px] font-bold">{t.patientId?.patientName}</p>
-                  <p className="text-[9px] text-muted-foreground">{t.fromLocation} → {t.toLocation}</p>
-                </div>
-              ))}
-              {data.trips.filter((t: any) => t.status !== 'Completed' && t.status !== 'Cancelled').length === 0 && (
-                <p className="text-[10px] text-center text-muted-foreground italic py-4">No active trips</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-3">
-      <div className="hms-section-header flex items-center justify-between">
-        <div className="flex items-center gap-2"><Truck size={16} /> Ambulance Management System</div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] bg-hms-success text-hms-success-foreground px-2 py-0.5 flex items-center gap-1"><Radio size={10} className="animate-pulse" /> LIVE {liveTime.toLocaleTimeString('en-IN')}</span>
-          <div className="relative">
+      <div className="hms-section-header flex flex-col lg:flex-row lg:items-center justify-between gap-3 py-2">
+        <div className="flex items-center gap-2 shrink-0"><Truck size={16} /> Ambulance Management System</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] bg-hms-success text-hms-success-foreground px-2 py-0.5 flex items-center gap-1 shrink-0"><Radio size={10} className="animate-pulse" /> LIVE {liveTime.toLocaleTimeString('en-IN')}</span>
+          <div className="relative min-w-[150px] flex-1 lg:flex-none">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
-            <input className="hms-input pl-7 w-48" placeholder="Search vehicle..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="hms-input pl-7 w-full lg:w-48" placeholder="Search vehicle..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <button className="hms-btn-primary flex items-center gap-1" onClick={() => { setSelectedItem({ registrationNumber: '', type: 'Basic', driverPhone: '', active: true, status: 'AVAILABLE' }); setShowModal('vehicle'); }}><Plus size={14} /> Add Vehicle</button>
-          <button className="hms-btn-primary flex items-center gap-1" onClick={() => { 
-            setSelectedItem({ 
-              ambulanceId: '', 
-              patientId: '', 
-              visitId: '', 
-              fromLocation: 'Hospital Base', 
-              toLocation: '', 
-              tripType: 'Emergency' 
-            }); 
-            setShowModal('trip'); 
-          }}><Navigation size={14} /> New Trip</button>
-          <button className="hms-btn-secondary flex items-center gap-1" onClick={() => { 
-            setSelectedItem({ 
-              ambulanceId: '', 
-              type: 'Routine', 
-              description: '', 
-              cost: 0,
-              maintenanceDate: new Date().toISOString().split('T')[0]
-            }); 
-            setShowModal('maintenance'); 
-          }}><Wrench size={14} /> Maint.</button>
-          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} /></button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="hms-btn-primary flex items-center gap-1 text-[10px] sm:text-xs" onClick={() => { setSelectedItem({ registrationNumber: '', type: 'Basic', driverPhone: '', active: true, status: 'AVAILABLE' }); setShowModal('vehicle'); }}><Plus size={14} /> Add Vehicle</button>
+            <button className="hms-btn-primary flex items-center gap-1 text-[10px] sm:text-xs" onClick={() => { 
+              setSelectedItem({ 
+                ambulanceId: '', 
+                patientId: '', 
+                visitId: '', 
+                fromLocation: 'Hospital Base', 
+                toLocation: '', 
+                tripType: 'Emergency' 
+              }); 
+              setShowModal('trip'); 
+            }}><Navigation size={14} /> New Trip</button>
+            <button className="hms-btn-secondary flex items-center gap-1 text-[10px] sm:text-xs" onClick={() => { 
+              setSelectedItem({ 
+                ambulanceId: '', 
+                type: 'Routine', 
+                description: '', 
+                cost: 0,
+                maintenanceDate: new Date().toISOString().split('T')[0]
+              }); 
+              setShowModal('maintenance'); 
+            }}><Wrench size={14} /> Maint.</button>
+            <button className="hms-btn-secondary p-1.5" onClick={fetchData}><RefreshCw size={14} /></button>
+          </div>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
         {[
           { label: 'Total Fleet', value: data.ambulances.length, icon: Truck, color: 'text-primary' },
           { label: 'Available', value: available, icon: CheckCircle2, color: 'text-hms-success' },
           { label: 'On Trip', value: onTrip, icon: Activity, color: 'text-hms-info' },
           { label: 'Maintenance', value: maintenance, icon: Wrench, color: 'text-destructive' },
           { label: 'Total Trips', value: data.trips.length, icon: History, color: 'text-muted-foreground' },
-          { label: 'Avg Speed', value: '42 km/h', icon: Navigation, color: 'text-primary' },
         ].map((k, i) => (
-          <div key={i} className="bg-card border border-border p-3 flex items-center gap-3 shadow-sm">
+          <div key={i} className="bg-card border border-border p-3 flex items-center gap-3 shadow-sm min-w-[120px]">
             <div className={`p-2 rounded-full bg-muted/20 ${k.color}`}><k.icon size={18} /></div>
             <div>
               <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
@@ -345,15 +296,13 @@ const Ambulance = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-border bg-card">
+      <div className="flex border-b border-border bg-card overflow-x-auto no-scrollbar">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
+            className={`px-4 sm:px-6 py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
             {t.key === 'fleet' && <Truck size={13} />}
             {t.key === 'trips' && <History size={13} />}
-            {t.key === 'tracking' && <Navigation size={13} />}
             {t.key === 'maintenance' && <Wrench size={13} />}
-            {t.key === 'alerts' && <AlertTriangle size={13} />}
             {t.label}
           </button>
         ))}
@@ -371,13 +320,6 @@ const Ambulance = () => {
             {tab === 'fleet' && renderFleet()}
             {tab === 'trips' && renderTrips()}
             {tab === 'maintenance' && renderMaintenance()}
-            {tab === 'tracking' && renderTracking()}
-            {tab === 'alerts' && (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground italic">
-                <AlertTriangle size={48} className="mb-2 opacity-20" />
-                <p>No active GPS alerts detected in the system.</p>
-              </div>
-            )}
           </>
         )}
       </div>

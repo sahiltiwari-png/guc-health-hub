@@ -1,4 +1,39 @@
 /**
+ * GET /api/v1/branches
+ */
+export const getApiV1Branches = async (queryParams?: any) => {
+  return apiRequest('/api/v1/branches', { method: 'GET', queryParams });
+};
+
+/**
+ * POST /api/v1/branches
+ */
+export const postApiV1Branches = async (data: any) => {
+  return apiRequest('/api/v1/branches', { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * GET /api/v1/branches/{id}
+ */
+export const getApiV1BranchesByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/branches/${id}`, { method: 'GET' });
+};
+
+/**
+ * PUT /api/v1/branches/{id}
+ */
+export const putApiV1BranchesByid = async (id: string | number, data: any) => {
+  return apiRequest(`/api/v1/branches/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * DELETE /api/v1/branches/{id}
+ */
+export const deleteApiV1BranchesByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/branches/${id}`, { method: 'DELETE' });
+};
+
+/**
  * AUTO-GENERATED API SERVICE
  * Generated on: 2026-05-20T16:17:12.477Z
  */
@@ -139,86 +174,6 @@ export const getApiError401 = async (queryParams?: any) => {
   return apiRequest(endpoint, {
     method: 'GET'
   });
-};
-
-/**
- * Bed Management - Search and filter beds
- */
-export const getApiV1BedManagementBeds = async (queryParams?: any) => {
-  let endpoint = `/api/v1/bed-management/beds`;
-  return apiRequest(endpoint, { method: 'GET', queryParams });
-};
-
-/**
- * Bed Management - Create a new bed
- */
-export const postApiV1BedManagementBeds = async (data: any, queryParams?: any) => {
-  let endpoint = `/api/v1/bed-management/beds`;
-  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data), queryParams });
-};
-
-/**
- * Bed Management - Get bed details by ID
- */
-export const getApiV1BedManagementBedsByid = async (id: string | number) => {
-  let endpoint = `/api/v1/bed-management/beds/${id}`;
-  return apiRequest(endpoint, { method: 'GET' });
-};
-
-/**
- * Bed Management - Update bed details
- */
-export const putApiV1BedManagementBedsByid = async (id: string | number, data: any) => {
-  let endpoint = `/api/v1/bed-management/beds/${id}`;
-  return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
-};
-
-/**
- * Bed Management - Delete a bed
- */
-export const deleteApiV1BedManagementBedsByid = async (id: string | number) => {
-  let endpoint = `/api/v1/bed-management/beds/${id}`;
-  return apiRequest(endpoint, { method: 'DELETE' });
-};
-
-/**
- * Bed Management - Get available beds by ward
- */
-export const getApiV1BedManagementBedsAvailable = async (queryParams: { wardId: string | number }) => {
-  let endpoint = `/api/v1/bed-management/beds/available`;
-  return apiRequest(endpoint, { method: 'GET', queryParams });
-};
-
-/**
- * Bed Management - Assign a bed to a patient (Admit)
- */
-export const postApiV1BedManagementAssign = async (data: any) => {
-  let endpoint = `/api/v1/bed-management/assign`;
-  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
-};
-
-/**
- * Bed Management - Transfer patient to another bed
- */
-export const postApiV1BedManagementTransfer = async (queryParams: { admissionId: string | number, newBedId: string | number }) => {
-  let endpoint = `/api/v1/bed-management/transfer`;
-  return apiRequest(endpoint, { method: 'POST', queryParams });
-};
-
-/**
- * Bed Management - Release/Clear a bed manually
- */
-export const postApiV1BedManagementReleaseBybedId = async (bedId: string | number) => {
-  let endpoint = `/api/v1/bed-management/release/${bedId}`;
-  return apiRequest(endpoint, { method: 'POST' });
-};
-
-/**
- * Bed Management - Get bed assignment history
- */
-export const getApiV1BedManagementLifecycleBybedId = async (bedId: string | number) => {
-  let endpoint = `/api/v1/bed-management/lifecycle/${bedId}`;
-  return apiRequest(endpoint, { method: 'GET' });
 };
 
 /**
@@ -2320,6 +2275,112 @@ export const putApiInventoryPharmacyStockByid = putApiV1InventoryPharmacyStockBy
 export const deleteApiInventoryPharmacyStockByid = deleteApiV1InventoryPharmacyStockByid;
 
 /**
+ * POST /api/v1/bed-management/assign
+ * Assign a bed to a patient (Admit)
+ */
+export const postApiV1BedManagementAssign = async (data: any) => {
+  return apiRequest('/api/v1/bed-management/assign', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/**
+ * GET /api/v1/bed-management/beds
+ * Search and filter beds
+ */
+export const getApiV1BedManagementBeds = async (queryParams?: any) => {
+  return apiRequest('/api/v1/bed-management/beds', {
+    method: 'GET',
+    queryParams
+  });
+};
+
+/**
+ * POST /api/v1/bed-management/beds
+ * Create a new bed
+ */
+export const postApiV1BedManagementBeds = async (data: any) => {
+  return apiRequest('/api/v1/bed-management/beds', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/**
+ * GET /api/v1/bed-management/beds/{id}
+ * Get bed details by ID
+ */
+export const getApiV1BedManagementBedsByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/bed-management/beds/${id}`, {
+    method: 'GET'
+  });
+};
+
+/**
+ * PUT /api/v1/bed-management/beds/{id}
+ * Update bed details
+ */
+export const putApiV1BedManagementBedsByid = async (id: string | number, data: any) => {
+  return apiRequest(`/api/v1/bed-management/beds/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+};
+
+/**
+ * DELETE /api/v1/bed-management/beds/{id}
+ * Delete a bed
+ */
+export const deleteApiV1BedManagementBedsByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/bed-management/beds/${id}`, {
+    method: 'DELETE'
+  });
+};
+
+/**
+ * GET /api/v1/bed-management/beds/available
+ * Get available beds by ward
+ */
+export const getApiV1BedManagementBedsAvailable = async (queryParams?: any) => {
+  return apiRequest('/api/v1/bed-management/beds/available', {
+    method: 'GET',
+    queryParams
+  });
+};
+
+/**
+ * GET /api/v1/bed-management/lifecycle/{bedId}
+ * Get bed assignment history
+ */
+export const getApiV1BedManagementLifecycleBybedId = async (bedId: string | number) => {
+  return apiRequest(`/api/v1/bed-management/lifecycle/${bedId}`, {
+    method: 'GET'
+  });
+};
+
+/**
+ * POST /api/v1/bed-management/release/{bedId}
+ * Release/Clear a bed manually
+ */
+export const postApiV1BedManagementReleaseBybedId = async (bedId: string | number) => {
+  return apiRequest(`/api/v1/bed-management/release/${bedId}`, {
+    method: 'POST'
+  });
+};
+
+/**
+ * POST /api/v1/bed-management/transfer
+ * Transfer patient to another bed
+ */
+export const postApiV1BedManagementTransfer = async (data: any) => {
+  return apiRequest('/api/v1/bed-management/transfer', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+/**
  * Create Ward
  */
 export const postApiV1IpdWards = async (data?: any) => {
@@ -3839,40 +3900,6 @@ export const getApiV1KitchenSchedule = async (queryParams?: any) => {
 };
 
 /**
- * GET /api/v1/helpdesk/dashboard
- */
-export const getApiV1HelpdeskDashboard = async (queryParams?: any) => {
-  let endpoint = `/api/v1/helpdesk/dashboard`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
- * Help desk dashboard statistics
- */
-export const getApiV1HelpdeskTickets = async (queryParams?: any) => {
-  let endpoint = `/api/v1/helpdesk/tickets`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
-};
-
-/**
  * GET /api/v1/hr/attendance
  */
 export const getApiV1HrAttendance = async (queryParams?: any) => {
@@ -3890,7 +3917,27 @@ export const getApiV1HrAttendance = async (queryParams?: any) => {
 };
 
 /**
- * Get staff attendance
+ * POST /api/v1/hr/attendance/clock-in
+ */
+export const postApiV1HrAttendanceClockIn = async (data?: any) => {
+  let endpoint = `/api/v1/hr/attendance/clock-in`;
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
+};
+
+/**
+ * POST /api/v1/hr/attendance/clock-out/{id}
+ */
+export const postApiV1HrAttendanceClockOutByid = async (id: string | number) => {
+  let endpoint = `/api/v1/hr/attendance/clock-out/${id}`;
+  return apiRequest(endpoint, {
+    method: 'POST'
+  });
+};
+
+/**
+ * GET /api/v1/hr/leaves
  */
 export const getApiV1HrLeaves = async (queryParams?: any) => {
   let endpoint = `/api/v1/hr/leaves`;
@@ -3907,7 +3954,27 @@ export const getApiV1HrLeaves = async (queryParams?: any) => {
 };
 
 /**
- * Get leave requests
+ * POST /api/v1/hr/leaves
+ */
+export const postApiV1HrLeaves = async (data?: any) => {
+  let endpoint = `/api/v1/hr/leaves`;
+  return apiRequest(endpoint, {
+    method: 'POST', body: JSON.stringify(data || {})
+  });
+};
+
+/**
+ * PUT /api/v1/hr/leaves/{id}/status
+ */
+export const putApiV1HrLeavesByidStatus = async (id: string | number, queryParams?: any) => {
+  let endpoint = `/api/v1/hr/leaves/${id}/status`;
+  return apiRequest(endpoint, {
+    method: 'PUT', queryParams
+  });
+};
+
+/**
+ * GET /api/v1/hr/payroll
  */
 export const getApiV1HrPayroll = async (queryParams?: any) => {
   let endpoint = `/api/v1/hr/payroll`;
@@ -3924,38 +3991,134 @@ export const getApiV1HrPayroll = async (queryParams?: any) => {
 };
 
 /**
- * GET /api/v1/parking/dashboard
+ * POST /api/v1/hr/payroll
  */
-export const getApiV1ParkingDashboard = async (queryParams?: any) => {
-  let endpoint = `/api/v1/parking/dashboard`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
+export const postApiV1HrPayroll = async (data?: any) => {
+  let endpoint = `/api/v1/hr/payroll`;
   return apiRequest(endpoint, {
-    method: 'GET'
+    method: 'POST', body: JSON.stringify(data || {})
   });
 };
 
 /**
- * Parking dashboard statistics
+ * GET /api/v1/helpdesk/dashboard
+ */
+export const getApiV1HelpdeskDashboard = async () => {
+  return apiRequest('/api/v1/helpdesk/dashboard', { method: 'GET' });
+};
+
+/**
+ * GET /api/v1/helpdesk/tickets
+ */
+export const getApiV1HelpdeskTickets = async (queryParams?: any) => {
+  return apiRequest('/api/v1/helpdesk/tickets', { method: 'GET', queryParams });
+};
+
+/**
+ * POST /api/v1/helpdesk/tickets
+ */
+export const postApiV1HelpdeskTickets = async (data: any) => {
+  return apiRequest('/api/v1/helpdesk/tickets', { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * GET /api/v1/helpdesk/tickets/{id}
+ */
+export const getApiV1HelpdeskTicketsByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/helpdesk/tickets/${id}`, { method: 'GET' });
+};
+
+/**
+ * PUT /api/v1/helpdesk/tickets/{id}/status
+ */
+export const putApiV1HelpdeskTicketsByidStatus = async (id: string | number, queryParams: { status: string }) => {
+  return apiRequest(`/api/v1/helpdesk/tickets/${id}/status`, { method: 'PUT', queryParams });
+};
+
+/**
+ * PUT /api/v1/helpdesk/tickets/{id}/assign
+ */
+export const putApiV1HelpdeskTicketsByidAssign = async (id: string | number, queryParams: { userId: string | number }) => {
+  return apiRequest(`/api/v1/helpdesk/tickets/${id}/assign`, { method: 'PUT', queryParams });
+};
+
+/**
+ * GET /api/v1/parking/dashboard
+ */
+export const getApiV1ParkingDashboard = async () => {
+  return apiRequest('/api/v1/parking/dashboard', { method: 'GET' });
+};
+
+/**
+ * GET /api/v1/parking/entries
  */
 export const getApiV1ParkingEntries = async (queryParams?: any) => {
-  let endpoint = `/api/v1/parking/entries`;
-  
-  if (queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    if (searchParams.toString()) {
-      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
-    }
-  }
-  return apiRequest(endpoint, {
-    method: 'GET'
-  });
+  return apiRequest('/api/v1/parking/entries', { method: 'GET', queryParams });
 };
+
+/**
+ * GET /api/v1/parking/entries/{id}
+ */
+export const getApiV1ParkingEntriesByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/parking/entries/${id}`, { method: 'GET' });
+};
+
+/**
+ * DELETE /api/v1/parking/entries/{id}
+ */
+export const deleteApiV1ParkingEntriesByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/parking/entries/${id}`, { method: 'DELETE' });
+};
+
+/**
+ * POST /api/v1/parking/entries/in
+ */
+export const postApiV1ParkingEntriesIn = async (data: any) => {
+  return apiRequest('/api/v1/parking/entries/in', { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * POST /api/v1/parking/entries/out/{id}
+ */
+export const postApiV1ParkingEntriesOutByid = async (id: string | number, queryParams: { charges: number }) => {
+  return apiRequest(`/api/v1/parking/entries/out/${id}`, { method: 'POST', queryParams });
+};
+
+/**
+ * GET /api/v1/parking/slots
+ */
+export const getApiV1ParkingSlots = async (queryParams?: any) => {
+  return apiRequest('/api/v1/parking/slots', { method: 'GET', queryParams });
+};
+
+/**
+ * POST /api/v1/parking/slots
+ */
+export const postApiV1ParkingSlots = async (data: any) => {
+  return apiRequest('/api/v1/parking/slots', { method: 'POST', body: JSON.stringify(data) });
+};
+
+/**
+ * GET /api/v1/parking/slots/{id}
+ */
+export const getApiV1ParkingSlotsByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/parking/slots/${id}`, { method: 'GET' });
+};
+
+/**
+ * PUT /api/v1/parking/slots/{id}
+ */
+export const putApiV1ParkingSlotsByid = async (id: string | number, data: any) => {
+  return apiRequest(`/api/v1/parking/slots/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+};
+
+/**
+ * DELETE /api/v1/parking/slots/{id}
+ */
+export const deleteApiV1ParkingSlotsByid = async (id: string | number) => {
+  return apiRequest(`/api/v1/parking/slots/${id}`, { method: 'DELETE' });
+};
+
 // --- COMPREHENSIVE ALIASES FOR SUPER ADMIN PANEL ---
 
 // Core & Admin
@@ -4166,7 +4329,20 @@ export const updateAmbulance = async (id: string, data: any) => apiRequest(`/api
 export const deleteAmbulance = async (id: string) => apiRequest(`/api/v1/ambulances/${id}`, { method: 'DELETE' });
 
 // Finance & HR
-export const getBilling = getApiV1BillingInvoices;
+export const getInvoices = (queryParams?: any) => apiRequest('/api/v1/billing/invoices', { queryParams });
+export const getInvoiceById = (id: string | number) => apiRequest(`/api/v1/billing/${id}`);
+export const createInvoice = (data: any, queryParams: { patientId: string | number, admissionId?: string | number }) => apiRequest('/api/v1/billing/invoices', { method: 'POST', body: JSON.stringify(data), queryParams });
+export const updateInvoice = (id: string | number, data: any) => apiRequest(`/api/v1/billing/invoices/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const cancelInvoice = (id: string | number) => apiRequest(`/api/v1/billing/invoices/${id}`, { method: 'DELETE' });
+export const updateInvoicePayment = (id: string | number, queryParams: { amount: number, method: string }) => apiRequest(`/api/v1/billing/invoices/${id}/payment`, { method: 'PATCH', queryParams });
+export const searchInvoices = (queryParams?: { patientId?: string, invoiceNumber?: string, status?: string, start?: string, end?: string, page?: number, size?: number }) => apiRequest('/api/v1/billing/invoices/search', { queryParams });
+
+export const getServiceCharges = (queryParams?: any) => apiRequest('/api/v1/billing/service-charges', { queryParams });
+export const createServiceCharge = (data: any) => apiRequest('/api/v1/billing/service-charges', { method: 'POST', body: JSON.stringify(data) });
+export const updateServiceCharge = (id: string | number, data: any) => apiRequest(`/api/v1/billing/service-charges/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteServiceCharge = (id: string | number) => apiRequest(`/api/v1/billing/service-charges/${id}`, { method: 'DELETE' });
+
+export const getBilling = getInvoices;
 export const getPayroll = getApiV1HrPayroll;
 export const getHRPayroll = getApiV1HrPayroll;
 export const getAttendance = getApiV1HrAttendance;

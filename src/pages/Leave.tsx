@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, X, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, FileText } from 'lucide-react';
+import { Calendar, Plus, X, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, FileText, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { apiRequest, extractArray, getLeaves } from "@/api/apiService";
+import { 
+  getApiV1HrLeaves, 
+  postApiV1HrLeaves, 
+  putApiV1HrLeavesByidStatus, 
+  extractArray 
+} from "@/api/apiService";
 
 type Tab = 'my-leaves' | 'requests';
 
@@ -13,63 +18,55 @@ const Leave = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [showModal, setShowModal] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    leaveType: 'Sick',
+    leaveType: 'SICK',
     startDate: '',
     endDate: '',
     reason: '',
     attachment: ''
   });
 
-  const fetchData = async () => {
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [size] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const fetchData = async (targetPage = page) => {
     setLoading(true);
     try {
-      const endpoint = tab === 'my-leaves' ? '/api/hr/leaves/me' : '/api/hr/leaves/requests';
-      const res = await apiRequest(endpoint);
+      // Use the generic HR leaves API which is paginated
+      const res = await getApiV1HrLeaves({ page: targetPage, size });
       
       if (res.ok) {
+        const data = res.data?.data || res.data;
+        const content = extractArray(res);
+        setTotalPages(data?.totalPages || 1);
+        
+        // For simplicity in this view, we split based on tab if needed, 
+        // but typically 'requests' would be all leaves for an admin
         if (tab === 'my-leaves') {
-          setLeaves(extractArray(res));
+          setLeaves(content);
         } else {
-          setRequests(extractArray(res));
-        }
-      } else {
-        // Fallback to getLeaves if endpoint fails
-        const fallbackRes = await getLeaves();
-        if (fallbackRes.ok) {
-             const data = extractArray(fallbackRes);
-             if (tab === 'my-leaves') setLeaves(data);
-             else setRequests(data);
-        } else {
-            // Mock fallback
-            const mockLeaves = [
-              { id: '1', leaveType: 'Sick', startDate: new Date().toISOString(), endDate: new Date().toISOString(), totalDays: 1, reason: 'Fever', status: 'Pending', createdAt: new Date().toISOString() },
-            ];
-            const mockRequests = [
-              { id: '1', userId: { fullName: 'Nurse Jane', employeeId: 'EMP002' }, leaveType: 'Casual', startDate: new Date().toISOString(), endDate: new Date().toISOString(), totalDays: 1, reason: 'Personal', status: 'Pending', createdAt: new Date().toISOString() },
-            ];
-            if (tab === 'my-leaves') setLeaves(mockLeaves);
-            else setRequests(mockRequests);
+          setRequests(content);
         }
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);
+      toast({ title: 'Error', description: 'Failed to fetch leaves', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    setPage(0);
+    fetchData(0);
   }, [tab]);
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiRequest('/api/hr/leaves', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      const res = await postApiV1HrLeaves(formData);
       if (res.ok) {
         toast({ title: 'Success', description: 'Leave application submitted' });
         setShowModal(null);
@@ -84,38 +81,32 @@ const Leave = () => {
     }
   };
 
-  const handleStatusUpdate = async (id: string, status: 'Approved' | 'Rejected') => {
+  const handleProcessLeave = async (id: string, status: string) => {
     setLoading(true);
     try {
-      const res = await apiRequest(`/api/hr/leaves/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-      });
+      const res = await putApiV1HrLeavesByidStatus(id, { status });
       if (res.ok) {
-        toast({ title: 'Success', description: `Leave ${status.toLowerCase()}` });
+        toast({ title: 'Success', description: `Leave ${status.toLowerCase()} successfully` });
         fetchData();
+      } else {
+        throw new Error(res.data?.message || 'Failed to update status');
       }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Action failed', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProcessLeave = async (id: string, status: 'Approved' | 'Rejected') => {
-    const comment = prompt(`Enter comment for ${status}:`);
-    if (comment === null) return;
-    
-    setLoading(true);
-    try {
-      setRequests(requests.map(r => r.id === id ? { ...r, status } : r));
-      toast({ title: 'Success', description: `Leave ${status.toLowerCase()} successfully` });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Processing failed', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const renderPagination = () => (
+    <div className="flex justify-between items-center mt-4 px-2">
+      <span className="text-[10px] font-bold uppercase text-muted-foreground">Page {page + 1} of {totalPages}</span>
+      <div className="flex gap-2">
+        <button disabled={page === 0 || loading} onClick={() => { setPage(p => p - 1); fetchData(page - 1); }} className="hms-btn-secondary py-1 px-3 text-[10px] disabled:opacity-50">Previous</button>
+        <button disabled={page >= totalPages - 1 || loading} onClick={() => { setPage(p => p + 1); fetchData(page + 1); }} className="hms-btn-secondary py-1 px-3 text-[10px] disabled:opacity-50">Next</button>
+      </div>
+    </div>
+  );
 
   const stats = [
     { label: 'Total Leaves', value: leaves.length, icon: Calendar, color: 'text-primary' },
@@ -185,8 +176,8 @@ const Leave = () => {
                   <td className="max-w-[200px] truncate" title={l.reason}>{l.reason}</td>
                   <td>
                     <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded-full ${
-                      l.status === 'Approved' ? 'bg-hms-success/10 text-hms-success' :
-                      l.status === 'Pending' ? 'bg-hms-warning/10 text-hms-warning' :
+                      l.status === 'APPROVED' || l.status === 'Approved' ? 'bg-hms-success/10 text-hms-success' :
+                      l.status === 'PENDING' || l.status === 'Pending' ? 'bg-hms-warning/10 text-hms-warning' :
                       'bg-destructive/10 text-destructive'
                     }`}>
                       {l.status}
@@ -220,8 +211,8 @@ const Leave = () => {
               {requests.map((r: any) => (
                 <tr key={r.id}>
                   <td>
-                    <div className="font-bold text-sm">{r.userId?.name}</div>
-                    <div className="text-[10px] text-muted-foreground">ID: {r.userId?.employee_id}</div>
+                    <div className="font-bold text-sm">{r.employee?.user?.fullName}</div>
+                    <div className="text-[10px] text-muted-foreground">ID: {r.employee?.employeeCode}</div>
                   </td>
                   <td className="font-bold text-primary uppercase text-[10px]">{r.leaveType}</td>
                   <td className="text-[10px]">
@@ -234,18 +225,18 @@ const Leave = () => {
                   <td className="max-w-[200px] truncate" title={r.reason}>{r.reason}</td>
                   <td className="text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</td>
                   <td>
-                    {r.status === 'Pending' ? (
+                    {r.status === 'PENDING' || r.status === 'Pending' ? (
                       <div className="flex gap-1">
-                        <button className="hms-btn-success p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-hms-success text-hms-success-foreground" onClick={() => handleProcessLeave(r.id, 'Approved')}>
+                        <button className="hms-btn-success p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-hms-success text-hms-success-foreground" onClick={() => handleProcessLeave(r.id, 'APPROVED')}>
                           <CheckCircle size={12} /> Appr.
                         </button>
-                        <button className="hms-btn-destructive p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-destructive text-destructive-foreground" onClick={() => handleProcessLeave(r.id, 'Rejected')}>
+                        <button className="hms-btn-destructive p-1 px-2 text-[10px] font-bold uppercase flex items-center gap-1 bg-destructive text-destructive-foreground" onClick={() => handleProcessLeave(r.id, 'REJECTED')}>
                           <XCircle size={12} /> Rej.
                         </button>
                       </div>
                     ) : (
                       <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded-full ${
-                        r.status === 'Approved' ? 'bg-hms-success/10 text-hms-success' : 'bg-destructive/10 text-destructive'
+                        r.status === 'APPROVED' || r.status === 'Approved' ? 'bg-hms-success/10 text-hms-success' : 'bg-destructive/10 text-destructive'
                       }`}>
                         {r.status}
                       </span>
@@ -262,6 +253,7 @@ const Leave = () => {
           </table>
         )}
       </div>
+      {renderPagination()}
 
       {/* Apply Modal */}
       {showModal === 'apply' && (

@@ -460,7 +460,7 @@ const BloodBank = () => {
                       (r.status || '').toLowerCase().includes(search.toLowerCase())
                     ).map((r: any) => (
                       <tr key={r.id}>
-                        <td className="font-mono text-[10px] font-bold">{r.id.slice(-6).toUpperCase()}</td>
+                        <td className="font-mono text-[10px] font-bold">{r.id?.toString().slice(-6).toUpperCase()}</td>
                         <td>
                           <div className="font-bold text-sm">{r.patientId?.patientName || r.patientId?.name || 'Unknown'}</div>
                           <div className="text-[10px] text-muted-foreground uppercase font-bold">UHID: {r.patientId?.uhid || r.patientId?.patientID || 'N/A'}</div>

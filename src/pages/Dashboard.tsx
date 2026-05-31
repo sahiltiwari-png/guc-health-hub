@@ -150,11 +150,10 @@ const Dashboard = () => {
       ]));
 
       setRecentAppointments(extractArray(appRes).slice(0, 5).map((a: any) => [
-        a.appointmentNo || a.id?.slice(-6) || 'N/A', a.patientName || 'N/A', a.doctorName || 'N/A', a.status || 'Pending'
+        a.appointmentNo || a.id?.toString().slice(-6) || 'N/A', a.patientName || 'N/A', a.doctorName || 'N/A', a.status || 'Pending'
       ]));
-
       setRecentStaff(extractArray(staffRes).slice(0, 5).map((s: any) => [
-        s.employeeId || s.id?.slice(-6) || 'N/A', s.name || s.fullName || 'N/A', s.department || 'N/A', s.status || 'Active'
+        s.employeeId || s.id?.toString().slice(-6) || 'N/A', s.name || s.fullName || 'N/A', s.department || 'N/A', s.status || 'Active'
       ]));
 
     } catch (e) {

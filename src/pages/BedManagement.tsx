@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   Search, Edit, Eye, Plus, Bed, History, MoveHorizontal, LogOut, 
   Filter, Building2, RefreshCw, AlertTriangle, CheckCircle2, XCircle,
-  ClipboardList
+  ClipboardList, Trash2
 } from 'lucide-react';
 import { 
   getApiV1BedManagementBeds, 
@@ -11,6 +11,9 @@ import {
   postApiV1BedManagementTransfer,
   postApiV1BedManagementReleaseBybedId,
   getApiV1BedManagementLifecycleBybedId,
+  postApiV1BedManagementBeds,
+  putApiV1BedManagementBedsByid,
+  deleteApiV1BedManagementBedsByid,
   getApiDepartmentsListAll,
   apiRequest,
   extractArray
@@ -35,7 +38,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const BedManagement = () => {
-  const [activeTab, setActiveTab] = useState<'status' | 'admissions' | 'wards' | 'history'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'admissions' | 'wards' | 'history' | 'beds'>('status');
   const [loading, setLoading] = useState(false);
   const [beds, setBeds] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
@@ -50,6 +53,7 @@ const BedManagement = () => {
   const [showAdmitModal, setShowAdmitModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showBedModal, setShowBedModal] = useState(false);
   const [selectedBed, setSelectedBed] = useState<any>(null);
   const [bedHistory, setBedHistory] = useState<any[]>([]);
 
@@ -77,6 +81,15 @@ const BedManagement = () => {
     newWardId: ''
   });
   const [availableBeds, setAvailableBeds] = useState<any[]>([]);
+
+  // Bed Form State (CRUD)
+  const [bedForm, setBedForm] = useState({
+    bedNumber: '',
+    wardId: '',
+    status: 'AVAILABLE',
+    bedChargePerDay: 0,
+    active: true
+  });
 
   // Stats
   const [stats, setStats] = useState({
@@ -267,6 +280,49 @@ const BedManagement = () => {
     }
   };
 
+  const handleBedSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let res;
+      if (selectedBed?.id) {
+        res = await putApiV1BedManagementBedsByid(selectedBed.id, bedForm);
+      } else {
+        res = await postApiV1BedManagementBeds(bedForm);
+      }
+
+      if (res.ok) {
+        toast.success(selectedBed?.id ? "Bed updated successfully" : "Bed created successfully");
+        setShowBedModal(false);
+        fetchBeds(pagination.page);
+      } else {
+        toast.error(res.data?.message || "Operation failed");
+      }
+    } catch (error) {
+      toast.error("Error saving bed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteBed = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this bed?")) return;
+    setLoading(true);
+    try {
+      const res = await deleteApiV1BedManagementBedsByid(id);
+      if (res.ok) {
+        toast.success("Bed deleted successfully");
+        fetchBeds(pagination.page);
+      } else {
+        toast.error(res.data?.message || "Failed to delete bed");
+      }
+    } catch (error) {
+      toast.error("Error deleting bed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchAvailableBeds = async (wardId: string) => {
     if (!wardId) return;
     try {
@@ -292,7 +348,8 @@ const BedManagement = () => {
               { id: 'status', label: 'Bed Status', icon: <Building2 size={16} /> },
               { id: 'admissions', label: 'Active', icon: <Plus size={16} /> },
               { id: 'wards', label: 'Wards', icon: <Filter size={16} /> },
-              { id: 'history', label: 'History', icon: <History size={16} /> }
+              { id: 'history', label: 'History', icon: <History size={16} /> },
+              { id: 'beds', label: 'Manage Beds', icon: <Bed size={16} /> }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -663,6 +720,83 @@ const BedManagement = () => {
            </div>
          )}
 
+         {/* Beds Management Tab (CRUD) */}
+         {activeTab === 'beds' && (
+           <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+             <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+               <h3 className="text-sm font-bold text-slate-700">Bed Inventory Master</h3>
+               <button 
+                className="hms-btn-primary text-[10px] py-1 px-3 flex items-center gap-1"
+                onClick={() => {
+                  setSelectedBed(null);
+                  setBedForm({ bedNumber: '', wardId: '', status: 'AVAILABLE', bedChargePerDay: 0, active: true });
+                  setShowBedModal(true);
+                }}
+               >
+                 <Plus size={12} /> Create New Bed
+               </button>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="hms-table min-w-[800px]">
+                 <thead>
+                   <tr className="bg-slate-50">
+                     <th>Bed Number</th>
+                     <th>Ward</th>
+                     <th>Charge / Day</th>
+                     <th>Status</th>
+                     <th>Active</th>
+                     <th>Actions</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {beds.map((bed) => (
+                     <tr key={bed.id} className="hover:bg-slate-50 transition-colors">
+                       <td className="font-bold text-slate-700">{bed.bedNumber}</td>
+                       <td>{bed.ward?.name || 'N/A'}</td>
+                       <td className="font-mono text-xs text-primary font-bold">₹{bed.bedChargePerDay?.toLocaleString()}</td>
+                       <td><StatusBadge status={bed.status} /></td>
+                       <td>
+                         <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${bed.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                           {bed.active ? 'YES' : 'NO'}
+                         </span>
+                       </td>
+                       <td>
+                         <div className="flex gap-2">
+                           <button 
+                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                            onClick={() => {
+                              setSelectedBed(bed);
+                              setBedForm({ 
+                                bedNumber: bed.bedNumber, 
+                                wardId: bed.ward?.id?.toString() || '', 
+                                status: bed.status, 
+                                bedChargePerDay: bed.bedChargePerDay, 
+                                active: bed.active 
+                              });
+                              setShowBedModal(true);
+                            }}
+                           >
+                             <Edit size={14} />
+                           </button>
+                           <button 
+                            className="p-1 text-destructive hover:bg-red-50 rounded"
+                            onClick={() => handleDeleteBed(bed.id)}
+                           >
+                             <Trash2 size={14} />
+                           </button>
+                         </div>
+                       </td>
+                     </tr>
+                   ))}
+                   {beds.length === 0 && (
+                     <tr><td colSpan={6} className="text-center py-10 text-slate-400 italic">No beds found</td></tr>
+                   )}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         )}
+
         {/* Pagination Controls */}
         {!loading && beds.length > 0 && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-xl border border-slate-200 shadow-sm">
@@ -935,6 +1069,92 @@ const BedManagement = () => {
                 {loading ? "Processing..." : "Confirm Transfer"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create/Edit Bed Modal */}
+      {showBedModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                {selectedBed ? <Edit size={18} /> : <Plus size={18} />}
+                {selectedBed ? 'Edit Bed Details' : 'Register New Bed'}
+              </h3>
+              <button onClick={() => setShowBedModal(false)}><XCircle size={20} /></button>
+            </div>
+            <form onSubmit={handleBedSubmit} className="p-6 space-y-4">
+               <div className="space-y-1">
+                 <label className="text-[11px] font-bold text-slate-600 uppercase">Bed Number / Name</label>
+                 <input 
+                  className="hms-input w-full font-bold" 
+                  required 
+                  placeholder="e.g., B-101, ICU-05" 
+                  value={bedForm.bedNumber}
+                  onChange={e => setBedForm({...bedForm, bedNumber: e.target.value})}
+                 />
+               </div>
+
+               <div className="space-y-1">
+                 <label className="text-[11px] font-bold text-slate-600 uppercase">Ward Location</label>
+                 <select 
+                  className="hms-select w-full" 
+                  required 
+                  value={bedForm.wardId}
+                  onChange={e => setBedForm({...bedForm, wardId: e.target.value})}
+                 >
+                   <option value="">Select Ward</option>
+                   {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                 </select>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-[11px] font-bold text-slate-600 uppercase">Status</label>
+                   <select 
+                    className="hms-select w-full" 
+                    value={bedForm.status}
+                    onChange={e => setBedForm({...bedForm, status: e.target.value})}
+                   >
+                     <option value="AVAILABLE">Available</option>
+                     <option value="CLEANING">Cleaning</option>
+                     <option value="UNDER_MAINTENANCE">Maintenance</option>
+                   </select>
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[11px] font-bold text-slate-600 uppercase">Daily Charge</label>
+                   <div className="relative">
+                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₹</span>
+                     <input 
+                      type="number"
+                      className="hms-input w-full pl-7 font-mono" 
+                      required 
+                      value={bedForm.bedChargePerDay}
+                      onChange={e => setBedForm({...bedForm, bedChargePerDay: parseFloat(e.target.value)})}
+                     />
+                   </div>
+                 </div>
+               </div>
+
+               <div className="flex items-center gap-2 pt-2">
+                 <input 
+                  type="checkbox" 
+                  id="bedActive" 
+                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
+                  checked={bedForm.active}
+                  onChange={e => setBedForm({...bedForm, active: e.target.checked})}
+                 />
+                 <label htmlFor="bedActive" className="text-xs font-bold text-slate-700 cursor-pointer uppercase">Active & Visible in Inventory</label>
+               </div>
+
+               <div className="flex gap-3 pt-4 border-t border-slate-100">
+                 <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowBedModal(false)}>Cancel</button>
+                 <button type="submit" className="hms-btn-primary flex-1" disabled={loading}>
+                   {loading ? <RefreshCw size={14} className="animate-spin" /> : (selectedBed ? 'Update Bed' : 'Create Bed')}
+                 </button>
+               </div>
+            </form>
           </div>
         </div>
       )}
