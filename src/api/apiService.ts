@@ -92,6 +92,13 @@ export const extractArray = (res: any) => {
   return [];
 };
 
+export const extractObject = (res: any) => {
+  if (!res || !res.ok) return null;
+  const data = res.data;
+  if (data && data.data && !Array.isArray(data.data)) return data.data;
+  return data;
+};
+
 export const createLogin = async (data?: any) => {
   if (data?.username === 'admin' && data?.password === 'admin') {
     return {
@@ -4125,18 +4132,23 @@ export const getEquipmentDocuments = async () => ({ data: [], status: 200, ok: t
 export const getEquipmentEquipments = getApiV1EquipmentEquipments;
 export const updateEquipment = async (id: string, data: any) => apiRequest(`/api/v1/equipment/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const getEquipments = getApiV1EquipmentEquipments;
-export const getInstruments = getApiV1Instruments;
-export const createInstrument = async (data: any) => apiRequest('/api/v1/instruments', { method: 'POST', body: JSON.stringify(data) });
+export const getInstruments = (queryParams?: any) => apiRequest('/api/v1/cssd/instruments', { queryParams });
+export const getInstrumentById = (id: string) => apiRequest(`/api/v1/cssd/instruments/${id}`);
+export const createInstrument = (data: any) => apiRequest('/api/v1/cssd/instruments', { method: 'POST', body: JSON.stringify(data) });
+export const updateInstrument = (id: string, data: any) => apiRequest(`/api/v1/cssd/instruments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteInstrument = (id: string) => apiRequest(`/api/v1/cssd/instruments/${id}`, { method: 'DELETE' });
 export const createInstrumentBatch = async (data: any) => apiRequest('/api/v1/instruments/batches', { method: 'POST', body: JSON.stringify(data) });
-export const createSterilizationCycle = async (data: any) => apiRequest('/api/v1/sterilization/cycles', { method: 'POST', body: JSON.stringify(data) });
-export const updateSterilizationCycle = async (id: string, data: any) => apiRequest(`/api/v1/sterilization/cycles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const createSterilizationCycle = (data: any) => apiRequest('/api/v1/cssd/cycles', { method: 'POST', body: JSON.stringify(data) });
+export const getSterilizationCycleById = (id: string) => apiRequest(`/api/v1/cssd/cycles/${id}`);
+export const updateSterilizationCycle = (id: string, result: string) => apiRequest(`/api/v1/cssd/cycles/${id}/complete`, { method: 'PUT', queryParams: { result } });
+export const updateSterilizationCycleGeneral = (id: string, data: any) => apiRequest(`/api/v1/cssd/cycles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteSterilizationCycle = (id: string) => apiRequest(`/api/v1/cssd/cycles/${id}`, { method: 'DELETE' });
 export const issueInstrument = async (data: any) => apiRequest('/api/v1/instruments/issue', { method: 'POST', body: JSON.stringify(data) });
 export const returnInstrument = async (id: string, data: any) => apiRequest(`/api/v1/instruments/return/${id}`, { method: 'POST', body: JSON.stringify(data) });
-export const updateInstrument = async (id: string, data: any) => apiRequest(`/api/v1/instruments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const updateInstrumentBatch = async (id: string, data: any) => apiRequest(`/api/v1/instruments/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const getInstrumentBatches = async () => ({ data: [], status: 200, ok: true });
 export const getIssuedInstruments = async () => ({ data: [], status: 200, ok: true });
-export const getSterilizationCycles = getApiV1SterilizationCycles;
+export const getSterilizationCycles = (queryParams?: any) => apiRequest('/api/v1/cssd/cycles', { queryParams });
 export const listDepartments = getApiDepartmentsListAll;
 export const getSterilization = getApiV1SterilizationCycles;
 export const getAmbulances = getApiV1Ambulances;

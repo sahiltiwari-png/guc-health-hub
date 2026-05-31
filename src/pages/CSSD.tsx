@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw } from 'lucide-react';
-import { createInstrument, createInstrumentBatch, createSterilizationCycle, extractArray, getEquipments, getInstrumentBatches, getInstruments, getIssuedInstruments, getSterilization, getSterilizationCycles, issueInstrument, listDepartments, listUsers, returnInstrument, updateSterilizationCycle } from "@/api/apiService";
+import { createInstrument, createSterilizationCycle, extractArray, extractObject, getInstruments, getInstrumentById, getSterilizationCycles, getSterilizationCycleById, updateInstrument, updateSterilizationCycle, updateSterilizationCycleGeneral, deleteInstrument, deleteSterilizationCycle } from "@/api/apiService";
 import { useToast } from '@/components/ui/use-toast';
+import { ShieldCheck, Clock, Eye, Plus, X, Search, RefreshCw, Edit2, Trash2 } from 'lucide-react';
 
-type Tab = 'sets' | 'batches' | 'cycles' | 'requests' | 'machines' | 'quality';
+type Tab = 'sets' | 'cycles';
 
 const tabs: { key: Tab; label: string }[] = [
   { key: 'sets', label: 'Instruments' },
-  { key: 'batches', label: 'Batches' },
   { key: 'cycles', label: 'Sterilization Cycles' },
-  { key: 'requests', label: 'Issuance/Returns' },
-  { key: 'machines', label: 'Equipment Status' },
 ];
 
 const CSSD = () => {
@@ -18,39 +15,26 @@ const CSSD = () => {
   const [tab, setTab] = useState<Tab>('sets');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   // Data States
   const [data, setData] = useState<any>({
     instruments: [],
-    batches: [],
-    cycles: [],
-    issues: [],
-    users: [],
-    departments: [],
-    equipments: []
+    cycles: []
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [insRes, batRes, cycRes, issRes, userRes, depRes, eqRes] = await Promise.all([
+      const [insRes, cycRes] = await Promise.all([
         getInstruments(),
-        getInstrumentBatches(),
-        getSterilizationCycles(),
-        getIssuedInstruments(),
-        listUsers({ role: 'Doctor' }),
-        listDepartments(),
-        getEquipments({ categoryName: 'Sterilization' })
+        getSterilizationCycles()
       ]);
 
       setData({
-        instruments: insRes.data?.data || insRes.data || insRes || [],
-        batches: batRes.data?.data || batRes.data || batRes || [],
-        cycles: cycRes.data?.data || cycRes.data || cycRes || [],
-        issues: issRes.data?.data || issRes.data || issRes || [],
-        users: extractArray(userRes),
-        departments: extractArray(depRes),
-        equipments: extractArray(eqRes)
+        instruments: extractArray(insRes),
+        cycles: extractArray(cycRes)
       });
     } catch (error) {
       console.error('Error fetching CSSD data:', error);
@@ -76,18 +60,6 @@ const CSSD = () => {
     }
   };
 
-  const handleCreateBatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createInstrumentBatch(selectedItem);
-      toast({ title: 'Success', description: 'Batch created' });
-      setShowModal(null);
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
-    }
-  };
-
   const handleCreateCycle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -102,7 +74,7 @@ const CSSD = () => {
 
   const handleCompleteCycle = async (id: string) => {
     try {
-      await updateSterilizationCycle(id, { status: 'Completed', endTime: new Date() });
+      await updateSterilizationCycle(id, 'SUCCESS');
       toast({ title: 'Success', description: 'Cycle completed' });
       fetchData();
     } catch (error: any) {
@@ -110,25 +82,76 @@ const CSSD = () => {
     }
   };
 
-  const handleIssue = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleViewInstrument = async (id: string) => {
     try {
-      await issueInstrument(selectedItem);
-      toast({ title: 'Success', description: 'Instrument issued' });
-      setShowModal(null);
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Operation failed', variant: 'destructive' });
+      setLoading(true);
+      const res = await getInstrumentById(id);
+      setSelectedItem(extractObject(res));
+      setShowModal('view-instrument');
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to fetch instrument details', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReturn = async (id: string) => {
+  const handleEditInstrument = async (id: string) => {
     try {
-      await returnInstrument(id);
-      toast({ title: 'Success', description: 'Instrument returned' });
+      setLoading(true);
+      const res = await getInstrumentById(id);
+      setSelectedItem(extractObject(res));
+      setShowModal('edit-instrument');
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to fetch instrument details', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateInstrument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateInstrument(selectedItem.id, selectedItem);
+      toast({ title: 'Success', description: 'Instrument updated' });
+      setShowModal(null);
       fetchData();
     } catch (error: any) {
-      toast({ title: 'Error', description: 'Return failed', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message || 'Update failed', variant: 'destructive' });
+    }
+  };
+
+  const handleViewCycle = async (id: string) => {
+    try {
+      setLoading(true);
+      const res = await getSterilizationCycleById(id);
+      setSelectedItem(extractObject(res));
+      setShowModal('view-cycle');
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to fetch cycle details', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteInstrument = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this instrument?')) return;
+    try {
+      await deleteInstrument(id);
+      toast({ title: 'Success', description: 'Instrument deleted' });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Delete failed', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteCycle = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this sterilization cycle?')) return;
+    try {
+      await deleteSterilizationCycle(id);
+      toast({ title: 'Success', description: 'Cycle deleted' });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Delete failed', variant: 'destructive' });
     }
   };
 
@@ -136,48 +159,58 @@ const CSSD = () => {
     switch (s) {
       case 'Ready':
       case 'Sterile':
+      case 'STERILE':
       case 'Completed':
+      case 'COMPLETED':
       case 'Active':
       case 'Returned': return 'bg-hms-success text-hms-success-foreground';
       case 'Pending':
       case 'Processing':
+      case 'IN_PROGRESS':
+      case 'IN_STERILIZATION':
       case 'Issued':
       case 'In Use': return 'bg-hms-warning text-foreground';
       case 'Failed':
       case 'Expired':
-      case 'Overdue': return 'bg-destructive text-destructive-foreground';
+      case 'Overdue':
+      case 'DIRTY':
+      case 'MAINTENANCE':
+      case 'DECOMMISSIONED': return 'bg-destructive text-destructive-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
   };
 
   return (
-    <div className="flex flex-col h-full space-y-3">
-      <div className="hms-section-header flex items-center justify-between">
-        <div className="flex items-center gap-2"><ShieldCheck size={16} /> CSSD & Core Management</div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
-            <input className="hms-input pl-7 w-48" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+    <div className="flex flex-col h-full space-y-3 p-1 md:p-2">
+      <div className="hms-section-header flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4 py-2">
+        <div className="flex items-center gap-2 min-w-max"><ShieldCheck size={16} /> CSSD & Core Management</div>
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <div className="relative flex-1 md:flex-none">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+            <input 
+              className="hms-input pl-7 w-full md:w-48 !bg-white !text-slate-900 border-white/20" 
+              placeholder="Search instruments/cycles..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+            />
           </div>
-          <button className="hms-btn-primary flex items-center gap-1" onClick={() => {
-            setSelectedItem({ name: '', category: '', code: '' });
+          <button className="hms-btn-primary !bg-white !text-primary flex items-center gap-1 whitespace-nowrap shadow-sm hover:!bg-slate-50" onClick={() => {
+            setSelectedItem({ name: '', category: '', code: '', description: '', status: 'DIRTY', readyForUse: false });
             setShowModal('instrument');
           }}><Plus size={14} /> New Instrument</button>
-          <button className="hms-btn-secondary flex items-center gap-1" onClick={() => {
-            setSelectedItem({ batchNumber: `BAT-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`, instruments: [], sterilizationDate: new Date().toISOString().split('T')[0], expiryDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0] });
-            setShowModal('batch');
-          }}><Plus size={14} /> New Batch</button>
-          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <button className="hms-btn-secondary !bg-white !text-slate-700 flex items-center gap-1 whitespace-nowrap shadow-sm hover:!bg-slate-50 border-none" onClick={() => {
+            setSelectedItem({ cycleNumber: `CYC-${Math.floor(Math.random()*10000)}`, loadName: '', sterilizationMethod: 'Steam', temperature: 121, pressure: 15, startTime: new Date().toISOString().slice(0, 16) });
+            setShowModal('cycle');
+          }}><Plus size={14} /> New Cycle</button>
+          <button className="hms-btn-secondary !bg-white !text-slate-700 p-1.5 shadow-sm hover:!bg-slate-50 border-none" onClick={fetchData} title="Refresh Data"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
-      <div className="grid grid-cols-6 gap-2 my-1">
+      <div className="grid grid-cols-4 gap-2 my-1">
         {[
           { label: 'Total Instruments', value: data.instruments.length, color: 'text-primary' },
-          { label: 'Ready Batches', value: data.batches.filter((b: any) => b.status === 'Ready').length, color: 'text-hms-success' },
-          { label: 'Active Cycles', value: data.cycles.filter((c: any) => c.status === 'Pending').length, color: 'text-hms-warning' },
-          { label: 'Issued Units', value: data.issues.filter((i: any) => i.status === 'Issued').length, color: 'text-hms-info' },
-          { label: 'Expired Batches', value: data.batches.filter((b: any) => new Date(b.expiryDate) < new Date()).length, color: 'text-destructive' },
+          { label: 'Sterile Units', value: data.instruments.filter((i: any) => i.status === 'STERILE').length, color: 'text-hms-success' },
+          { label: 'In Sterilization', value: data.cycles.filter((c: any) => c.status === 'IN_PROGRESS').length, color: 'text-hms-warning' },
           { label: 'Total Cycles', value: data.cycles.length, color: 'text-primary' },
         ].map((k, i) => (
           <div key={i} className="bg-card border border-border p-3 shadow-sm text-center">
@@ -187,10 +220,10 @@ const CSSD = () => {
         ))}
       </div>
 
-      <div className="flex border-b border-border bg-card">
+      <div className="flex border-b border-border bg-card overflow-x-auto no-scrollbar">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
+            className={`px-4 md:px-6 py-2.5 text-[10px] md:text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${tab === t.key ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
             {t.label}
           </button>
         ))}
@@ -206,122 +239,57 @@ const CSSD = () => {
           <>
             {tab === 'sets' && (
               <table className="hms-table">
-                <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Created At</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Status</th><th>Ready</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {data.instruments.filter((i: any) => i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())).map((i: any) => (
+                  {data.instruments.filter((i: any) => i.name?.toLowerCase().includes(search.toLowerCase()) || i.code?.toLowerCase().includes(search.toLowerCase())).map((i: any) => (
                     <tr key={i.id}>
                       <td className="font-mono text-xs font-bold">{i.code}</td>
                       <td className="font-semibold">{i.name}</td>
-                      <td>{i.category}</td>
-                      <td>{new Date(i.createdAt).toLocaleDateString()}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${i.isActive ? 'bg-hms-success text-hms-success-foreground' : 'bg-muted'}`}>{i.isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td className="max-w-[200px] truncate text-[10px]">{i.description}</td>
+                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
+                      <td>{i.readyForUse ? '✅' : '❌'}</td>
                       <td>
-                        <button className="text-primary hover:bg-primary/10 p-1 rounded"><Eye size={14} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {tab === 'batches' && (
-              <table className="hms-table">
-                <thead><tr><th>Batch #</th><th>Instruments</th><th>Sterilized Date</th><th>Expiry Date</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.batches.filter((b: any) => b.batchNumber.toLowerCase().includes(search.toLowerCase())).map((b: any) => (
-                    <tr key={b.id}>
-                      <td className="font-mono text-xs font-bold">{b.batchNumber}</td>
-                      <td>
-                        <div className="text-[10px]">
-                          {b.instruments?.map((inst: any, idx: number) => (
-                            <div key={idx}>{inst.instrumentId?.name} (x{inst.quantity})</div>
-                          ))}
-                        </div>
-                      </td>
-                      <td>{new Date(b.sterilizationDate).toLocaleDateString()}</td>
-                      <td className={new Date(b.expiryDate) < new Date() ? 'text-destructive font-bold' : ''}>{new Date(b.expiryDate).toLocaleDateString()}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(b.status)}`}>{b.status}</span></td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => {
-                            setSelectedItem({ batchId: b.id, cycleNumber: Math.floor(Math.random()*10000), machineUsed: '', startTime: new Date().toISOString().slice(0, 16) });
-                            setShowModal('cycle');
-                          }}>Start Cycle</button>
-                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => {
-                            setSelectedItem({ batchId: b.id, issuedTo: '', issuedFor: 'Surgery', issuedQuantity: 1 });
-                            setShowModal('issue');
-                          }}>Issue</button>
+                        <div className="flex items-center gap-1">
+                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="View" onClick={() => handleViewInstrument(i.id)}><Eye size={14} /></button>
+                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Edit" onClick={() => handleEditInstrument(i.id)}><Edit2 size={14} /></button>
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteInstrument(i.id)}><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  {data.instruments.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-muted-foreground italic text-xs uppercase tracking-widest">No instruments found</td></tr>}
                 </tbody>
               </table>
             )}
 
             {tab === 'cycles' && (
               <table className="hms-table">
-                <thead><tr><th>Cycle #</th><th>Batch #</th><th>Machine</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Cycle #</th><th>Load Name</th><th>Method</th><th>Temp/Press</th><th>Start Time</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {data.cycles.map((c: any) => (
+                  {data.cycles.filter((c: any) => 
+                    c.cycleNumber?.toLowerCase().includes(search.toLowerCase()) || 
+                    c.loadName?.toLowerCase().includes(search.toLowerCase()) ||
+                    c.sterilizationMethod?.toLowerCase().includes(search.toLowerCase())
+                  ).map((c: any) => (
                     <tr key={c.id}>
                       <td className="font-bold">{c.cycleNumber}</td>
-                      <td className="font-mono text-xs">{c.batchId?.batchNumber}</td>
-                      <td>{c.machineUsed}</td>
+                      <td>{c.loadName}</td>
+                      <td>{c.sterilizationMethod}</td>
+                      <td>{c.temperature}°C / {c.pressure}psi</td>
                       <td>{new Date(c.startTime).toLocaleString()}</td>
-                      <td>{c.endTime ? new Date(c.endTime).toLocaleString() : '-'}</td>
                       <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(c.status)}`}>{c.status}</span></td>
                       <td>
-                        {c.status === 'Pending' && (
-                          <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleCompleteCycle(c.id)}>Complete</button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          <button className="text-primary hover:bg-primary/10 p-1 rounded" title="View" onClick={() => handleViewCycle(c.id)}><Eye size={14} /></button>
+                          {c.status === 'IN_PROGRESS' && (
+                            <button className="hms-btn-primary text-[10px] px-2 py-0.5" onClick={() => handleCompleteCycle(c.id)}>Complete</button>
+                          )}
+                          <button className="text-destructive hover:bg-destructive/10 p-1 rounded" title="Delete" onClick={() => handleDeleteCycle(c.id)}><Trash2 size={14} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            )}
-
-            {tab === 'requests' && (
-              <table className="hms-table">
-                <thead><tr><th>Issued To</th><th>Batch #</th><th>For</th><th>Qty</th><th>Issued At</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {data.issues.map((i: any) => (
-                    <tr key={i.id}>
-                      <td className="font-semibold">{i.issuedTo?.name || 'Staff'}</td>
-                      <td className="font-mono text-xs">{i.batchId?.batchNumber}</td>
-                      <td>{i.issuedFor}</td>
-                      <td>{i.issuedQuantity}</td>
-                      <td>{new Date(i.issuedAt).toLocaleString()}</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(i.status)}`}>{i.status}</span></td>
-                      <td>
-                        {i.status === 'Issued' && (
-                          <button className="hms-btn-secondary text-[10px] px-2 py-0.5" onClick={() => handleReturn(i.id)}>Return</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {tab === 'machines' && (
-              <table className="hms-table">
-                <thead><tr><th>Machine</th><th>Brand/Model</th><th>Uptime</th><th>Today Exams</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {(data as any).equipments?.map((e: any) => (
-                    <tr key={e.id}>
-                      <td className="font-bold">{e.name}</td>
-                      <td>{e.brand} {e.model}</td>
-                      <td>99.5%</td>
-                      <td>5</td>
-                      <td><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${e.status === 'active' ? 'bg-hms-success text-hms-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>{e.status}</span></td>
-                      <td>
-                        <button className="text-primary hover:bg-primary/10 p-1 rounded" title="Maintenance"><Eye size={14} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                  {(data as any).equipments?.length === 0 && <tr><td colSpan={6} className="text-center py-4 text-muted-foreground italic">No machines found</td></tr>}
+                  {data.cycles.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-muted-foreground italic text-xs uppercase tracking-widest">No cycles found</td></tr>}
                 </tbody>
               </table>
             )}
@@ -352,6 +320,10 @@ const CSSD = () => {
                   <input className="hms-input w-full" required value={selectedItem?.code} onChange={e => setSelectedItem({...selectedItem, code: e.target.value})} />
                 </div>
               </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Description</label>
+                <textarea className="hms-input w-full" value={selectedItem?.description} onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} />
+              </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
                 <button type="submit" className="hms-btn-primary flex-1">Save Instrument</button>
@@ -361,64 +333,7 @@ const CSSD = () => {
         </div>
       )}
 
-      {showModal === 'batch' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
-            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Create Instrument Batch</h3>
-              <button onClick={() => setShowModal(null)}><X size={18} /></button>
-            </div>
-            <form onSubmit={handleCreateBatch} className="p-4 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Batch Number</label>
-                <input className="hms-input w-full" required value={selectedItem?.batchNumber} onChange={e => setSelectedItem({...selectedItem, batchNumber: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Add Instrument</label>
-                <div className="flex gap-2">
-                  <select className="hms-select flex-1" id="inst-select">
-                    <option value="">-- Choose Instrument --</option>
-                    {data.instruments.map((i: any) => <option key={i.id} value={i.id}>{i.name} ({i.code})</option>)}
-                  </select>
-                  <input type="number" className="hms-input w-16" defaultValue="1" id="inst-qty" />
-                  <button type="button" className="hms-btn-secondary p-2" onClick={() => {
-                    const id = (document.getElementById('inst-select') as HTMLSelectElement).value;
-                    const qty = parseInt((document.getElementById('inst-qty') as HTMLInputElement).value);
-                    if (!id) return;
-                    const inst = data.instruments.find((i: any) => i.id === id);
-                    setSelectedItem({
-                      ...selectedItem,
-                      instruments: [...(selectedItem.instruments || []), { instrumentId: id, quantity: qty, name: (inst as any).name }]
-                    });
-                  }}><Plus size={14} /></button>
-                </div>
-              </div>
-              <div className="max-h-32 overflow-auto border border-border p-2 bg-muted/10">
-                {selectedItem?.instruments?.map((i: any, idx: number) => (
-                  <div key={idx} className="text-[10px] flex justify-between py-1 border-b border-border last:border-0">
-                    <span>{i.name}</span>
-                    <span className="font-bold">x{i.quantity}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Sterilization Date</label>
-                  <input type="date" className="hms-input w-full" required value={selectedItem?.sterilizationDate} onChange={e => setSelectedItem({...selectedItem, sterilizationDate: e.target.value})} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Expiry Date</label>
-                  <input type="date" className="hms-input w-full" required value={selectedItem?.expiryDate} onChange={e => setSelectedItem({...selectedItem, expiryDate: e.target.value})} />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
-                <button type="submit" className="hms-btn-primary flex-1">Create Batch</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
 
       {showModal === 'cycle' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
@@ -431,16 +346,36 @@ const CSSD = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Cycle Number</label>
-                  <input type="number" className="hms-input w-full" required value={selectedItem?.cycleNumber} onChange={e => setSelectedItem({...selectedItem, cycleNumber: Number(e.target.value)})} />
+                  <input className="hms-input w-full" required value={selectedItem?.cycleNumber} onChange={e => setSelectedItem({...selectedItem, cycleNumber: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Machine Name</label>
-                  <input className="hms-input w-full" required value={selectedItem?.machineUsed} onChange={e => setSelectedItem({...selectedItem, machineUsed: e.target.value})} />
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Load Name</label>
+                  <input className="hms-input w-full" required value={selectedItem?.loadName} onChange={e => setSelectedItem({...selectedItem, loadName: e.target.value})} />
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Start Time</label>
-                <input type="datetime-local" className="hms-input w-full" required value={selectedItem?.startTime} onChange={e => setSelectedItem({...selectedItem, startTime: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Method</label>
+                  <select className="hms-select w-full" value={selectedItem?.sterilizationMethod} onChange={e => setSelectedItem({...selectedItem, sterilizationMethod: e.target.value})}>
+                    <option value="Steam">Steam</option>
+                    <option value="EO">EO (Ethylene Oxide)</option>
+                    <option value="Plasma">Plasma</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Temp (°C)</label>
+                  <input type="number" step="0.1" className="hms-input w-full" value={selectedItem?.temperature} onChange={e => setSelectedItem({...selectedItem, temperature: Number(e.target.value)})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Pressure (psi)</label>
+                  <input type="number" step="0.1" className="hms-input w-full" value={selectedItem?.pressure} onChange={e => setSelectedItem({...selectedItem, pressure: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Start Time</label>
+                  <input type="datetime-local" className="hms-input w-full" required value={selectedItem?.startTime} onChange={e => setSelectedItem({...selectedItem, startTime: e.target.value})} />
+                </div>
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
@@ -450,41 +385,149 @@ const CSSD = () => {
           </div>
         </div>
       )}
-
-      {showModal === 'issue' && (
+      {showModal === 'view-instrument' && selectedItem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="text-sm font-bold flex items-center gap-2"><Plus size={16} className="text-primary" /> Issue Instrument Batch</h3>
+              <h3 className="text-sm font-bold flex items-center gap-2"><Eye size={16} className="text-primary" /> Instrument Details</h3>
               <button onClick={() => setShowModal(null)}><X size={18} /></button>
             </div>
-            <form onSubmit={handleIssue} className="p-4 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Issue To (Doctor/Staff)</label>
-                <select className="hms-select w-full" required value={selectedItem?.issuedTo} onChange={e => setSelectedItem({...selectedItem, issuedTo: e.target.value})}>
-                  <option value="">-- Select Person --</option>
-                  {data.users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Name</label>
+                  <p className="text-sm font-semibold">{selectedItem.name}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Code</label>
+                  <p className="text-sm font-mono">{selectedItem.code}</p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Issued For</label>
-                  <select className="hms-select w-full" required value={selectedItem?.issuedFor} onChange={e => setSelectedItem({...selectedItem, issuedFor: e.target.value})}>
-                    <option value="Surgery">Surgery</option>
-                    <option value="IPD">IPD</option>
-                    <option value="OPD">OPD</option>
-                  </select>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Category</label>
+                  <p className="text-sm">{selectedItem.category}</p>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Quantity</label>
-                  <input type="number" className="hms-input w-full" required min="1" value={selectedItem?.issuedQuantity} onChange={e => setSelectedItem({...selectedItem, issuedQuantity: Number(e.target.value)})} />
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Status</label>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(selectedItem.status)}`}>{selectedItem.status}</span>
                 </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block">Description</label>
+                <p className="text-sm">{selectedItem.description || 'No description provided'}</p>
+              </div>
+              <div className="pt-2">
+                <button className="hms-btn-secondary w-full" onClick={() => setShowModal(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'edit-instrument' && selectedItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Edit2 size={16} className="text-primary" /> Edit Instrument</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleUpdateInstrument} className="p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Name</label>
+                <input className="hms-input w-full" required value={selectedItem?.name} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Category</label>
+                  <input className="hms-input w-full" required value={selectedItem?.category} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Code</label>
+                  <input className="hms-input w-full" required value={selectedItem?.code} onChange={e => setSelectedItem({...selectedItem, code: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Status</label>
+                <select className="hms-select w-full" value={selectedItem?.status} onChange={e => setSelectedItem({...selectedItem, status: e.target.value})}>
+                  <option value="STERILE">STERILE</option>
+                  <option value="DIRTY">DIRTY</option>
+                  <option value="IN_STERILIZATION">IN_STERILIZATION</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                  <option value="DECOMMISSIONED">DECOMMISSIONED</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Description</label>
+                <textarea className="hms-input w-full" value={selectedItem?.description} onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} />
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" className="hms-btn-secondary flex-1" onClick={() => setShowModal(null)}>Cancel</button>
-                <button type="submit" className="hms-btn-primary flex-1">Issue Units</button>
+                <button type="submit" className="hms-btn-primary flex-1">Update Instrument</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showModal === 'view-cycle' && selectedItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-md shadow-2xl rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="text-sm font-bold flex items-center gap-2"><Eye size={16} className="text-primary" /> Cycle Details</h3>
+              <button onClick={() => setShowModal(null)}><X size={18} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Cycle Number</label>
+                  <p className="text-sm font-bold">{selectedItem.cycleNumber}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Load Name</label>
+                  <p className="text-sm">{selectedItem.loadName}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Method</label>
+                  <p className="text-sm">{selectedItem.sterilizationMethod}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Status</label>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${statusColor(selectedItem.status)}`}>{selectedItem.status}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Temperature</label>
+                  <p className="text-sm">{selectedItem.temperature}°C</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Pressure</label>
+                  <p className="text-sm">{selectedItem.pressure} psi</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block">Start Time</label>
+                <p className="text-sm">{new Date(selectedItem.startTime).toLocaleString()}</p>
+              </div>
+              {selectedItem.endTime && (
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">End Time</label>
+                  <p className="text-sm">{new Date(selectedItem.endTime).toLocaleString()}</p>
+                </div>
+              )}
+              {selectedItem.result && (
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block">Result</label>
+                  <p className="text-sm font-semibold">{selectedItem.result}</p>
+                </div>
+              )}
+              <div className="pt-2">
+                <button className="hms-btn-secondary w-full" onClick={() => setShowModal(null)}>Close</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
