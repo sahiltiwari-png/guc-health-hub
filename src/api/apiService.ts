@@ -2554,9 +2554,9 @@ export const postApiV1OpdCheckInByappointmentId = async (appointmentId: string |
 /**
  * Register walk-in visit
  */
-export const postApiV1OpdWalkIn = async (queryParams: any) => {
+export const postApiV1OpdWalkIn = async (data: any) => {
   const endpoint = `/api/v1/opd/walk-in`;
-  return apiRequest(endpoint, { method: 'POST', queryParams });
+  return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
 };
 
 /**
@@ -3044,6 +3044,23 @@ export const putApiReceptionVisitorExitByid = async (id: string, data?: any) => 
  */
 export const getApiReceptionVisitorsActive = async (queryParams?: any) => {
   let endpoint = `/api/reception/visitors/active`;
+  
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
+  return apiRequest(endpoint, {
+    method: 'GET'
+  });
+};
+
+/**
+ * Find OPD Rooms
+ */
+export const getApiV1InfrastructureRooms = async (queryParams?: any) => {
+  let endpoint = `/api/v1/infrastructure/rooms`;
   
   if (queryParams) {
     const searchParams = new URLSearchParams(queryParams);

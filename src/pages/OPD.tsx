@@ -10,7 +10,12 @@ import {
   getApiV1OpdSearch, patchApiV1OpdByidStatus, postApiV1OpdVitalsByopdVisitId,
   getApiV1OpdByid,
   postApiV1OpdCall,
-  getApiV1OpdQueue
+  getApiV1OpdQueue,
+  getApiV1PatientsSearchByPhone,
+  getApiDoctorsAvailable,
+  getApiDoctorsByid,
+  getApiV1InfrastructureRooms,
+  postApiV1OpdWalkIn
 } from "@/api/apiService";
 
 import { toast as sonnerToast } from 'sonner';
@@ -93,7 +98,11 @@ const OPD = () => {
     email: '',
     discountPercent: 0,
     source: 'WALK-IN',
-    slot: 'Slot I'
+    slot: 'Slot I',
+    panel: '--NA--',
+    idType: 'Aadhar',
+    idNumber: '',
+    guardianRelation: 'Father'
   });
 
   const fetchQueue = async () => {
@@ -131,9 +140,9 @@ const OPD = () => {
     try {
       const [vRes, dRes, cRes, rRes, deptRes] = await Promise.all([
         getOPDVisits({ page, size: pagination.size }),
-        getAutoUsers({ role: 'DOCTOR' }), 
+        getApiDoctorsAvailable(), 
         getAutoGeoCountries(),
-        getAutoEquipmentLocations(),
+        getApiV1InfrastructureRooms({ search: 'Consultation' }),
         getAutoDepartments()
       ]);
       
@@ -269,11 +278,28 @@ const OPD = () => {
 
   // Fetch rooms when department or doctor changes
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      fee: formData.doctorId ? 500 : 0
-    }));
-  }, [formData.doctorId, formData.departmentId, doctors]);
+    const fetchDoctorDetails = async () => {
+      if (formData.doctorId) {
+        try {
+          const res = await getApiDoctorsByid(formData.doctorId);
+          if (res.ok && res.data?.data) {
+            setFormData(prev => ({
+              ...prev,
+              fee: res.data.data.consultationFee || 0
+            }));
+          }
+        } catch (e) {
+          console.error("Error fetching doctor details:", e);
+        }
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          fee: 0
+        }));
+      }
+    };
+    fetchDoctorDetails();
+  }, [formData.doctorId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -289,24 +315,50 @@ const OPD = () => {
 
   const preFillForm = (foundPatient: any) => {
     setPatient(foundPatient);
+    const patientName = foundPatient.patientName || 
+                       (foundPatient.firstName ? `${foundPatient.firstName} ${foundPatient.lastName || ''}`.trim() : '');
+    
+    const dobStr = foundPatient.dateOfBirth || foundPatient.dob || '';
+    let calculatedAge = foundPatient.age || 0;
+    
+    if (!calculatedAge && dobStr) {
+      const birthDate = new Date(dobStr);
+      const today = new Date();
+      calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      mobile: foundPatient.mobile || '',
-      patientName: foundPatient.patientName || '',
+      title: foundPatient.title || prev.title || 'Mr.',
+      mobile: foundPatient.phoneNumber || foundPatient.mobile || '',
+      patientName: patientName,
       gender: foundPatient.gender || 'Male',
       maritalStatus: foundPatient.maritalStatus || 'Single',
       address: foundPatient.address || '',
       bloodGroup: foundPatient.bloodGroup || 'NA',
       email: foundPatient.email || '',
-      dob: foundPatient.dob ? new Date(foundPatient.dob).toISOString().split('T')[0] : '',
-      age: foundPatient.age || 0,
-      currentAge: foundPatient.currentAge || '',
+      dob: dobStr ? new Date(dobStr).toISOString().split('T')[0] : '',
+      age: calculatedAge,
+      currentAge: foundPatient.currentAge || (calculatedAge ? `${calculatedAge}Y` : ''),
       guardianName: foundPatient.guardianName || '',
-      relationType: foundPatient.relationType || 'Father',
+      relationType: foundPatient.relation || 'S/o',
+      guardianRelation: foundPatient.guardianRelation || 'Father',
       stateId: foundPatient.stateId || '',
       cityId: foundPatient.cityId || '',
+      panel: foundPatient.panel || '--NA--',
+      idType: foundPatient.idType || 'Aadhar',
+      idNumber: foundPatient.idNumber || '',
     }));
-    toast({ title: "Patient Found", description: `Pre-filling form for ${foundPatient.patientName}` });
+
+    if (foundPatient.uhid) {
+      setSearchUhid(foundPatient.uhid);
+    }
+
+    toast({ title: "Patient Found", description: `Pre-filling form for ${patientName}` });
   };
 
   const handleSearch = async () => {
@@ -336,8 +388,8 @@ const OPD = () => {
     }
     setIsLoading(true);
     try {
-      const res = await searchPatients({ mobile: formData.mobile });
-      const foundPatient = res.data?.find((p: any) => p.mobile === formData.mobile) || res.data?.[0];
+      const res = await getApiV1PatientsSearchByPhone({ phoneNumber: formData.mobile });
+      const foundPatient = res.data?.data?.find((p: any) => p.phoneNumber === formData.mobile) || res.data?.data?.[0];
       if (foundPatient) {
         preFillForm(foundPatient);
       } else {
@@ -353,10 +405,13 @@ const OPD = () => {
     setIsLoading(true);
     try {
       const res = await getApiV1OpdByid(visit.id);
-      if (res.ok && res.data) {
-        const fullVisit = res.data;
+      if (res.ok && res.data?.data) {
+        const fullVisit = res.data.data;
+        const p = fullVisit.patient || {};
+        const pName = fullVisit.patientName || (p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '');
+        
         // Fill patient state
-        setPatient(fullVisit.patientId || { id: fullVisit.patientId, patientName: fullVisit.patientName });
+        setPatient(p);
         
         // Fill form data
         setFormData(prev => ({
@@ -364,14 +419,15 @@ const OPD = () => {
           visitDate: fullVisit.visitTime ? new Date(fullVisit.visitTime).toISOString().split('T')[0] : prev.visitDate,
           visitTime: fullVisit.visitTime ? new Date(fullVisit.visitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : prev.visitTime,
           visitType: fullVisit.visitType || 'OPD',
-          mobile: fullVisit.mobile || '',
-          patientName: fullVisit.patientName || '',
-          gender: fullVisit.gender || 'Male',
-          maritalStatus: fullVisit.maritalStatus || 'Single',
-          address: fullVisit.address || '',
-          bloodGroup: fullVisit.bloodGroup || 'NA',
-          email: fullVisit.email || '',
-          dob: fullVisit.dob ? new Date(fullVisit.dob).toISOString().split('T')[0] : '',
+          mobile: p.phoneNumber || fullVisit.mobile || '',
+          patientName: pName,
+          gender: p.gender || fullVisit.gender || 'Male',
+          maritalStatus: p.maritalStatus || fullVisit.maritalStatus || 'Single',
+          address: p.address || fullVisit.address || '',
+          bloodGroup: p.bloodGroup || fullVisit.bloodGroup || 'NA',
+          email: p.email || fullVisit.email || '',
+          dob: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : 
+               fullVisit.dob ? new Date(fullVisit.dob).toISOString().split('T')[0] : '',
           age: fullVisit.age || 0,
           currentAge: fullVisit.currentAge || '',
           guardianName: fullVisit.guardianName || '',
@@ -388,7 +444,7 @@ const OPD = () => {
           discountPercent: fullVisit.discountPercent || 0,
         }));
         
-        toast({ title: "Visit Details Loaded", description: `Showing details for ${fullVisit.patientName}` });
+        toast({ title: "Visit Details Loaded", description: `Showing details for ${pName}` });
       } else {
         sonnerToast.error("Failed to fetch visit details");
       }
@@ -490,7 +546,9 @@ const OPD = () => {
                 </button>
               </div>
               <label className="hms-form-label ml-2">Panel:</label>
-              <select className="hms-select w-32"><option>--NA--</option><option>CGHS</option><option>ECHS</option><option>Star Health</option></select>
+              <select name="panel" value={formData.panel} onChange={handleInputChange} className="hms-select w-32">
+                <option>--NA--</option><option>CGHS</option><option>ECHS</option><option>Star Health</option>
+              </select>
             </div>
             <div className="flex items-center gap-3">
               <label className="hms-form-label w-24 text-right">Department :</label>
@@ -529,14 +587,16 @@ const OPD = () => {
             <div className="flex items-center gap-3">
               <label className="hms-form-label w-24 text-right">Email :</label>
               <input name="email" value={formData.email} onChange={handleInputChange} className="hms-input w-40" placeholder="Email" />
-              <select className="hms-select w-28"><option>Aadhar</option><option>PAN</option><option>Voter ID</option></select>
-              <input className="hms-input flex-1" placeholder="ID Number" />
+              <select name="idType" value={formData.idType} onChange={handleInputChange} className="hms-select w-28">
+                <option>Aadhar</option><option>PAN</option><option>Voter ID</option>
+              </select>
+              <input name="idNumber" value={formData.idNumber} onChange={handleInputChange} className="hms-input flex-1" placeholder="ID Number" />
             </div>
             <div className="flex items-center gap-3">
               <label className="hms-form-label w-24 text-right">Doctor :</label>
               <select name="doctorId" value={formData.doctorId} onChange={handleInputChange} className="hms-select flex-1">
                 <option value="">-- Select Doctor --</option>
-                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName || d.name}</option>)}
               </select>
               <label className="hms-form-label ml-2">Room:</label>
               <select name="roomId" value={formData.roomId} onChange={handleInputChange} className="hms-select w-32">
@@ -551,7 +611,7 @@ const OPD = () => {
               <label className="hms-form-label w-24 text-right">S/D/W o :</label>
               <select name="relationType" value={formData.relationType} onChange={handleInputChange} className="hms-select w-20"><option>S/o</option><option>D/o</option><option>W/o</option></select>
               <input name="guardianName" value={formData.guardianName} onChange={handleInputChange} className="hms-input flex-1" placeholder="Relation Name" />
-              <select className="hms-select w-32">
+              <select name="guardianRelation" value={formData.guardianRelation} onChange={handleInputChange} className="hms-select w-32">
                 <option>Father</option><option>Mother</option><option>Spouse</option><option>Guardian</option>
               </select>
             </div>
