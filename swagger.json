@@ -11,6 +11,16 @@
       "description": "Relative to current host"
     }
   ],
+  "tags": [
+    { "name": "new requirement - OPD", "description": "New OPD APIs" },
+    { "name": "new requirement - OT", "description": "New OT APIs" },
+    { "name": "new requirement - Registry", "description": "New Registry APIs" },
+    { "name": "new requirement - Ambulance", "description": "New Ambulance APIs" },
+    { "name": "new requirement - HRMS", "description": "New HRMS APIs" },
+    { "name": "new requirement - Inventory", "description": "New Inventory APIs" },
+    { "name": "Pharmacy", "description": "Pharmacy Management APIs (Stock, Dispensing, Suppliers, Purchase Orders)" },
+    { "name": "new requirement - Admin", "description": "New Admin APIs" }
+  ],
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -6754,10 +6764,10 @@
         }
       }
     },
-    "/api/inventory/pharmacy/stock": {
+    "/api/v1/inventory/pharmacy/stock": {
       "post": {
         "tags": [
-          "Inventory Management"
+          "Pharmacy"
         ],
         "summary": "Add pharmacy stock",
         "description": "Registers new stock items in the hospital pharmacy",
@@ -6800,10 +6810,10 @@
       },
       "get": {
         "tags": [
-          "Inventory Management"
+          "Pharmacy"
         ],
-        "summary": "Add pharmacy stock",
-        "description": "Registers new stock items in the hospital pharmacy",
+        "summary": "Get all pharmacy stock",
+        "description": "Retrieves all items currently in the pharmacy inventory",
         "responses": {
           "200": {
             "description": "OK",
@@ -6828,24 +6838,13 @@
               }
             }
           }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
         }
       }
     },
-    "/api/inventory/pharmacy/stock/search": {
+    "/api/v1/inventory/pharmacy/stock/search": {
       "get": {
         "tags": [
-          "Inventory Management"
+          "Pharmacy"
         ],
         "summary": "Search pharmacy stock",
         "description": "Filters pharmacy stock by name, generic name, and batch number",
@@ -6873,24 +6872,13 @@
               }
             }
           }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
         }
       }
     },
-    "/api/inventory/pharmacy/stock/{id}": {
+    "/api/v1/inventory/pharmacy/stock/{id}": {
       "put": {
         "tags": [
-          "Inventory Management"
+          "Pharmacy"
         ],
         "summary": "Update pharmacy stock",
         "description": "Updates an existing stock item's details",
@@ -6943,10 +6931,10 @@
       },
       "delete": {
         "tags": [
-          "Inventory Management"
+          "Pharmacy"
         ],
-        "summary": "Update pharmacy stock",
-        "description": "Updates an existing stock item's details",
+        "summary": "Delete pharmacy stock",
+        "description": "Removes a stock item from the pharmacy inventory",
         "responses": {
           "200": {
             "description": "OK",
@@ -6982,6 +6970,162 @@
             }
           }
         ]
+      }
+    },
+    "/api/v1/inventory/pharmacy/dispense": {
+      "post": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "Dispense medicine",
+        "description": "Records a new medicine dispense and reduces stock",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "List dispenses",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/suppliers": {
+      "get": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "List suppliers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "Add supplier",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/purchase-orders": {
+      "get": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "List Purchase Orders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "Create Purchase Order",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/purchase-orders/{id}/receive": {
+      "post": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "Receive Purchase Order",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/pharmacy/dashboard": {
+      "get": {
+        "tags": [
+          "Pharmacy"
+        ],
+        "summary": "Pharmacy Dashboard Stats",
+        "description": "Retrieves key metrics for pharmacy dashboard (Total Stock, Low Stock, Today's Sales, etc.)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/ipd": {
@@ -9082,7 +9226,7 @@
         }
       }
     },
-    "/api/v1/registry/s": {
+    "/api/v1/registry/births": {
       "get": {
         "tags": [
           "Birth & Death Registry"
@@ -10825,6 +10969,385 @@
                       }
                     }
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clinical/ot/search": {
+      "get": {
+        "tags": [
+          "new requirement - OT"
+        ],
+        "summary": "Search OT Bookings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opd/queue": {
+      "get": {
+        "tags": [
+          "new requirement - OPD"
+        ],
+        "summary": "Get OPD patient queue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opd/{id}/call": {
+      "post": {
+        "tags": [
+          "new requirement - OPD"
+        ],
+        "summary": "Call patient for consultation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/registry/births": {
+      "get": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "List birth records",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "Create birth record",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/registry/deaths": {
+      "get": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "List death records",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "Create death record",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr/attendance": {
+      "get": {
+        "tags": [
+          "new requirement - HRMS"
+        ],
+        "summary": "Get staff attendance",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr/attendance/clock-in": {
+      "post": {
+        "tags": [
+          "new requirement - HRMS"
+        ],
+        "summary": "Clock-in employee",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ambulances": {
+      "get": {
+        "tags": [
+          "new requirement - Ambulance"
+        ],
+        "summary": "List ambulances",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "new requirement - Ambulance"
+        ],
+        "summary": "Create ambulance",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/assets": {
+      "get": {
+        "tags": [
+          "Inventory - Assets"
+        ],
+        "summary": "List hospital assets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inventory - Assets"
+        ],
+        "summary": "Create hospital asset",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}": {
+      "delete": {
+        "tags": [
+          "new requirement - Admin"
+        ],
+        "summary": "Delete user account",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/active": {
+      "patch": {
+        "tags": [
+          "new requirement - Admin"
+        ],
+        "summary": "Activate/Deactivate user account",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "active", "in": "query", "required": true, "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/registry/mortuary": {
+      "get": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "List mortuary records",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/registry/postmortem-schedule": {
+      "get": {
+        "tags": [
+          "new requirement - Registry"
+        ],
+        "summary": "List postmortem schedule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr/leaves": {
+      "get": {
+        "tags": [
+          "new requirement - HRMS"
+        ],
+        "summary": "Get leave requests",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr/payroll": {
+      "get": {
+        "tags": [
+          "new requirement - HRMS"
+        ],
+        "summary": "Get staff payroll",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseResponse"
                 }
               }
             }

@@ -15,7 +15,8 @@ import {
   getApiDoctorsAvailable,
   getApiDoctorsByid,
   getApiV1InfrastructureRooms,
-  postApiV1OpdWalkIn
+  postApiV1OpdWalkIn,
+  getApiDoctorsDepartmentBydepartmentId
 } from "@/api/apiService";
 
 import { toast as sonnerToast } from 'sonner';
@@ -138,12 +139,12 @@ const OPD = () => {
   const fetchInitialData = async (page = 0) => {
     setIsLoading(true);
     try {
-      const [vRes, dRes, cRes, rRes, deptRes] = await Promise.all([
+      const [vRes, dRes, cRes, deptRes, rRes] = await Promise.all([
         getOPDVisits({ page, size: pagination.size }),
         getApiDoctorsAvailable(), 
         getAutoGeoCountries(),
-        getApiV1InfrastructureRooms({ search: 'Consultation' }),
-        getAutoDepartments()
+        getAutoDepartments(),
+        getApiV1InfrastructureRooms({ search: 'Consultation' })
       ]);
       
       if (vRes.ok) {
@@ -155,12 +156,29 @@ const OPD = () => {
         setPagination(prev => ({ ...prev, page, total }));
       } else sonnerToast.error("Failed to load visits");
 
-      if (dRes.ok) setDoctors(extractArray(dRes));
-      else sonnerToast.error("Failed to load doctors");
+      if (dRes.ok) {
+        const doctorsData = extractArray(dRes);
+        setDoctors(doctorsData);
+        if (doctorsData.length > 0 && !formData.doctorId) {
+          const firstDoc = doctorsData[0];
+          setFormData(prev => ({ 
+            ...prev, 
+            doctorId: firstDoc.id,
+            fee: firstDoc.consultationFee || 0
+          }));
+        }
+      } else sonnerToast.error("Failed to load doctors");
 
       if (cRes.ok) setCountries(extractArray(cRes));
-      if (rRes.ok) setRooms(extractArray(rRes));
       if (deptRes.ok) setDepartments(extractArray(deptRes));
+      
+      if (rRes.ok) {
+        const roomsData = extractArray(rRes);
+        setRooms(roomsData);
+        if (roomsData.length > 0 && !formData.roomId) {
+          setFormData(prev => ({ ...prev, roomId: roomsData[0].id }));
+        }
+      }
       
     } catch (e) { 
       console.error(e); 
@@ -276,26 +294,80 @@ const OPD = () => {
     fetchCities();
   }, [formData.stateId]);
 
-  // Fetch rooms when department or doctor changes
+  const fetchAvailableDoctors = async () => {
+    try {
+      let res;
+      if (formData.departmentId) {
+        res = await getApiDoctorsDepartmentBydepartmentId(formData.departmentId);
+      } else {
+        res = await getApiDoctorsAvailable();
+      }
+      
+      if (res.ok) {
+        const doctorsData = extractArray(res);
+        setDoctors(doctorsData);
+        
+        // Auto-select first doctor if none selected and doctors exist
+        if (doctorsData.length > 0 && !formData.doctorId) {
+          const firstDoc = doctorsData[0];
+          setFormData(prev => ({ 
+            ...prev, 
+            doctorId: firstDoc.id,
+            fee: firstDoc.consultationFee || 0
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching doctors:", e);
+    }
+  };
+
+  // Fetch doctors when department changes
+  useEffect(() => {
+    fetchAvailableDoctors();
+  }, [formData.departmentId]);
+
+  const fetchRoomsList = async () => {
+    try {
+      const res = await getApiV1InfrastructureRooms({ search: 'Consultation' });
+      if (res.ok) {
+        const roomsData = extractArray(res);
+        setRooms(roomsData);
+        
+        // Auto-select first room if none selected
+        if (roomsData.length > 0 && !formData.roomId) {
+          setFormData(prev => ({ ...prev, roomId: roomsData[0].id }));
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching rooms:", e);
+    }
+  };
+
+  // Fetch rooms on mount and when department/doctor changes
+  useEffect(() => {
+    fetchRoomsList();
+  }, [formData.departmentId, formData.doctorId]);
+
+  // Fetch doctor details when doctor is selected
   useEffect(() => {
     const fetchDoctorDetails = async () => {
       if (formData.doctorId) {
         try {
           const res = await getApiDoctorsByid(formData.doctorId);
           if (res.ok && res.data?.data) {
+            const docData = res.data.data;
             setFormData(prev => ({
               ...prev,
-              fee: res.data.data.consultationFee || 0
+              fee: docData.consultationFee || 0,
+              // If the doctor response had a room, we could pre-fill it here
             }));
           }
         } catch (e) {
           console.error("Error fetching doctor details:", e);
         }
       } else {
-        setFormData(prev => ({
-          ...prev,
-          fee: 0
-        }));
+        setFormData(prev => ({ ...prev, fee: 0 }));
       }
     };
     fetchDoctorDetails();
@@ -307,7 +379,14 @@ const OPD = () => {
     // Special handling for department to set name too
     if (name === 'departmentId') {
       const dept = departments.find(d => d.id === value);
-      setFormData(prev => ({ ...prev, departmentId: value, departmentName: dept?.name || '' }));
+      setFormData(prev => ({ 
+        ...prev, 
+        departmentId: value, 
+        departmentName: dept?.name || '',
+        doctorId: '', // Reset doctor when department changes
+        roomId: '',   // Reset room when department changes
+        fee: 0        // Reset fee
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -594,12 +673,24 @@ const OPD = () => {
             </div>
             <div className="flex items-center gap-3">
               <label className="hms-form-label w-24 text-right">Doctor :</label>
-              <select name="doctorId" value={formData.doctorId} onChange={handleInputChange} className="hms-select flex-1">
+              <select 
+                name="doctorId" 
+                value={formData.doctorId} 
+                onChange={handleInputChange} 
+                onFocus={fetchAvailableDoctors}
+                className="hms-select flex-1"
+              >
                 <option value="">-- Select Doctor --</option>
                 {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName || d.name}</option>)}
               </select>
               <label className="hms-form-label ml-2">Room:</label>
-              <select name="roomId" value={formData.roomId} onChange={handleInputChange} className="hms-select w-32">
+              <select 
+                name="roomId" 
+                value={formData.roomId} 
+                onChange={handleInputChange} 
+                onFocus={fetchRoomsList}
+                className="hms-select w-32"
+              >
                 <option value="">-- Select Room --</option>
                 {rooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber}</option>)}
               </select>

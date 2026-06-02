@@ -8,14 +8,27 @@ import {
   Monitor, UtensilsCrossed, Headphones, FileOutput, Scissors, Siren, 
   ChevronRight, MoreHorizontal, ArrowUp, ArrowDown, Phone, Mail, 
   Home, MapPin, CalendarCheck, Thermometer, BloodDrop, Weight,
-  Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star, RefreshCw
+  Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star, RefreshCw,
+  Eye, Edit, LayoutDashboard, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import NurseDashboard from './NurseDashboard';
 import { 
   apiRequest, extractArray, getAssets, getPatients, getUsers, getDashboardStats, getBranches, 
-  getAppointments, getIPDAdmissions, getBilling, getStaff
+  getAppointments, getIPDAdmissions, getBilling, getStaff,
+  getApiV1ClinicalVitalsHistory, postApiV1ClinicalVitals
 } from "@/api/apiService";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'PHARMACIST' | 'LAB_TECHNICIAN';
 
@@ -50,24 +63,33 @@ interface MiniTableProps {
   headers: string[];
   rows: any[][];
   icon?: React.ElementType;
+  actions?: (row: any, index: number) => React.ReactNode;
+  rawRows?: any[];
+  pagination?: {
+    page: number;
+    size: number;
+    total: number;
+    onPageChange: (page: number) => void;
+  };
 }
 
-const MiniTable = ({ title, headers, rows, icon: Icon }: MiniTableProps) => (
-  <div className="border border-border bg-card">
-    <div className="hms-section-header flex items-center justify-between">
+const MiniTable = ({ title, headers, rows, icon: Icon, actions, rawRows, pagination }: MiniTableProps) => (
+  <div className="border border-border bg-card flex flex-col h-full">
+    <div className="hms-section-header flex items-center justify-between shrink-0">
       <div className="flex items-center gap-1.5">
         {Icon && <Icon size={12} />}
         <span className="font-semibold">{title}</span>
       </div>
       <ChevronRight size={12} className="opacity-60" />
     </div>
-    <div className="overflow-x-auto">
-      <table className="hms-table">
+    <div className="overflow-x-auto flex-1">
+      <table className="hms-table w-full">
         <thead>
           <tr>
             {headers.map((h, i) => (
               <th key={i} className="py-1 px-1.5">{h}</th>
             ))}
+            {actions && <th className="py-1 px-1.5 text-right">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -76,18 +98,59 @@ const MiniTable = ({ title, headers, rows, icon: Icon }: MiniTableProps) => (
               {row.map((cell, j) => (
                 <td key={j} className="py-1 px-1.5">{cell}</td>
               ))}
+              {actions && (
+                <td className="py-1 px-1.5 text-right">
+                  {actions(rawRows ? rawRows[i] : row, i)}
+                </td>
+              )}
             </tr>
           )) : (
-            <tr><td colSpan={headers.length} className="text-center py-4 text-muted-foreground text-xs">No records found</td></tr>
+            <tr><td colSpan={headers.length + (actions ? 1 : 0)} className="text-center py-4 text-muted-foreground text-xs">No records found</td></tr>
           )}
         </tbody>
       </table>
     </div>
+    {pagination && pagination.total > 0 && (
+      <div className="p-1.5 border-t border-border flex items-center justify-between bg-muted/20 shrink-0">
+        <span className="text-[9px] text-muted-foreground font-bold uppercase">Total: {pagination.total}</span>
+        <div className="flex items-center gap-1">
+          <button 
+            disabled={pagination.page === 0}
+            onClick={() => pagination.onPageChange(pagination.page - 1)}
+            className="p-1 hover:bg-muted disabled:opacity-30 rounded transition-colors"
+          >
+            <ChevronLeft size={12} />
+          </button>
+          <span className="text-[9px] font-bold w-12 text-center">Page {pagination.page + 1}</span>
+          <button 
+            disabled={(pagination.page + 1) * pagination.size >= pagination.total}
+            onClick={() => pagination.onPageChange(pagination.page + 1)}
+            className="p-1 hover:bg-muted disabled:opacity-30 rounded transition-colors"
+          >
+            <ChevronRight size={12} />
+          </button>
+        </div>
+      </div>
+    )}
   </div>
 );
 
 const Dashboard = () => {
   const { user } = useAuth();
+
+  const getRole = () => {
+    if (user?.role?.name) return user.role.name;
+    if (typeof user?.role === 'string') return user.role;
+    if (user?.roles && user.roles.length > 0) {
+      const firstRole = user.roles[0];
+      return typeof firstRole === 'string' ? firstRole : firstRole.name;
+    }
+    return 'RECEPTIONIST';
+  };
+
+  const role = getRole().toUpperCase();
+  if (role === 'NURSE') return <NurseDashboard />;
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     hospitals: 0,
@@ -101,16 +164,34 @@ const Dashboard = () => {
   });
   
   const [recentPatients, setRecentPatients] = useState<any[][]>([]);
+  const [rawPatients, setRawPatients] = useState<any[]>([]);
   const [recentAppointments, setRecentAppointments] = useState<any[][]>([]);
   const [recentStaff, setRecentStaff] = useState<any[][]>([]);
 
-  const fetchData = async () => {
+  // Pagination states
+  const [patientPagination, setPatientPagination] = useState({ page: 0, size: 5, total: 0 });
+
+  // Vitals states
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [vitalsData, setVitalsData] = useState({
+    weight: '',
+    height: '',
+    bloodPressure: '',
+    temperature: '',
+    pulseRate: '',
+    spo2: '',
+    remark: ''
+  });
+  const [isSavingVitals, setIsSavingVitals] = useState(false);
+
+  const fetchData = async (patientPage = 0) => {
     setLoading(true);
     try {
       const [saRes, uRes, pRes, aRes, bRes, appRes, ipdRes, billRes, staffRes] = await Promise.all([
         getDashboardStats(),
         getUsers(),
-        getPatients(),
+        getPatients({ page: patientPage, size: patientPagination.size }),
         getAssets(),
         getBranches(),
         getAppointments(),
@@ -145,9 +226,14 @@ const Dashboard = () => {
           });
       }
 
-      setRecentPatients(extractArray(pRes).slice(0, 5).map((p: any) => [
+      const patientsArray = extractArray(pRes);
+      setRawPatients(patientsArray);
+      setRecentPatients(patientsArray.map((p: any) => [
         p.uhid || 'N/A', p.patientName || p.name || 'N/A', p.gender || '-', p.mobile || '-', p.age || '-'
       ]));
+      
+      const totalPatients = pRes.data?.data?.totalElements ?? pRes.data?.totalElements ?? patientsArray.length;
+      setPatientPagination(prev => ({ ...prev, page: patientPage, total: totalPatients }));
 
       setRecentAppointments(extractArray(appRes).slice(0, 5).map((a: any) => [
         a.appointmentNo || a.id?.toString().slice(-6) || 'N/A', a.patientName || 'N/A', a.doctorName || 'N/A', a.status || 'Pending'
@@ -161,6 +247,65 @@ const Dashboard = () => {
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenVitals = async (patient: any) => {
+    setSelectedPatient(patient);
+    setLoading(true);
+    try {
+      const res = await getApiV1ClinicalVitalsHistory({ patientId: patient.id });
+      if (res.ok) {
+        const history = extractArray(res);
+        const latest = history[0] || {};
+        setVitalsData({
+          weight: latest.weight?.toString() || '',
+          height: latest.height?.toString() || '',
+          bloodPressure: latest.bloodPressure || '',
+          temperature: latest.temperature?.toString() || '',
+          pulseRate: latest.pulseRate?.toString() || '',
+          spo2: latest.spo2?.toString() || '',
+          remark: ''
+        });
+      } else {
+        setVitalsData({
+          weight: '', height: '', bloodPressure: '', temperature: '', pulseRate: '', spo2: '', remark: ''
+        });
+      }
+      setShowVitalsModal(true);
+    } catch (error) {
+      toast.error("Failed to fetch patient vitals");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveVitals = async () => {
+    if (!selectedPatient) return;
+    setIsSavingVitals(true);
+    try {
+      const res = await postApiV1ClinicalVitals({
+        patientId: selectedPatient.id,
+        weight: parseFloat(vitalsData.weight),
+        height: parseFloat(vitalsData.height),
+        bloodPressure: vitalsData.bloodPressure,
+        temperature: parseFloat(vitalsData.temperature),
+        pulseRate: parseInt(vitalsData.pulseRate),
+        spo2: parseInt(vitalsData.spo2),
+        remark: vitalsData.remark,
+        recordedAt: new Date().toISOString()
+      });
+
+      if (res.ok) {
+        toast.success("Vitals saved successfully");
+        setShowVitalsModal(false);
+      } else {
+        toast.error(res.data?.message || "Failed to save vitals");
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving vitals");
+    } finally {
+      setIsSavingVitals(false);
     }
   };
 
@@ -207,15 +352,41 @@ const Dashboard = () => {
       {/* Main Dashboard Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Left Column: Recent Activity */}
-        <div className="lg:col-span-2 space-y-3">
-          <MiniTable 
-            title="Recent Patient Registrations" 
-            headers={['UHID', 'Name', 'Gender', 'Contact', 'Age']} 
-            rows={recentPatients}
-            icon={UserPlus}
-          />
+        <div className="lg:col-span-2 space-y-3 flex flex-col">
+          <div className="flex-1">
+            <MiniTable 
+              title="Recent Patient Registrations" 
+              headers={['UHID', 'Name', 'Gender', 'Contact', 'Age']} 
+              rows={recentPatients}
+              rawRows={rawPatients}
+              icon={UserPlus}
+              pagination={{
+                page: patientPagination.page,
+                size: patientPagination.size,
+                total: patientPagination.total,
+                onPageChange: (newPage) => fetchData(newPage)
+              }}
+              actions={(patient) => (
+                <div className="flex items-center justify-end gap-1">
+                  <button 
+                    onClick={() => handleOpenVitals(patient)}
+                    className="p-1 hover:bg-primary/10 text-primary rounded transition-colors"
+                    title="View/Edit Vitals"
+                  >
+                    <Activity size={14} />
+                  </button>
+                  <button 
+                    className="p-1 hover:bg-hms-info/10 text-hms-info rounded transition-colors"
+                    title="View Patient"
+                  >
+                    <Eye size={14} />
+                  </button>
+                </div>
+              )}
+            />
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
             <MiniTable 
               title="Today's Appointments" 
               headers={['ID', 'Patient', 'Doctor', 'Status']} 
@@ -283,10 +454,55 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Vitals Modal */}
+      <Dialog open={showVitalsModal} onOpenChange={setShowVitalsModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <Activity className="text-primary" size={16} /> Patient Vitals: {selectedPatient?.patientName || selectedPatient?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Weight (kg)</Label>
+              <Input type="number" value={vitalsData.weight} onChange={e => setVitalsData({...vitalsData, weight: e.target.value})} placeholder="70.5" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Height (cm)</Label>
+              <Input type="number" value={vitalsData.height} onChange={e => setVitalsData({...vitalsData, height: e.target.value})} placeholder="170" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">BP (SYS/DIA)</Label>
+              <Input value={vitalsData.bloodPressure} onChange={e => setVitalsData({...vitalsData, bloodPressure: e.target.value})} placeholder="120/80" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Temp (°C)</Label>
+              <Input type="number" value={vitalsData.temperature} onChange={e => setVitalsData({...vitalsData, temperature: e.target.value})} placeholder="37.0" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Pulse (bpm)</Label>
+              <Input type="number" value={vitalsData.pulseRate} onChange={e => setVitalsData({...vitalsData, pulseRate: e.target.value})} placeholder="72" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">SpO2 (%)</Label>
+              <Input type="number" value={vitalsData.spo2} onChange={e => setVitalsData({...vitalsData, spo2: e.target.value})} placeholder="98" />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Remarks</Label>
+              <Input value={vitalsData.remark} onChange={e => setVitalsData({...vitalsData, remark: e.target.value})} placeholder="Patient stable..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVitalsModal(false)} className="text-[10px] h-8">Cancel</Button>
+            <Button onClick={handleSaveVitals} disabled={isSavingVitals} className="text-[10px] h-8 hms-btn-primary">
+              {isSavingVitals ? 'Saving...' : 'Save Vitals'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
-
-import { LayoutDashboard } from 'lucide-react';
 
 export default Dashboard;

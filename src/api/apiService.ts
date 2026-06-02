@@ -1485,10 +1485,17 @@ export const putApiV1ClinicalEmrByid = async (id: string, data?: any) => {
 };
 
 /**
- * Update EMR record
+ * Add nursing note
  */
-export const postApiV1ClinicalNursingNote = async (data?: any) => {
+export const postApiV1ClinicalNursingNote = async (data?: any, queryParams?: any) => {
   let endpoint = `/api/v1/clinical/nursing-note`;
+  
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams);
+    if (searchParams.toString()) {
+      endpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+    }
+  }
   
   return apiRequest(endpoint, {
     method: 'POST', body: JSON.stringify(data || {})
@@ -1824,6 +1831,14 @@ export const getApiV1ClinicalVitalsHistoryBypatientId = async (patientId: string
   return apiRequest(endpoint, {
     method: 'GET'
   });
+};
+
+/**
+ * Get Vitals History
+ */
+export const getApiV1ClinicalVitalsHistory = async (queryParams?: any) => {
+  let endpoint = `/api/v1/clinical/vitals/history`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
 };
 
 /**
@@ -2636,6 +2651,14 @@ export const deleteApiV1IpdByid = async (id: string | number) => {
  */
 export const getApiV1IpdAdmissionsSearch = async (queryParams?: any) => {
   const endpoint = `/api/v1/ipd/admissions/search`;
+  return apiRequest(endpoint, { method: 'GET', queryParams });
+};
+
+/**
+ * Get IPD Admissions
+ */
+export const getApiV1IpdAdmissions = async (queryParams?: any) => {
+  const endpoint = `/api/v1/ipd/admissions`;
   return apiRequest(endpoint, { method: 'GET', queryParams });
 };
 
