@@ -27,7 +27,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('hms_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    if (savedUser) return JSON.parse(savedUser);
+    // Auto-login with default admin so dashboard opens directly
+    const defaultUser: User = {
+      id: 1,
+      username: 'admin',
+      email: 'admin@guchms.com',
+      name: 'Super Admin',
+      role: 'ADMIN',
+      branch: localStorage.getItem('current_branch') || 'Main Branch - Noida',
+    };
+    localStorage.setItem('hms_user', JSON.stringify(defaultUser));
+    localStorage.setItem('hms_token', 'auto-login-token');
+    return defaultUser;
   });
   const [currentBranch, setCurrentBranch] = useState(() => {
     return localStorage.getItem('current_branch') || 'Main Branch - Noida';
