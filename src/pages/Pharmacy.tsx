@@ -226,7 +226,7 @@ const PurchaseOrdersPanel = ({ orders, onReceive, onEdit }: { orders: any[], onR
               <div className="flex gap-2">
                 <Eye size={13} className="text-primary cursor-pointer hover:opacity-70" onClick={() => onEdit(o)} />
                 {o.status !== 'Received' && (
-                  <Download size={13} className="text-hms-success cursor-pointer hover:opacity-70" onClick={() => onReceive(o.id)} title="Receive Stock" />
+                  <Download size={13} className="text-hms-success cursor-pointer hover:opacity-70" onClick={() => onReceive(o.id)} aria-label="Receive Stock" />
                 )}
               </div>
             </td>

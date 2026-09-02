@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, Eye, Edit, Trash2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, BarChart3, Printer } from 'lucide-react';
-import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, extractArray, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAssetCategories, getAssetLocations, getAssetVendors, getAutoAssetsMasters } from "@/api/apiService";
+import { createAsset, createAssetCategory, createAssetDepreciation, createAssetDisposal, createAssetMaintenance, createAssetVendor, createAssetsMasters, deleteAsset, deleteAssetCategory, deleteAssetVendor, extractArray, getAssetAudits, getAssetCategories, getAssetDepreciations, getAssetDisposals, getAssetLocations, getAssetMaintenances, getAssetVendors, getAssets, getAutoAssetsMasters } from "@/api/apiService";
 
 
 const StatusBadge = ({ status }: { status: string }) => {
