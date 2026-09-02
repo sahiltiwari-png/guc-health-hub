@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UtensilsCrossed, Eye, Edit, Printer, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react';
 import { extractArray, getDietPlans, getKitchenDashboard } from "@/api/apiService";
 

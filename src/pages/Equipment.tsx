@@ -104,7 +104,7 @@ const Equipment = () => {
             categories: extractArray(c), 
             maintenanceSchedules: extractArray(m),
             breakdowns: extractArray(b),
-            totalEquipments: e.total || e.data?.total || 0
+            totalEquipments: (e as any).total || (e as any).data?.total || 0
           }));
           break;
       }

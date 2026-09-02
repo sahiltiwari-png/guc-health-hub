@@ -298,7 +298,7 @@ const BloodBank = () => {
             setSelectedItem({ donorId: `D-${Date.now().toString().slice(-4)}`, firstName: '', lastName: '', gender: 'Male', bloodGroup: '' });
             setShowModal('donor');
           }}><Plus size={14} /> Register Donor</button>
-          <button className="hms-btn-secondary" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <button className="hms-btn-secondary" onClick={() => fetchData()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 

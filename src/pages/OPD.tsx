@@ -222,7 +222,7 @@ const OPD = () => {
         setIsStatusOpen(false);
         fetchInitialData(pagination.page);
       } else {
-        sonnerToast.error(res.message || "Failed to update status");
+        sonnerToast.error((res as any).message || "Failed to update status");
       }
     } catch (e) {
       console.error(e);
@@ -242,7 +242,7 @@ const OPD = () => {
         setIsVitalsOpen(false);
         fetchInitialData(pagination.page);
       } else {
-        sonnerToast.error(res.message || "Failed to record vitals");
+        sonnerToast.error((res as any).message || "Failed to record vitals");
       }
     } catch (e) {
       console.error(e);
@@ -266,7 +266,7 @@ const OPD = () => {
         fetchInitialData();
         // Reset form or redirect
       } else {
-        sonnerToast.error(res.message || "Failed to create visit");
+        sonnerToast.error((res as any).message || "Failed to create visit");
       }
     } catch (error) {
       console.error(error);

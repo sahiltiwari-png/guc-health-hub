@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
-import { updatePosition } from "@/api/apiService";
 
 const tourSteps = [
   {

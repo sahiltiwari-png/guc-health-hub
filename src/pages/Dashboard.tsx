@@ -7,7 +7,7 @@ import {
   Baby, Skull, Award, UserCog, RotateCcw, KeyRound, Warehouse, 
   Monitor, UtensilsCrossed, Headphones, FileOutput, Scissors, Siren, 
   ChevronRight, MoreHorizontal, ArrowUp, ArrowDown, Phone, Mail, 
-  Home, MapPin, CalendarCheck, Thermometer, BloodDrop, Weight,
+  Home, MapPin, CalendarCheck, Thermometer, Droplet, Weight,
   Zap, Database, Server, Wifi, Lock, Unlock, Bell, Star, RefreshCw,
   Eye, Edit, LayoutDashboard, ChevronLeft
 } from 'lucide-react';
@@ -139,10 +139,11 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   const getRole = () => {
-    if (user?.role?.name) return user.role.name;
-    if (typeof user?.role === 'string') return user.role;
+    const r: any = user?.role;
+    if (r?.name) return r.name;
+    if (typeof r === 'string') return r;
     if (user?.roles && user.roles.length > 0) {
-      const firstRole = user.roles[0];
+      const firstRole: any = user.roles[0];
       return typeof firstRole === 'string' ? firstRole : firstRole.name;
     }
     return 'RECEPTIONIST';
@@ -331,7 +332,7 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold text-primary">System Health: 98.2%</span>
             <span className="text-[9px] text-muted-foreground">{new Date().toLocaleDateString()}</span>
           </div>
-          <button onClick={fetchData} className="hms-btn-secondary p-1.5 rounded-full" title="Refresh Dashboard">
+          <button onClick={() => fetchData()} className="hms-btn-secondary p-1.5 rounded-full" title="Refresh Dashboard">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>

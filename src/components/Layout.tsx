@@ -75,10 +75,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [uhid, setUhid] = useState('');
 
   const getRole = () => {
-    if (user?.role?.name) return user.role.name;
-    if (typeof user?.role === 'string') return user.role;
+    const r: any = user?.role;
+    if (r?.name) return r.name;
+    if (typeof r === 'string') return r;
     if (user?.roles && user.roles.length > 0) {
-      const firstRole = user.roles[0];
+      const firstRole: any = user.roles[0];
       return typeof firstRole === 'string' ? firstRole : firstRole.name;
     }
     return 'RECEPTIONIST';

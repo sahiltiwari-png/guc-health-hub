@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, Printer, Search, Calendar, Filter, 
   BarChart3, PieChart, TrendingUp, RefreshCw, ChevronRight, FileSpreadsheet
 } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
 import { apiRequest, extractArray, getReports, postApiReportingGenerate, getApiReportingList } from "@/api/apiService";
 
 // ... (reportCategories stay same)
@@ -134,7 +135,7 @@ const Reports = () => {
                       className="p-1 hover:text-primary"
                       title="Download PDF"
                     >
-                      {loading === report.name ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
+                      {loadingReport === report.name ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
                     </button>
                     <button className="p-1 hover:text-hms-info" title="Print">
                       <Printer size={12} />

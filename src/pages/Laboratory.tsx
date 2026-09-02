@@ -110,11 +110,7 @@ const Laboratory = () => {
     e.preventDefault();
     try {
       const resultStr = selectedItem.parameters?.map((p: any) => `${p.parameterName} ${p.value} ${p.unit}`).join(', ');
-      await updateLabResultStatus(selectedItem.id, { 
-        status: 'COMPLETED',
-        result: resultStr,
-        resultTime: new Date().toISOString()
-      });
+      await updateLabResultStatus(selectedItem.id, 'COMPLETED');
       toast({ title: 'Success', description: 'Lab result saved' });
       setShowModal(null);
       fetchData();

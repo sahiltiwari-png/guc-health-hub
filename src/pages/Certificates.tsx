@@ -69,7 +69,7 @@ const Certificates = () => {
       if (template) {
         const matches = (template as any).layoutHtml.match(/{{(.*?)}}/g);
         if (matches) {
-          return Array.from(new Set(matches.map((m: string) => m.replace(/{{|}}/g, ''))));
+          return Array.from(new Set(matches.map((m: string) => m.replace(/{{|}}/g, '')))) as string[];
         }
       }
     }
@@ -149,7 +149,7 @@ const Certificates = () => {
     if (!verifyId) return;
     setLoading(true);
     try {
-      const res = await verifyCertificate({ certificateNumber: verifyId });
+      const res = await verifyCertificate(verifyId);
       setVerificationResult(res.data || res);
       fetchData();
     } catch (error: any) {
