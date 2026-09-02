@@ -123,7 +123,7 @@ const Leave = () => {
           <button className="hms-btn-primary flex items-center gap-1 h-8 text-[10px] font-bold uppercase" onClick={() => setShowModal('apply')}>
             <Plus size={14} /> Apply Leave
           </button>
-          <button className="hms-btn-secondary h-8" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <button className="hms-btn-secondary h-8" onClick={() => fetchData()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 

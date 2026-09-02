@@ -502,8 +502,8 @@ const OTManagement = () => {
                   <td><StatusBadge status={s.status || 'SCHEDULED'} /></td>
                   <td>
                     <div className="flex items-center gap-2">
-                      <Eye size={12} className="text-primary cursor-pointer" title="View" onClick={() => handleViewDetails(s.id)} /> 
-                      <Edit size={12} className="text-primary cursor-pointer" title="Edit" onClick={() => handleEditDetails(s.id)} />
+                      <Eye size={12} className="text-primary cursor-pointer" aria-label="View" onClick={() => handleViewDetails(s.id)} /> 
+                      <Edit size={12} className="text-primary cursor-pointer" aria-label="Edit" onClick={() => handleEditDetails(s.id)} />
                       {s.status === 'SCHEDULED' && <button onClick={() => handleAction('start', s.id)} className="text-[10px] text-green-600 font-bold hover:underline">Start</button>}
                       {s.status === 'RUNNING' && <button onClick={() => handleAction('complete', s.id)} className="text-[10px] text-blue-600 font-bold hover:underline">Complete</button>}
                       {['SCHEDULED', 'RUNNING', 'PREPARING'].includes(s.status) && <button onClick={() => handleAction('cancel', s.id)} className="text-[10px] text-red-600 font-bold hover:underline">Cancel</button>}

@@ -92,7 +92,7 @@ const Labs = () => {
     <div>
       <div className="hms-section-header flex items-center justify-between">
         <span>Laboratory Management</span>
-        <button onClick={fetchLabs} className="p-1 hover:bg-muted rounded text-primary">
+        <button onClick={() => fetchLabs()} className="p-1 hover:bg-muted rounded text-primary">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>

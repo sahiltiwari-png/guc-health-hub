@@ -104,7 +104,7 @@ const AddStaff = ({ onAdd, onCancel }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded text-xs font-bold flex items-center gap-2">
-              <XCircle size={14} /> {error}
+              <XCircle size={14} className="" /> {error}
             </div>
           )}
 

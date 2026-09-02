@@ -252,7 +252,7 @@ const IPD = () => {
     try {
       // Map form data to API format
       const admitData = {
-        patientId: patient?.id, // assuming patient state is set from search
+        patientId: (formData as any).patientId, // assuming patient state is set from search
         doctorId: formData.doctorId,
         bedId: 1, // Example bedId
         departmentId: formData.departmentId,

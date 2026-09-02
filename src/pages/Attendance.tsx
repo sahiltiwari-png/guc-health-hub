@@ -180,7 +180,7 @@ const Attendance = () => {
           <button onClick={() => setActiveTab('attendance')} className={`px-3 py-1 text-[10px] font-bold uppercase rounded-sm ${activeTab === 'attendance' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}>Attendance</button>
           <button onClick={() => setActiveTab('leaves')} className={`px-3 py-1 text-[10px] font-bold uppercase rounded-sm ${activeTab === 'leaves' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}>Leaves</button>
           <button onClick={() => setActiveTab('payroll')} className={`px-3 py-1 text-[10px] font-bold uppercase rounded-sm ${activeTab === 'payroll' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}>Payroll</button>
-          <button className="hms-btn-secondary p-1" onClick={fetchData}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <button className="hms-btn-secondary p-1" onClick={() => fetchData()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
